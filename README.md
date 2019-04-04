@@ -7,7 +7,7 @@
 
 ## Motivation
 
-...
+The aim of the project is to apply bioinformatic methods to detect non-coding disease-associated variant that may affect transcriptional regulation by modifying transcription factor binding sites. The approach is based on the integration of information elements collected automatically from various genomic databases (BioMart, dbSNP, Ensembl, HalpoReg), and on the selection of variations that may affect regulation, by combining specialized bioinformatic tools: Regulatory Sequence Analysis Tools (RSAT) and ChIP-seq (ReMap) data. For thus, we develop an analysis workflow in the R statistics language, which uses the BioConductor and CRAN libraries, to invoke remote resources (Web services). The tool is designed generically, and can be adapted for the study of regulatory variants of any disease documented in the GWAS catalog. In order to facilitate its use by a biologist, the tool automatically generates (in R markdown) an analysis report illustrated by figures and tables.
 
 ### Interoperability issues
 
