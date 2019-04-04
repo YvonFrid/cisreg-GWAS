@@ -40,12 +40,12 @@ The workflow is written in R code embedded in a R markdown document, which autom
 
 Main R packages
     
-    - bedR
-    - biomaRt
-    - haploR
-    - GenomicRanges
-    - ReMapEnrich
-    - XGR
+- bedR
+- biomaRt
+- haploR
+- GenomicRanges
+- ReMapEnrich
+- XGR
 
 
 ## Needs
