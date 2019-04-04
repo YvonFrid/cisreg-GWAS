@@ -3,7 +3,7 @@
 
 ## Project proponent
 
-- [Yvon Mbouamboua]<https://github.com/yvonfrid>, Aix-Marseille Université (AMU), France
+- [Yvon Mbouamboua](https://github.com/yvonfrid), Aix-Marseille Université (AMU), France
 
 ## Motivation
 
