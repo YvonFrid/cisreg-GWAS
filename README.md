@@ -31,8 +31,8 @@ The table below provides the URL of each resource mobilised by the workflow, and
 | HaploReg |Collect the SNPs in linkage desiquilibrium (LD)|<https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php>|R package|
 | BioMart |Collect SNP missing data|http://www.biomart.org|R package|
 | ReMap |Collect transcriptional regulators ChIP-seq experiments|http://tagc.univ-mrs.fr/remap/|Web interface|
-| Jaspar |
-| RSAT | 
+| Jaspar |Collect all matrices corresponding to transcription factor names|http://jaspar2018.genereg.net|ftp download |
+| RSAT | Prediction of variations that affect the binding score|http://rsat.sb-roscoff.fr/variation-scan_form.cgi| Web interface|
 
 ## Languages, libraires and tools used in the workflow
 
@@ -51,11 +51,14 @@ Main R packages
 ## Needs
 
 - Replace the downloads and manual analyses by programmatic accesses
+    - Use R JASPAR package or RESTful API  to download all matrices
 - REST interface for RSAT
 - REST interface for ReMap
 - Cross-references between RSAT and Jaspar matrices 
 - Cross-references between ReMap factors and Jaspar
-- ...
+- Understand ReMap and RSAT variation-scan SNPs IDs disparities
+
+
 
 ## Requested skills for the hacking
 
