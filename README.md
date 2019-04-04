@@ -29,8 +29,8 @@ The table below provides the URL of each resource mobilised by the workflow, and
 |-----------------|----------------|----------------|-------------------|
 | GWAS catalog | SNPs associated to a query disease | <https://www.ebi.ac.uk/gwas/> | ftp download |
 | HaploReg |Collect the SNPs in linkage desiquilibrium (LD)|<https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php>|R package|
-| BioMart | |||
-| ReMap |
+| BioMart |Collect SNP missing data|http://www.biomart.org|R package|
+| ReMap |Collect transcriptional regulators ChIP-seq experiments|http://tagc.univ-mrs.fr/remap/|Web interface|
 | Jaspar |
 | RSAT | 
 
@@ -39,8 +39,13 @@ The table below provides the URL of each resource mobilised by the workflow, and
 The workflow is written in R code embedded in a R markdown document, which automatically generates a report n HTML , pdf or Word .docs format                                                                                                                   . 
 
 Main R packages
-
+    
     - bedR
+    - biomaRt
+    - haploR
+    - GenomicRanges
+    - ReMapEnrich
+    - XGR
 
 
 ## Needs
