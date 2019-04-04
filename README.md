@@ -23,6 +23,12 @@ The table below provides the URL of each resource mobilised by the workflow, and
 | Jaspar |
 | RSAT | 
 
+## Languages, libraires and tools used in the workflow
+
+- R
+- Main R packages
+
+    - bedR
 
 
 ## Needs
