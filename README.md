@@ -1,5 +1,10 @@
 # A workflow to analyse disease-associated regulatory variants
 
+
+## Project proponent
+
+- [Yvon Mbouamboua]<https://github.com/yvonfrid>, Aix-Marseille Université (AMU), France
+
 ## Motivation
 
 ...
@@ -22,15 +27,34 @@ The table below provides the URL of each resource mobilised by the workflow, and
 
 ## Needs
 
+- Replace the downloads and manual analyses by programmatic accesses
+
 ## Requested skills for the hacking
+
+- Skills in API development
+- Developers of the mobilized resources
 
 ## Expected participants
 
-- Yvon Mbouamboua
 - Jacques van Helden
 - Benoît Ballester
 - Aziz Kahn
 - ....
 ...
+
+## Expectated deliveries
+
+### Final goal
+
+At the end of the hackathon ...
+
+- ...
+- ...
+
+### Intermediate goals and milestones
+
+After day 1, ...
+
+After day 2, ...
 
 
