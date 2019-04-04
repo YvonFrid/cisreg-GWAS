@@ -9,6 +9,17 @@
 
 ...
 
+### Interoperability issues
+
+- interfaces
+    - Currently there is no Web services for Remap
+    - RSAT Web services are based on SOAP/WSDL, which is not supported anymore by R
+    - ...
+    
+- IDs
+    - Cross-lins between factor names in ReMap, matrix names from RSAT, matrices from Jaspar, proteins in Uniprot, genes in Ensembl, ...
+    
+
 ## Mobilized resources
 
 The table below provides the URL of each resource mobilised by the workflow, and indicates their API if availeble. 
@@ -35,6 +46,11 @@ Main R packages
 ## Needs
 
 - Replace the downloads and manual analyses by programmatic accesses
+- REST interface for RSAT
+- REST interface for ReMap
+- Cross-references between RSAT and Jaspar matrices 
+- Cross-references between ReMap factors and Jaspar
+- ...
 
 ## Requested skills for the hacking
 
