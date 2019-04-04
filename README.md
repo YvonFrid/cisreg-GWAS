@@ -28,8 +28,8 @@ The table below provides the URL of each resource mobilised by the workflow, and
 | Resource name | Data types |  URL | Access mode in the workflow |
 |-----------------|----------------|----------------|-------------------|
 | GWAS catalog | SNPs associated to a query disease | <https://www.ebi.ac.uk/gwas/> | ftp download |
-| HaploReg |Collect th SNPs in linkage desiquilibrium|<https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php>|R package|
-| BioMart |
+| HaploReg |Collect the SNPs in linkage desiquilibrium (LD)|<https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php>|R package|
+| BioMart | |||
 | ReMap |
 | Jaspar |
 | RSAT | 
