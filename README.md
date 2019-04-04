@@ -36,7 +36,7 @@ The table below provides the URL of each resource mobilised by the workflow, and
 
 ## Languages, libraires and tools used in the workflow
 
-The workflow is written in R code embedded in a R markdown document, which automatically generates a report n HTML , pdf or Word .docs format                                                                                                                   . 
+The workflow is written in R code embedded in a R markdown document, which automatically generates a report in HTML , pdf or Word .docs format.                                                                                           
 
 Main R packages
     
