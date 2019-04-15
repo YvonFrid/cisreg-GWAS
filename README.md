@@ -13,7 +13,8 @@ The aim of the project is to apply bioinformatic methods to detect non-coding di
 
 - interfaces
     - Currently there is no Web services for Remap
-    - RSAT Web services are based on SOAP/WSDL, which is not supported anymore by R
+    - RSAT Web services were originally based on SOAP/WSDL, which is not supported anymore by R
+    - We are currently developing a REST interface (and the efforts are put on the tools that will be used for this hackathon)
     - ...
     
 - IDs
