@@ -72,8 +72,8 @@ Main R packages
 - Jacques van Helden
 - Benoît Ballester
 - Aziz Kahn
-- ....
-...
+- Thomas Rosnet
+- ... additional participants will register during the hackathon
 
 ## Expectated deliveries
 
