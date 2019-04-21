@@ -4,6 +4,7 @@
 ## Project proponent
 
 - [Yvon Mbouamboua](https://github.com/yvonfrid), Aix-Marseille Université (AMU), France
+- [Jacques van Helden], , Aix-Marseille Université (AMU), France
 
 ## Expected participants
 
@@ -72,8 +73,6 @@ Main R packages
 
 - Cross-references between RSAT and Jaspar matrices 
 - Cross-references between ReMap factors and Jaspar
-- Understand ReMap and RSAT variation-scan SNPs IDs disparities
-
 
 ## Requested skills for the hacking
 
