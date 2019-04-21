@@ -54,13 +54,16 @@ The table below provides the URL of each resource mobilised by the workflow, and
 The workflow is written in R code embedded in a R markdown document, which automatically generates a report in HTML , pdf or Word .docs format.                                                                                           
 
 Main R packages
-    
-- bedR
+
 - biomaRt
+- jsonlite
 - haploR
+- httr
 - GenomicRanges
+- RCurl
 - ReMapEnrich
 - XGR
+- xml2
 
 
 ## Needs
