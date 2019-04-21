@@ -4,8 +4,7 @@
 ## Project proponent
 
 - [Yvon Mbouamboua](https://github.com/yvonfrid), Aix-Marseille Université (AMU), France
-- [Jacques van Helden], , Aix-Marseille Université (AMU), France
-
+- [Jacques van Helden](https://github.com/jvanheld), Institut Français de Bioinformatique + Aix-Marseille Université
 ## Expected participants
 
 - Jacques van Helden
