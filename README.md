@@ -99,7 +99,7 @@ After day 2, ...
 ### Deliverables
 
 - A workflow integrated in an R markdown document that automatically runs the analysis and generates a report
-- A yaml-base management of the parameters of the workflow
+- A yaml-base management of the parameters of the [workflow](git@github.com:YvonFrid/cisreg-GWAS.git)
 - Examples of utiliation with selected study cases
 - A Shiny-based Web interface to the workflow
 - Full code of the workflow available in github
