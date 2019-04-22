@@ -102,6 +102,6 @@ After day 2, ...
 - A yaml-base management of the parameters of the workflow
 - Examples of utiliation with selected study cases
 - A Shiny-based Web interface to the workflow
-- Full code of the workflow available in [github](YvonFrid/cisreg-GWAS.git)
+- Full code of the workflow available in [github](YvonFrid)
 - A user documentation enabling biologists to run the anlayses on  their own computer
 
