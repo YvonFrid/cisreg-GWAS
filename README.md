@@ -87,7 +87,7 @@ Main R packages
 
 ### Final goal
 
-At the end of the hackathon, we aim at providing a fully automated workflow relying as much as possible on APIs wihout having to download the full datasetsa dn parse them locally. 
+At the end of the hackathon, we aim at providing a fully automated workflow relying as much as possible on APIs wihout having to download the full datasets and parse them locally. 
 
 
 ### Intermediate goals and milestones
