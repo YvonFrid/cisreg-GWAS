@@ -1,0 +1,17 @@
+*.pdf
+*.png
+*.eps
+*.jpg
+.RData
+.Rapp.history
+.Rhistory
+Icon
+gene_wise_approach
+madibou.dot
+gene_wise_approach.dot
+snp_wise_approach.dot
+Icon
+.DS_Store
+Icon
+Icon
+Icon

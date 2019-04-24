@@ -1,0 +1,336 @@
+digraph {
+
+	## General properties of the graph (font, color, ...)
+	graph [fontname = "ArialBlack",fontsize = "14", label = " " labelloc = "t", fontcolor = "#0066BB", nodesep = "0.1", ranksep = "0.2"];
+	edge [fontname = "ArialMT",fontsize = "10",labelfontname = "times",labelfontsize = "12", arrowsize = "0.5", color = "#666666"];
+	node [fontname = "ArialMT",fontsize = "10",shape = record,height = "0.2", color = "#666666"];
+
+	
+	subgraph cluster_0 {
+		color="#0066BB";
+		bgcolor="#EEEEEE";
+		label = "Prediction of regulatory SNPs";
+
+	## Rechearch of candidate Genes/SNPs
+	gwas_catalog [shape = "cylinder", 
+			style = "rounded,filled", 
+			fillcolor = "#D6EEFA", 
+			label = "GWAS\ncatalog",
+			URL = "http://www.ebi.ac.uk/gwas/"];
+	
+	gwas_catalog -> gene_variant
+
+	gene_variant [shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD", 
+			label = "{R | Selection of \n
+				disease-associated \n
+				genes and variants}"];
+
+	gene_variant -> info 
+
+	info [shape = "record", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "{Disease-associated variant informations |
+					 Table (tsv) with variants, genes, phenotypes}"];
+	
+	info -> bedr
+	
+	
+encode -> bedr
+
+bedr -> goi
+
+goi[shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{Regulons of Interest (ROI) | Promoters and Enhancers that can be \n  assigned to the Genes of Interest (GOIs) \n (5Kb window both upstream and downstream of the TSS)}"];
+		
+			
+  	info -> biomaRt
+  	
+  	 biomaRt [shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD",
+			label = "{biomaRt | Checking all variants in dbSNP}"];
+			
+		biomaRt -> dbSNP
+		
+			dbSNP[shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{Variants found in dbSNP | Table (tsv)}"];
+		
+		dbSNP -> selectSNPs
+		
+		 selectSNPs [shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD",
+			label = "{Selection of the SNPs}"];
+			
+			selectSNPs -> snpInfos
+			
+			snpInfos[shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{SNP features | Table (tsv)}"];
+			
+    snpInfos -> r1
+  	     r1 [shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD",
+			label = "{R | Selection of non-coding SNPs}"];
+
+	r1 -> noncoding
+ 
+			
+   noncoding[shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{Non-coding Disease-associated SNPs | Table (tsv)}"];
+
+
+   noncoding -> r2
+
+	r2 [shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD",
+			label = "{R | Filter on number of studies}"];
+
+
+	r2 -> tagsnps
+
+	tagsnps [shape="rectangle", style="filled", fillcolor="#FFEEDD", label="Tag SNPs"];
+
+	tagsnps -> haploreg
+
+
+	subgraph cluster_4 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "HaploReg";
+		style = "rounded";
+
+
+	haploreg[shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD", 
+			label = "{LD SNPs|HaploR}"];
+}
+	haploreg -> soi
+	
+
+	soi [shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{SNPs Of Interest (SOIs) | All LD SNPs}"];
+
+	
+
+	soi -> bedr
+
+	bedr[shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD", 
+			label = "{GenomicRanges}"];
+  
+	
+	encode [shape = "cylinder", 
+	style = "rounded,filled", 
+	fillcolor = "#D6EEFA",
+				label = "ENCODE/RoadMap \n
+				Functional Enhancers and Promoters"];
+
+
+	bedr -> snpInEnhProm
+
+	snpInEnhProm[shape = "record", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "{Non-coding SNPs in Enhancers/Promoters \n Reguloms Of Interest (ROIs) | IDs, bed, VCF format}"];
+
+  snpInEnhProm -> potrSNPs2
+  
+  ## RegulomDB
+  subgraph cluster_2 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "RegulomDB";
+		style = "rounded";
+
+
+		potrSNPs2 [shape = "", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "rsID file", 
+				fontcolor = "#0D73A7"];
+	
+
+		regdb [shape = "cylinder", 
+						style = "rounded,filled", 
+						fillcolor = "#D6EEFA", 
+						label = "RegulomDB", 
+						URL = "http://www.regulomedb.org", 
+						fontcolor = "#0D73A7"];
+						
+	potrSNPs2 -> queryRegulome
+	regdb -> queryRegulome
+	
+	queryRegulome[shape = "record", 
+				style = "rounded,filled", 
+				fillcolor = "#EEFFDD", 
+				label = "{queryRegulome}", 
+				fontcolor = "#0D73A7"];
+
+		}
+
+queryRegulome -> predrSNPs
+  
+				
+	predrSNPs	[shape = "record", 
+	style = "filled", 
+	fillcolor = "#FFEEDD", 
+	label = "{Predicted rSNPs}"];
+				
+	snpInEnhProm -> potrSNPs1
+  snpInEnhProm -> potrSNPs3
+  
+  ## RSAT
+	subgraph cluster_5 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "RSAT";
+		style = "rounded";
+
+potrSNPs1 [shape = "", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "rsID file", 
+				fontcolor = "#0D73A7"];
+				
+	potrSNPs1 -> variation_info
+	
+	## variation-info
+	variation_info [shape = "record", 
+					style = "rounded,filled", 
+					fillcolor = "#EEFFDD", 
+					label = "{Coordinate list of SNP IDs| variation-info}", 
+					URL = "http://rsat.sb-roscoff.fr/variation-info_form.cgi", 
+					fontcolor = "#0D73A7"];
+
+	variation_info -> snp_info
+	
+	snp_info [shape = "record", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "{SNP coordinates | tab-delimited }"];
+
+	snp_info -> retrieve_variation_seq
+
+	## retrieve-variation-seq
+	retrieve_variation_seq [shape = "record", 
+							style = "rounded,filled", 
+							fillcolor = "#EEFFDD", 
+							label = "{SNP sequences retrieval | retrieve-variation-seq}", 
+							URL = "http://rsat.sb-roscoff.fr/retrieve-variation-seq_form.cgi", 
+							fontcolor = "#0D73A7"];
+
+	retrieve_variation_seq -> snp_seq
+
+	snp_seq  [shape = "record", 
+			  style = "filled", 
+			  fillcolor = "#FFEEDD", 
+			  label = "{SNP sequences | tab-delimited }"];
+				
+	snp_seq -> variation_scan
+
+
+	## variation-scan
+	variation_scan [shape = "record", 
+					style = "rounded,filled", 
+					fillcolor = "#EEFFDD", 
+					label = "{SNP sequence scanning | variation-scan}", 
+					URL = "http://rsat.sb-roscoff.fr/variation-scan_form.cgi", 
+					fontcolor = "#0D73A7"];
+	
+
+	## Matrice database
+	matrices  [shape = "cylinder", 
+	style = "rounded,filled", 
+	fillcolor = "#D6EEFA", 
+	label = "TFBM collection\n(HOCCOMOCO,\nJASPAR)", 
+		URL = "http://jaspar.genereg.net/", 
+		fontcolor = "#0D73A7"];
+
+	matrices -> variation_scan
+	}
+
+variation_scan -> candidate_rsnps
+
+	candidate_rsnps [shape = "record", 
+	style = "filled", 
+	fillcolor = "#FFEEDD", 
+	label = "{Candidate rSNPs | tab-delimited }"];
+
+
+		## REMAP
+subgraph cluster_3 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "ReMap";
+		style = "rounded";
+
+potrSNPs3 [shape = "", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "bed file", 
+				fontcolor = "#0D73A7"];
+				
+	potrSNPs3 -> roken			
+				
+		roken [shape = "record", 
+				style = "rounded,filled", 
+				fillcolor = "#EEFFDD", 
+				label = "{ROKEN}", 
+				fontcolor = "#0D73A7"];
+	
+
+		remapcatalogue [shape = "cylinder", 
+						style = "rounded,filled", 
+						fillcolor = "#D6EEFA", 
+						label = "ReMap catalogue", 
+						URL = "http://tagc.univ-mrs.fr/remap/index.php?page = download/", 
+						fontcolor = "#0D73A7"];
+	remapcatalogue -> roken 
+
+		}
+roken -> tfenrichissment
+
+
+	tfenrichissment [shape = "record", 
+					style = "filled", 
+					fillcolor = "#FFEEDD", 
+					label = "{TF enrichissments}"];
+				
+				
+				
+			bedr2[shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#EEFFDD", 
+			label = "{bedR}"];
+			
+ candidate_rsnps -> bedr2 
+ tfenrichissment -> bedr2
+ predrSNPs -> bedr2
+ bedr2 -> potentialrsnps
+
+  	potentialrsnps [shape = "record", 
+					style = "filled", 
+					fillcolor = "#FFEEDD", 
+					label = "{Potential rSNPs}"];
+				
+  }
+  
+
+}

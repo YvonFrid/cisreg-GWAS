@@ -1,0 +1,32 @@
+digraph {
+
+	## General properties of the graph (font, color, ...)
+	graph [fontname="ArialBlack",fontsize="14", label=" " labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2"];
+	edge [fontname="ArialMT",fontsize="10",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
+
+	
+	## Rechearch of candidate SNPs
+gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#D6EEFA", label = "GWAS\ncatalog", URL = "http://www.ebi.ac.uk/gwas/"];
+
+	## 1000 genomes
+	gwas_catalog -> tagsnps
+	
+
+	tagsnps[shape="record", style="filled", fillcolor="#FFEEDD", label="{31 TagSNPs associated with \n severe malaria}"];
+	
+	tagsnps -> ldsnp
+		ldsnp [shape="record", style="filled", fillcolor="#FFEEDD", label="{344 SNPs in LD}"];
+
+  ldsnp -> nonCoding
+    nonCoding [shape="record", style="filled", fillcolor="#FFEEDD", label="{335 non-coding SNPs in LD}"];
+  
+			ldsnp -> genes
+		genes [shape="record", style="filled", fillcolor="#FFEEDD", label="{31 genes/intergenic regions}"];
+		
+		nonCoding -> varscan
+		varscan [shape="record", style="filled", fillcolor="#FFEEDD", label="{RSAT variation-scan (p.value = 1e-03) | 311 SNPs \n 538 motifs}"];
+		
+		nonCoding -> enrich
+		enrich [shape="record", style="filled", fillcolor="#FFEEDD", label="{ReMapEnrich | 169 TFs \n 16 significant TFs (q.value \< 0.1) }"];
+}

@@ -1,0 +1,44 @@
+digraph {
+
+	graph [fontname="ArialBlack",fontsize="14", label="" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2", rankdir=TB];
+	edge [fontname="ArialMT",fontsize="12",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
+
+
+
+	subgraph cluster_0 {
+		 color="#0066BB";
+	 	 label= < <B>Determinant of human malaria</B> > ;
+
+		 host [shape="record", style="filled", fillcolor="#FFEEDD", label="{Host susceptibility factors \n
+		 - Age \n
+		 - Gender \n
+		 - Ethnicity \n
+		 - Genetic polymorphism}"]
+
+    parasite [shape="record", style="filled", fillcolor="#FFEEDD", label="{Parasite virulence factors \n
+		 - Parasitic strain \n
+		 - Multiplication rate \n
+		 - Genetic and antigenic variability}"]
+		
+		 host -> pf
+		 parasite -> pf
+
+		 pf  [shape="record", style="rounded,filled", fillcolor="#FFA07A", label="{Plasmodium infection}"]
+
+  pf -> asymptomatic
+  pf -> mild
+  pf -> severe
+		asymptomatic [shape="record", style="rounded,filled", fillcolor="#E6E6FA", label="{Asymptomatic}"]
+		 mild [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{Mild}"]
+		 severe [shape="record", style="rounded,filled", fillcolor="#FA8072", label="{Severe}"]
+		 
+		 severe -> cm
+		 severe -> sa
+		 cm [shape="record", style="rounded,filled", fillcolor="#FA8072", label="{Cerebral Malaria (CM)}"]
+		 sa [shape="record", style="rounded,filled", fillcolor="#FA8072", label="{Severe Anemia (SA)}"]
+	}
+	
+}
+
+
