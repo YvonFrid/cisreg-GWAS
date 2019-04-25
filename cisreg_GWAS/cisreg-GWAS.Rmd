@@ -105,10 +105,13 @@ source("R/bed_to_granges.R")
 ## Parameters
 parameters <- list(
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068",
+#  query =  "EFO_0001068", # malaria
+  query =  "EFO_0008407", # tuberculosis
+  ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "EUR",
-  #maf <- 0.05,
-  r2 <- 0.8,
+  #maf = 0.05,
+  r2 = 0.8,
+  ld.distance = "200",
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
@@ -309,7 +312,31 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
 ```
 
 
+
+To select all disease trait-associated variants, we downloaded the publicly available GWAS data from the [GWAS catalog](https://www.ebi.ac.uk/gwas) website [@macarthur_new_2017].
+
+Parameters for the GWAS catalog: 
+  
+- Query disease identifier: `r parameters$query`
+- Query URL: `r gwascatalog.disease.url`
+- GWAS catalog data table for disease: [click to download](`r gwascatalog.table.url`)
+
+
+**Note:**
+  
+  - The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
+
+
 ## Retrieval of disease-associated SNPs
+
+We define as **tag SNPs** the non-coding SNPs associated to the disease. 
+It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
+
+We select the **Tag SNPs** by  filtering out:
+  
+  - all missing variants by keeping all with rs ID variant.
+- some redundant disease-SNPs associations  resulting from different studies.
+
 
 
 ```{r downloag_gwas_data}
@@ -350,7 +377,7 @@ message("\tGWAS catalog contains ",
         nbStudies, 
         " studies for trait ", parameters$trait)
 
-rsIDs <- vector()
+DAsnpIDs <- vector()
 i <- 0
 snpTable <- data.frame()
 for (studyURL in SNPstudyLinks) {
@@ -368,52 +395,35 @@ for (studyURL in SNPstudyLinks) {
   ## JvH:  BUG FOR ROW BINDING
   # snpTable <- rbind(snpTable, newSnpTable)
 #  View(studyRESToutput)
-  rsIDs <- append(rsIDs, newSnpTable$rsId)
+  DAsnpIDs <- append(DAsnpIDs, newSnpTable$rsId)
 }
-nbDiseaseAssociatedSNPs <- length(rsIDs)
+nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
 message("Number of disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
 
 
 gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 
-if (parameters$force.download || !file.exists(gwas.file)) {
-  message("Downloading disease-associated SNPs and Genes from GWAS catalog")
-  download.file(url = query.url,
-                destfile = gwas.file, method = 'auto')
-  message("\tDownloaded ", parameters$query, "-associated GWAS in file ", gwas.file)
-} else {
-  message("\tDisease-associated SNPs file already there: ", gwas.file)
-}
+# if (parameters$force.download || !file.exists(gwas.file)) {
+#   message("Downloading disease-associated SNPs and Genes from GWAS catalog")
+#   download.file(url = query.url,
+#                 destfile = gwas.file, method = 'auto')
+#   message("\tDownloaded ", parameters$query, "-associated GWAS in file ", gwas.file)
+# } else {
+#   message("\tDisease-associated SNPs file already there: ", gwas.file)
+# }
+
+## Check SNP IDs
+rsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+
+nonRsIDs <- setdiff(DAsnpIDs, rsIDs)
+message("SNPs with rs identifier: ", length(rsIDs))
+message("SNPs with non-rs identifier: ", length(nonRsIDs))
 
 ```
 
 
-To select all disease trait-associated variants, we downloaded the publicly available GWAS data from the [GWAS catalog](https://www.ebi.ac.uk/gwas) website [@macarthur_new_2017].
 
-Parameters for the GWAS catalog: 
-  
-- Query disease identifier: `r parameters$query`
-- Query URL: `r gwascatalog.disease.url`
-- GWAS catalog data table for disease: [click to download](`r gwascatalog.table.url`)
-
-
-**Note:**
-  
-  - The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
-
-
-## Retrieval of disease-associated SNPs
-
-We define as **tag SNPs** the non-coding SNPs associated to the disease. 
-It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
-
-We select the **Tag SNPs** by  filtering out:
-  
-  - all missing variants by keeping all with rs ID variant.
-- some redundant disease-SNPs associations  resulting from different studies.
-
-
-```{r tagSNPs}
+```{r tagSNPs, eval=FALSE, echo=FALSE}
 #message("Reading GWAS catalog in tsv format")
 gwasResults <- read.delim(file = gwas.file, 
                           header = TRUE, 
@@ -479,8 +489,9 @@ write.table(x = tagSNPs,
 In total, we found `r length(tagSNPs$tagSNPs)` **TagSNPs** from GWAS catalog.
 
 
-```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS"), out.width = "100%"}
 # Proportion of genomic context
+
+```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS"), out.width = "100%", eval=FALSE, echo=FALSE}
 table <- table(tagSNPs$CONTEXT)
 pct <- round(table/sum(table)*100)
 lbls <- names(table)
@@ -503,34 +514,67 @@ pie(table,
 In order to get causal SNPs, we collect from each tag SNP all the other SNPs in linkage desiquilibrium. 
 
 We used the [halpoR package](https://cran.r-project.org/web/packages/haploR/vignettes/haplor-vignette.html) [@ward_haploreg:_2012; @ward_haploreg_2016] which allows to recover SNPs in high LD (with the **r^2^ = 0.8**) using HaploReg by specifying the population. We specified the African population and submitted the **Tag SNPs from GWAS catalog.**
+
+
   
 
 
 ```{r querying_haploreg}
 
-## Querying haploreg for the linkage desequilibrium
+message("Getting LD SNPs from Ensembl")
 
-  message("Querying HaploReg to get SNPs in linkage disequilibrium with tag SNPs")
-  haploR <- queryHaploreg(query = tagSNPs$tagSNPs, 
-                            ldThresh = r2, 
-                            ldPop = parameters$population,
-                            epi = "imputed",
-                            genetypes = "both", 
-                            verbose = TRUE,
-                            timeout = 1000) 
+lsSNPsIDs <- vector()
+i <- 0
+nbRsIDs <- length(rsIDs)
+for (rsID in rsIDs) {
+  i <- i + 1
+  ldURL <- paste(sep = "", 
+                 "http://rest.ensembl.org/ld/human/", rsID, "/",
+                 parameters$ld.pop.prefix, parameters$population,
+                 "?content-type=application/json",
+                 "&r2=", parameters$r2, 
+                 "&window_size=", parameters$ld.distance)
+  newLdSNPs <- fromJSON(ldURL, simplifyDataFrame = TRUE)
+  # names(newLdSNPs)
+  lsSNPsIDs <- append(lsSNPsIDs, newLdSNPs$variation2)
+  message("\tCollected\t",  nrow(newLdSNPs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
+  # View(ldSNPs)
+}
+lsSNPsIDs <- unique(lsSNPsIDs)
+nbLDSNPs <- length(lsSNPsIDs)
+message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
+#sort(table(lsSNPsIDs))
 
-haploR <- haploR[!duplicated(haploR$rsID),]
 
-message(length(haploR$rsID), " SNPs in LD")
+## TO DO
 
-haploreg.file <- "haploreg.tsv"
-haploreg.path <- file.path(dir.path["HaploReg"], haploreg.file)
-write.table(x = haploR,
-            file = haploreg.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+# - merge DASNPs and LD-SNPs
+# - filter out coding SNPs -> SNPs of interest (SOIs)
+# - gather all the information (coordinates, ...) for SOIs
+# ...
+
+# ## Querying haploreg for the linkage desequilibrium
+# message("Querying HaploReg to get SNPs in linkage disequilibrium with tag SNPs")
+# haploR <- queryHaploreg(query = tagSNPs$tagSNPs, 
+#                         ldThresh = r2, 
+#                         ldPop = parameters$population,
+#                         epi = "imputed",
+#                         genetypes = "both", 
+#                         verbose = TRUE,
+#                         timeout = 1000) 
+# 
+# haploR <- haploR[!duplicated(haploR$rsID),]
+# 
+# message(length(haploR$rsID), " SNPs in LD")
+# 
+# haploreg.file <- "haploreg.tsv"
+# haploreg.path <- file.path(dir.path["HaploReg"], haploreg.file)
+# write.table(x = haploR,
+#             file = haploreg.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
 
 #kable(head(haploR[, c( "chr", "pos_hg38", "rsID",  "is_query_snp", "query_snp_rsid" , "ref", "alt" , "r2", "D'",  "AFR", "AMR",  "ASN", "EUR")]), caption = "SNPs in linkage disequilibrium (LD)")
 
@@ -671,7 +715,7 @@ SOIsError <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id", all.x =
 
 biomaRtError <- subset(SOIsError, is.na(refsnp_source))
 
-message("The following rsIds had no information available on dbSNP:  ",
+message("The following DAsnpIDs had no information available on dbSNP:  ",
               paste( biomaRtError$rsID , collapse = ", "),
               call. = FALSE)
 
