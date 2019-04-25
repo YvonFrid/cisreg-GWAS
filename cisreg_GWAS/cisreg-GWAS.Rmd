@@ -104,7 +104,7 @@ source("R/bed_to_granges.R")
 ## Parameters
 parameters <- list(
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0008407",
+  query =  "EFO_0001068",
   population = "EUR",
   #maf <- 0.05,
   r2 <- 0.8,
@@ -296,10 +296,11 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
 message("Downloading GWAS catalog data")
 
 ## URL to the GWAS REST API query for the disease
-gwascatalog.disease.urlrest <- paste(
+
+gwascatalog.studies.urlrest <- paste(
   sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits", parameters$query)
-message("GWAS catalog link\t", gwascatalog.disease.urlrest)
+  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", parameters$query, "/studies")
+message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
 
 gwascatalog.disease.url <- paste(
   sep = "", 
@@ -310,6 +311,26 @@ gwascatalog.table.url <- paste(
   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 message("GWAS TSV table\t", gwascatalog.table.url)
 
+library(httr)
+library(jsonlite)
+library(xml2)
+ 
+gwasrestoutput <- fromJSON(gwascatalog.studies.urlrest, content_type("application/json"))
+ 
+stop_for_status(gwasrestoutput)
+
+numberOfRows <- nrow(df["studies.accessionId"]);
+
+for (i in 1:numberOfRows){
+  studyToInspect <- df[i, "studies.accessionId"]
+  
+  ## URL to the GWAS REST API query for the disease
+gwascatalog.disease.urlrestsnps <- paste(
+  sep = "", 
+  "https://www.ebi.ac.uk/gwas/rest/api/studies/", studyToInspect, "/snps")
+message("GWAS catalog SNPs link\t", gwascatalog.disease.urlrestsnps)
+  
+}
 
 
 ## Downloading disease-associated information from GWAS catalog
