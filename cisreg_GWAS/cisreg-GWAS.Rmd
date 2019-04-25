@@ -83,7 +83,7 @@ knitr::opts_chunk$set(
   fig.width = 7, 
   fig.height = 5, 
   fig.align = "center", 
-  fig.path = paste(sep = "", "figures/", parameters$query, "_"),
+#  fig.path = paste(sep = "", "figures/", parameters$query, "_"),
   size = "tiny", 
   warning = FALSE, 
   results = TRUE, 
