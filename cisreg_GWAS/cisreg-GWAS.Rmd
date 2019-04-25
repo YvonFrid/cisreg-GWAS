@@ -90,6 +90,11 @@ knitr::opts_chunk$set(
   message = FALSE, 
   comment = "")
 
+
+## Load custom functions
+source("R/bed_to_granges.R")
+
+
 ```
 
   
@@ -121,9 +126,17 @@ parameters$result.dir = file.path(parameters$output.dir, parameters$query)
 message("Result directory\t", parameters$result.dir)
 dir.create(parameters$result.dir)
 
-kable(t(as.data.frame(parameters)))
+parameters$figure.dir = file.path(parameters$result.dir, "figures")
+message("Result directory\t", parameters$figure.dir)
+dir.create(parameters$figure.dir)
 
-source("R/bed_to_granges.R")
+kable(t(as.data.frame(parameters)), 
+      col.names = c("Parameter", "value"))
+
+
+
+knitr::opts_chunk$set(fig.path = paste(
+  sep = "", parameters$figure.dir, parameters$query, "_"))
 ```
 
 
