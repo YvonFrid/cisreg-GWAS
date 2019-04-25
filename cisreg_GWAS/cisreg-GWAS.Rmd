@@ -312,10 +312,6 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
 message("Downloading GWAS catalog data")
 
 ## URL to the GWAS REST API query for the disease
-gwascatalog.disease.urlrest <- paste(
-  sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", parameters$query, "/associations?projection=associationByEfoTrait")
-message("GWAS catalog link\t", gwascatalog.disease.urlrest)
 
 gwascatalog.studies.urlrest <- paste(
   sep = "", 
@@ -335,23 +331,22 @@ library(httr)
 library(jsonlite)
 library(xml2)
  
-gwasrestoutput <- fromJSON(gwascatalog.disease.urlrest, content_type("application/json"))
+gwasrestoutput <- fromJSON(gwascatalog.studies.urlrest, content_type("application/json"))
  
 stop_for_status(gwasrestoutput)
 
 numberOfRows <- nrow(df["studies.accessionId"]);
 
 for (i in 1:numberOfRows){
-
+  studyToInspect <- df[i, "studies.accessionId"]
+  
+  ## URL to the GWAS REST API query for the disease
+gwascatalog.disease.urlrestsnps <- paste(
+  sep = "", 
+  "https://www.ebi.ac.uk/gwas/rest/api/studies/", studyToInspect, "/snps")
+message("GWAS catalog SNPs link\t", gwascatalog.disease.urlrestsnps)
+  
 }
-
-
- 
-# use this if you get a simple nested list back, otherwise inspect its structure
-#head(data.frame(t(sapply(content(gwasrestoutput),c))))
-gwasstruct <- (fromJSON(toJSON(content(gwasrestoutput))))
-
-df <- data.frame(gwasstruct$`_embedded`)
 
 
 ## Downloading disease-associated information from GWAS catalog
