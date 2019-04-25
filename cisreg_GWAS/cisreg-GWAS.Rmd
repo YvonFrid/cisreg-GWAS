@@ -275,8 +275,8 @@ for (flowchart in c(
   "flowchart/rsnp_pipeline")) {
   
   for (format in parameters$flowchart.formats) {
-    outfile <- paste(sep="", flowchart, ".", format)
-    cmd <- paste(sep="", "dot -T", format, 
+    outfile <- paste(sep = "", flowchart, ".", format)
+    cmd <- paste(sep = "", "dot -T", format, 
                  " ",  flowchart,".dot",
                  " -o ", outfile)
     #    message("\t", format, "\t", cmd)
@@ -285,8 +285,9 @@ for (flowchart in c(
   }
 }
 
-# Generate flowchart
-knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.", parameters["flowchart.format"]))
+# Include flowchart
+knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
+                              parameters["flowchart.format"]))
 ```
 
 
@@ -306,8 +307,9 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.", parameters["fl
 
 
 ```{r downloag_gwas_data}
-## Define the query
-#query = "EFO_0001068" # Identifier of malaria GWAS catalog
+## Downloading GWAS data
+
+message("Downloading GWAS catalog data")
 
 ## URL to the primary GWAS page for the query disease
 gwascatalog.disease.url <- paste(
