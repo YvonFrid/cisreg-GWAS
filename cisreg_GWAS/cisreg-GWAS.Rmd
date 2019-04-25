@@ -264,26 +264,10 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 5. eQTL, from [**HaploReg**](https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php)
 
 
-## Pipeline
+## Flow chart of the workflow
 
-```{r fig.cap = paste("Annotation pipeline of genetic variants."), out.width = "100%"}
 
-message("Updating flowchart figures")
-for (flowchart in c(
-  "flowchart/cisreg-GWAS",
-  "flowchart/workflow",
-  "flowchart/rsnp_pipeline")) {
-  
-  for (format in parameters$flowchart.formats) {
-    outfile <- paste(sep = "", flowchart, ".", format)
-    cmd <- paste(sep = "", "dot -T", format, 
-                 " ",  flowchart,".dot",
-                 " -o ", outfile)
-    #    message("\t", format, "\t", cmd)
-    system(cmd)  
-    message("\t", outfile)
-  }
-}
+```{r fig.cap = "Annotation pipeline of genetic variants.", out.width = "100%"}
 
 # Include flowchart
 knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
