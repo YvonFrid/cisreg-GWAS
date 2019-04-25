@@ -91,6 +91,7 @@ knitr::opts_chunk$set(
   comment = "")
 
 
+
 ## Load custom functions
 source("R/bed_to_granges.R")
 
@@ -124,21 +125,41 @@ message("\tWorking directory: ", parameters$working.dir)
 ## by concatenating the output dir and the query ID
 parameters$result.dir = file.path(parameters$output.dir, parameters$query)
 message("Result directory\t", parameters$result.dir)
-dir.create(parameters$result.dir)
+dir.create(parameters$result.dir, showWarnings = FALSE, recursive = TRUE)
 
 parameters$figure.dir = file.path(parameters$result.dir, "figures")
 message("Result directory\t", parameters$figure.dir)
-dir.create(parameters$figure.dir)
+dir.create(parameters$figure.dir, showWarnings = FALSE, recursive = TRUE)
 
+knitr::opts_chunk$set(fig.path = paste(
+  sep = "", parameters$figure.dir, parameters$query, "_"))
+
+
+
+```
+
+
+```{r disease_of_interest}
+## Identify the disease based on the EFO ID
+message("Identifying the disease of interest")
+diseaseURL <- paste(sep = "/", 
+                    "http://www.ebi.ac.uk/gwas/rest/api/efoTraits", 
+                    parameters$query)
+
+GWASstudiesRestOutput <- fromJSON(
+  diseaseURL, 
+  content_type("application/json"), 
+  simplifyDataFrame = FALSE)
+
+
+parameters$trait <- GWASstudiesRestOutput$trait
+
+## Generate a table displaying the parameters for the report
 kable(t(as.data.frame(parameters)), 
       col.names = c("Parameter", "value"))
 
 
-
-knitr::opts_chunk$set(fig.path = paste(
-  sep = "", parameters$figure.dir, parameters$query, "_"))
 ```
-
 
 
 
@@ -288,6 +309,7 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
 ```
 
 
+## Retrieval of disease-associated SNPs
 
 
 ```{r downloag_gwas_data}
@@ -299,7 +321,8 @@ message("Downloading GWAS catalog data")
 
 gwascatalog.studies.urlrest <- paste(
   sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", parameters$query, "/studies")
+  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", 
+  parameters$query, "/studies")
 message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
 
 gwascatalog.disease.url <- paste(
@@ -307,36 +330,49 @@ gwascatalog.disease.url <- paste(
   "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
 message("GWAS catalog link\t", gwascatalog.disease.url)
 
-gwascatalog.table.url <- paste(
-  sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
-message("GWAS TSV table\t", gwascatalog.table.url)
+# gwascatalog.table.url <- paste(
+#   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+# message("GWAS TSV table\t", gwascatalog.table.url)
 
-library(httr)
-library(jsonlite)
-library(xml2)
- 
-gwasrestoutput <- fromJSON(gwascatalog.studies.urlrest, content_type("application/json"))
- 
-stop_for_status(gwasrestoutput)
+GWASstudiesRestOutput <- fromJSON(
+  gwascatalog.studies.urlrest, 
+  content_type("application/json"), 
+  simplifyDataFrame = TRUE)
+names(GWASstudiesRestOutput)
 
-numberOfRows <- nrow(df["studies.accessionId"]);
+# View(GWASstudiesRestOutput)
+# View(GWASstudiesRestOutput[["_embedded"]])
 
-for (i in 1:numberOfRows){
-  studyToInspect <- df[i, "studies.accessionId"]
-  
-  ## URL to the GWAS REST API query for the disease
-gwascatalog.disease.urlrestsnps <- paste(
-  sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/studies/", studyToInspect, "/snps")
-message("GWAS catalog SNPs link\t", gwascatalog.disease.urlrestsnps)
-  
+SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
+nbStudies <- length(SNPstudyLinks)
+
+message("\tGWAS catalog contains ", 
+        nbStudies, 
+        " studies for trait ", parameters$trait)
+
+rsIDs <- vector()
+i <- 0
+snpTable <- data.frame()
+for (studyURL in SNPstudyLinks) {
+  i <- i + 1
+  message("Retrieving SNPs for study ", i , "/", nbStudies, "\t", studyURL)
+  studyRESToutput <- fromJSON(studyURL,  
+                              content_type("application/json"), 
+                             simplifyDataFrame = TRUE)
+  nbSNPs <- nrow(snpTable)
+  rownames(snpTable)
+  newSnpTable <- studyRESToutput$`_embedded`$singleNucleotidePolymorphisms
+  rownames(newSnpTable)
+  rownames(newSnpTable) <- nbSNPs + (1:nrow(newSnpTable))
+#  rownames(newSnpTable)
+  ## JvH:  BUG FOR ROW BINDING
+  # snpTable <- rbind(snpTable, newSnpTable)
+#  View(studyRESToutput)
+  rsIDs <- append(rsIDs, newSnpTable$rsId)
 }
+nbDiseaseAssociatedSNPs <- length(rsIDs)
+message("Number of disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
 
-
-## Downloading disease-associated information from GWAS catalog
-query.url <- paste(sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
-                   parameters$query,
-                   "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 
 gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 
@@ -366,7 +402,7 @@ Parameters for the GWAS catalog:
   - The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
 
 
-### Tag SNPs
+## Retrieval of disease-associated SNPs
 
 We define as **tag SNPs** the non-coding SNPs associated to the disease. 
 It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
