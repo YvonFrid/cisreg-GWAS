@@ -104,7 +104,7 @@ source("R/bed_to_granges.R")
 ## Parameters
 parameters <- list(
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0008407",
+  query =  "EFO_0001068",
   population = "EUR",
   #maf <- 0.05,
   r2 <- 0.8,
@@ -314,8 +314,13 @@ message("Downloading GWAS catalog data")
 ## URL to the GWAS REST API query for the disease
 gwascatalog.disease.urlrest <- paste(
   sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits", parameters$query)
+  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", parameters$query, "/associations?projection=associationByEfoTrait")
 message("GWAS catalog link\t", gwascatalog.disease.urlrest)
+
+gwascatalog.studies.urlrest <- paste(
+  sep = "", 
+  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", parameters$query, "/studies")
+message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
 
 gwascatalog.disease.url <- paste(
   sep = "", 
@@ -326,6 +331,27 @@ gwascatalog.table.url <- paste(
   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 message("GWAS TSV table\t", gwascatalog.table.url)
 
+library(httr)
+library(jsonlite)
+library(xml2)
+ 
+gwasrestoutput <- fromJSON(gwascatalog.disease.urlrest, content_type("application/json"))
+ 
+stop_for_status(gwasrestoutput)
+
+numberOfRows <- nrow(df["studies.accessionId"]);
+
+for (i in 1:numberOfRows){
+
+}
+
+
+ 
+# use this if you get a simple nested list back, otherwise inspect its structure
+#head(data.frame(t(sapply(content(gwasrestoutput),c))))
+gwasstruct <- (fromJSON(toJSON(content(gwasrestoutput))))
+
+df <- data.frame(gwasstruct$`_embedded`)
 
 
 ## Downloading disease-associated information from GWAS catalog
