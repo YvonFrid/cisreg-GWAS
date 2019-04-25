@@ -311,7 +311,12 @@ knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
 
 message("Downloading GWAS catalog data")
 
-## URL to the primary GWAS page for the query disease
+## URL to the GWAS REST API query for the disease
+gwascatalog.disease.urlrest <- paste(
+  sep = "", 
+  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits", parameters$query)
+message("GWAS catalog link\t", gwascatalog.disease.urlrest)
+
 gwascatalog.disease.url <- paste(
   sep = "", 
   "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
