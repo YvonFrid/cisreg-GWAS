@@ -505,6 +505,7 @@ message("Getting LD SNPs from Ensembl")
 LDsnpIDs <- vector()
 i <- 0
 nbrsIDs <- length(DArsIDs)
+LdSNPs <- data.frame()
 for (rsID in DArsIDs) {
   i <- i + 1
   ldURL <- paste(sep = "", 
@@ -518,24 +519,37 @@ for (rsID in DArsIDs) {
   if (is.null(newLdSNpIDs)) {
     newLdSNpIDs <- vector()
   } 
-  ### This is q auick hacky solution; zill need to be updated
   
-  variationURL <- paste(sep = "", 
-                 "http://rest.ensembl.org/variation/human/", rsID,
-                 "?content-type=application/json")
-  newVqrSNPs <- fromJSON(variationURL, simplifyDataFrame = TRUE)
-  ###Merge both dataframes
+ ## Append the new LD SNps to the current collection
+  # names(newLdSNPs)
+  LdSNPs <- rbind(LdSNPs, 
+                  data.frame(
+                    variation1 = as.vector(newLdSNPs$variation1),
+                    variation2 = as.vector(newLdSNPs$variation2),
+                    r2 = as.vector(newLdSNPs$r2),
+                    d_prime = as.vector(newLdSNPs$d_prime),
+                    population = as.vector(newLdSNPs$population_name)
+                  ))
+
+#   ## This is q auick hacky solution; zill need to be updated
+#   variationURL <- paste(sep = "", 
+#                  "http://rest.ensembl.org/variation/human/", rsID,
+#                  "?content-type=application/json")
+#   newVqrSNPs <- fromJSON(variationURL, simplifyDataFrame = TRUE)
+#   names(newVqrSNPs)
   
-  # sView(ldSNPs)
+   
+  # View(ldSNPs)
   nbNewSNPIDs <- length(newLdSNpIDs)
+  message("\tCollected ", nbNewSNPIDs, " SNPs in LD with ", rsID)
   if (nbNewSNPIDs > parameters$max.ld.per.snp) {
-    message("Number of LD for tag SNP ", rsID, " (", nbNewSNPIDs,
-            ") exceeds limit (", parameters$max.ld.per.snp, "). LD SNPs are ignored for this Tag SNP. ")
+    message("\t\tWarning: number of LD for tag SNP ", rsID, " (", nbNewSNPIDs,
+            ") exceeds limit (", parameters$max.ld.per.snp, "). ",
+            "\n\tLD SNPs are ignored for this Tag SNP. ")
   } else if (length(newLdSNpIDs) > 0) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
 }
-
 LDsnpIDs <- unique(LDsnpIDs)
 nbLDSNPs <- length(LDsnpIDs)
 message("Total number of LD SNPs: ", nbLDSNPs)
