@@ -522,13 +522,13 @@ for (rsID in DArsIDs) {
     newLdSNpIDs <- vector()
   } 
   
+  message("\tFound\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
+  # sView(ldSNPs)
   if (length(newLdSNpIDs) > parameters$max.ld.per.snp) {
     message("Number of LD for tag SNP ", rsID, " exceeds limit (", parameters$max.ld.per.snp, "). LD SNPs are ignored for this Tag SNP. ")
   } else if (length(newLdSNpIDs) > 0) {
     lsSNPsIDs <- append(lsSNPsIDs, newLdSNpIDs)
   }
-  message("\tCollected\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
-  # sView(ldSNPs)
 }
 lsSNPsIDs <- unique(lsSNPsIDs)
 nbLDSNPs <- length(lsSNPsIDs)
@@ -573,7 +573,7 @@ message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
 
 
 
-```{r number_of_LDSNPs}
+```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
 LD <- haploR[, c("chr", "pos_hg38", "rsID", "query_snp_rsid")]
 LD <- na.omit(LD)
 LD$pos_hg38 <- as.numeric(LD$pos_hg38)
@@ -606,7 +606,7 @@ kable(head(df2), caption = "Number of LD SNPs per Tag SNPs.")
 
 ## Enrichment of associated variant set (AVS)
 
-```{r enrich_association_variant_set}
+```{r enrich_association_variant_set, eval=FALSE, echo=FALSE}
 
 avs.sizes.sorted <- avs.size$Size
 names(avs.sizes.sorted) <- avs.size$tagID
