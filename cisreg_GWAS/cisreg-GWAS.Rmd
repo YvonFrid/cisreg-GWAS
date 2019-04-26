@@ -518,8 +518,14 @@ for (rsID in DArsIDs) {
   if (is.null(newLdSNpIDs)) {
     newLdSNpIDs <- vector()
   } 
+  ### This is q auick hacky solution; zill need to be updated
   
-  message("\tFound\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbrsIDs, "\t", rsID)
+  variationURL <- paste(sep = "", 
+                 "http://rest.ensembl.org/variation/human/", rsID,
+                 "?content-type=application/json")
+  newVqrSNPs <- fromJSON(variationURL, simplifyDataFrame = TRUE)
+  ###Merge both dataframes
+  
   # sView(ldSNPs)
   nbNewSNPIDs <- length(newLdSNpIDs)
   if (nbNewSNPIDs > parameters$max.ld.per.snp) {
@@ -529,6 +535,7 @@ for (rsID in DArsIDs) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
 }
+
 LDsnpIDs <- unique(LDsnpIDs)
 nbLDSNPs <- length(LDsnpIDs)
 message("Total number of LD SNPs: ", nbLDSNPs)
@@ -543,39 +550,12 @@ message("Total number of DA-SNPs and LD SNPs: ", nbSNPs)
 kable(head(newLdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 
 
-
-
 ## TO DO
 
 # - merge DASNPs and LD-SNPs
 # - filter out coding SNPs -> SNPs of interest (SOIs)
 # - gather all the information (coordinates, ...) for SOIs
 # ...
-
-# ## Querying haploreg for the linkage desequilibrium
-# message("Querying HaploReg to get SNPs in linkage disequilibrium with tag SNPs")
-# haploR <- queryHaploreg(query = tagSNPs$tagSNPs, 
-#                         ldThresh = r2, 
-#                         ldPop = parameters$population,
-#                         epi = "imputed",
-#                         genetypes = "both", 
-#                         verbose = TRUE,
-#                         timeout = 1000) 
-# 
-# haploR <- haploR[!duplicated(haploR$rsID),]
-# 
-# message(length(haploR$rsID), " SNPs in LD")
-# 
-# haploreg.file <- "haploreg.tsv"
-# haploreg.path <- file.path(result.dir.path["HaploReg"], haploreg.file)
-# write.table(x = haploR,
-#             file = haploreg.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
-
-
 ```
 
 
@@ -761,7 +741,7 @@ We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are ei
 
 
 SOIsBed <- data.frame(chrom = SOI$chr_name,
-                      chromStart = SOI$chrom_start - 0, # BEWARE: in bed the first chrom position is 0
+                      chromStart = SOI$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
                       chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
                       name = SOI$refsnp_id)
 
@@ -864,8 +844,19 @@ getSNP <- function(rs, mart = snpmart) {
 }
 
 # Run biomaRt
-LdSNPsInfo <- getSNP(rs = LDsnpIDs, snpmart)
+LdSNPsInfo <- getSNP(rs = newLdSNPs$variation2, snpmart)
 LdSNPsInfo <- LdSNPsInfo[!duplicated(LdSNPsInfo$refsnp_id),]
+
+
+haplotype <- merge(x = LdSNPsInfo,
+                   y = newLdSNPs,
+                   by.x = "refsnp_id",
+                   by.y = "variation2",
+                   all.x = TRUE,
+                   all.y = FALSE)
+
+View(haplotype)
+
 
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 isLDSOI <- is.na(LdSNPsInfo$cds_start)
@@ -876,14 +867,7 @@ LDSOI <- LDSOI[, c("chr_name", "chrom_start", "chrom_end","refsnp_id")]
 View(LDSOI)
 
 
-# haplotype <- merge(x = LDSOI,
-#                    y = newLdSNPs,
-#                    by.x = "refsnp_id",
-#                    by.y = "variation2",
-#                    all.x = TRUE,
-#                    all.y = FALSE)
-# 
-# View(haplotype)
+
 
 ic(haplotype$chrom_start)
 
@@ -1208,17 +1192,8 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-#View(varScanJasparTF)
+View(varScanJasparTF)
 
-# Export the variation-scan results in tsv format
-varscan.file <- "varScanJaspar.tsv"
-varscan.path <- file.path(result.dir.path["RSAT"], varscan.file)
-write.table(x = varScanJasparTF,
-            file = varscan.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
 ```
 
 
