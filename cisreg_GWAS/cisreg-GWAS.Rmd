@@ -409,9 +409,9 @@ gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 ## Check SNP IDs
 DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
 
-nonRsIDs <- setdiff(DAsnpIDs, DArsIDs)
+nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
 message("SNPs with rs identifier: ", length(DArsIDs))
-message("SNPs with non-rs identifier: ", length(nonRsIDs))
+message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
 
 # for (i in 1:ncol(snpTable)) {
@@ -434,7 +434,7 @@ outfiles <- rbind(outfiles, data.frame(
   path = gwas.err.path,
   source = "GWAS catalog",
   description = "Disease-associated SNPs with incomplete information in GWAS catalog"))
-# write.table(x = as.data.frame(subset(snpTable, rsId %in% nonRsIDs)),
+# write.table(x = as.data.frame(subset(snpTable, rsId %in% nonrsIDs)),
 #             file = gwas.err.path,
 #             quote = FALSE,
 #             sep = "\t",
@@ -502,9 +502,9 @@ We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_
 
 message("Getting LD SNPs from Ensembl")
 
-lsSNPsIDs <- vector()
+LDsnpIDs <- vector()
 i <- 0
-nbRsIDs <- length(DArsIDs)
+nbrsIDs <- length(DArsIDs)
 for (rsID in DArsIDs) {
   i <- i + 1
   ldURL <- paste(sep = "", 
@@ -519,19 +519,27 @@ for (rsID in DArsIDs) {
     newLdSNpIDs <- vector()
   } 
   
-  message("\tFound\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
+  message("\tFound\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbrsIDs, "\t", rsID)
   # sView(ldSNPs)
-  if (length(newLdSNpIDs) > parameters$max.ld.per.snp) {
-    message("Number of LD for tag SNP ", rsID, " exceeds limit (", parameters$max.ld.per.snp, "). LD SNPs are ignored for this Tag SNP. ")
+  nbNewSNPIDs <- length(newLdSNpIDs)
+  if (nbNewSNPIDs > parameters$max.ld.per.snp) {
+    message("Number of LD for tag SNP ", rsID, " (", nbNewSNPIDs,
+            ") exceeds limit (", parameters$max.ld.per.snp, "). LD SNPs are ignored for this Tag SNP. ")
   } else if (length(newLdSNpIDs) > 0) {
-    lsSNPsIDs <- append(lsSNPsIDs, newLdSNpIDs)
+    LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
 }
-lsSNPsIDs <- unique(lsSNPsIDs)
-nbLDSNPs <- length(lsSNPsIDs)
-message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
-#sort(table(lsSNPsIDs))
+LDsnpIDs <- unique(LDsnpIDs)
+nbLDSNPs <- length(LDsnpIDs)
+message("Total number of LD SNPs: ", nbLDSNPs)
+#sort(table(LDsnpIDs))
 
+rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
+nbSNPs <- length(rsIDs)
+message("Total number of DA-SNPs and LD SNPs: ", nbSNPs)
+
+
+## TO DO : replace newLdSNPs by LdSnps once we have fixed the fusion problem
 kable(head(newLdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 
 
@@ -573,11 +581,11 @@ In this section, we gathering the informations about LD SNPs from Ensembl using 
 
 ```{r LD_biomart_annotation}
 ## biomaRt annotation
-message("Gathering information about LD SNPs from Ensembl")
+message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs")
 
 snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
 
-getSNP <- function(rs = "rsID", mart = snpmart) {
+getSNP <- function(rs, mart = snpmart) {
   results <- getBM(attributes = c(
     'refsnp_source',
     'refsnp_id',
@@ -591,25 +599,33 @@ getSNP <- function(rs = "rsID", mart = snpmart) {
     'consequence_type_tv'
   ),
   filters    = "snp_filter",
-  values = rs, mart = mart)
+  values = rs, 
+  mart = mart)
   return(results)
 }
 
 # Run biomaRt
-getSNP <- getSNP(rs = lsSNPsIDs, snpmart)
-getSNP <- getSNP[!duplicated(getSNP$refsnp_id),]
+snpInfo <- getSNP(rs = rsIDs, snpmart)
+# View(snpInfo)
 
-#dim(getSNP)
+## TO DO: UNDERSTAND WHY THERE ARE MULTIPLE ROWS FOR THE SAME SNP !!!
+## CHECK IF THIS IS DUE TO THE POPULATIONS FOR EXAMPLE
+snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 
-# Select the non-coding variant by discarding the CDS variants
+# pie(table(snpInfo$consequence_type_tv))
 
-nonCoding <- subset(getSNP,
-                    is.na(cds_start))
+# dim(snpInfo)
 
+# Select the non-coding variant by discarding the variants with an annotated CDS start
+isSOI <- is.na(snpInfo$cds_start)
+# table(isSOI)
+SOI <- snpInfo[isSOI, ]
 
-nocoding.file <- "ensemblNonConding.tsv"
-nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", nocoding.file)
-write.table(x = nonCoding,
+SOI.bed <- SOI[, c("chr_name" ,"chrom_start", "chrom_end", "refsnp_id")]
+
+SOI.file <- "ensemblNonConding.tsv"
+nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
+write.table(x = SOI,
             file = nocoding.path,
             quote = FALSE,
             sep = "\t",
@@ -680,115 +696,117 @@ par(par.ori)
 We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, or in LD with these associated SNPs. 
 
 
-```{r biomart_annotation}
+```{r biomart_annotation, eval=FALSE, echo=FALSE}
 
-message("Selecting SNPs of Interest (in non-coding regions) from HaploReg")
-
-# Remove the Redundancies SNPs from HaploReg
-haploR <- haploR[!duplicated(haploR$rsID),]
-# Filtering non-conding variant
-
-attach(haploR)
-nonCoding <- haploR[which(dbSNP_functional_annotation == "INT" |
-                            dbSNP_functional_annotation == "." |
-                            dbSNP_functional_annotation == "U3" |
-                            dbSNP_functional_annotation == "U5"
-),]
-
-detach(haploR)
-
-nonCoding$ENSG <- gsub('\\..+$', '', nonCoding$GENCODE_id)
-
-# Export SOIs full results in TSV table
-haplor.file <- "ENSG.txt"
-haplor.path <- file.path(result.dir.path["HaploReg"], haplor.file)
-write.table(x = unique(nonCoding$GENCODE_name),
-            file = haplor.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = FALSE)
+# message("Selecting SNPs of Interest (in non-coding regions) from HaploReg")
+# 
+# # Remove the Redundancies SNPs from HaploReg
+# haploR <- haploR[!duplicated(haploR$rsID),]
+# # Filtering non-conding variant
+# 
+# attach(haploR)
+# SOI <- haploR[which(dbSNP_functional_annotation == "INT" |
+#                             dbSNP_functional_annotation == "." |
+#                             dbSNP_functional_annotation == "U3" |
+#                             dbSNP_functional_annotation == "U5"
+# ),]
+# 
+# detach(haploR)
+# 
+# SOI$ENSG <- gsub('\\..+$', '', SOI$GENCODE_id)
+# 
+# # Export SOIs full results in TSV table
+# haplor.file <- "ENSG.txt"
+# haplor.path <- file.path(result.dir.path["HaploReg"], haplor.file)
+# write.table(x = unique(SOI$GENCODE_name),
+#             file = haplor.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = FALSE)
 
 
 ## biomaRt annotation
-message("Gathering information about SNPs of Interest (SOIs) from HaploReg")
-
-snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
-
-getSNP <- function(rs = "rsID", mart = snpmart) {
-  results <- getBM(attributes = c(
-    'refsnp_source',
-    'refsnp_id',
-    'chr_name',
-    'chrom_start',
-    'allele_1',
-    'allele'
-  ),
-  filters    = "snp_filter",
-  values = rs, mart = mart)
-  return(results)
-}
-
-# LD SNPs object
-snpList <- nonCoding$rsID
-
-# Run biomaRt
-getSNP <- getSNP(rs = snpList, snpmart)
-getSNP <- getSNP[!duplicated(getSNP$refsnp_id), ]
-
-## Make grange object of SOIs
-
-getSNP$chrom_start <- as.numeric(getSNP$chrom_start)
-getSNP$chr_name <- paste(sep = "", "chr", getSNP$chr_name)
-
-
-SOIsBed <- data.frame(chrom = getSNP$chr_name,
-                      chromStart = getSNP$chrom_start,
-                      chromEnd = getSNP$chrom_start + 1,
-                      name = getSNP$refsnp_id)
-
-SOIs <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id",
-              all.x = FALSE, all.y = TRUE)
+# message("Gathering information about SNPs of Interest (SOIs) from HaploReg")
+# 
+# snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+# 
+# getSNP <- function(rs = "rsID", mart = snpmart) {
+#   results <- getBM(attributes = c(
+#     'refsnp_source',
+#     'refsnp_id',
+#     'chr_name',
+#     'chrom_start',
+#     'allele_1',
+#     'allele'
+#   ),
+#   filters    = "snp_filter",
+#   values = rs, mart = mart)
+#   return(results)
+# }
+# 
+# # LD SNPs object
+# snpList <- SOI$rsID
+# 
+# # Run biomaRt
+# getSNP <- getSNP(rs = snpList, snpmart)
+# getSNP <- getSNP[!duplicated(getSNP$refsnp_id), ]
+# 
+# ## Make grange object of SOIs
+# 
+# getSNP$chrom_start <- as.numeric(getSNP$chrom_start)
+# getSNP$chr_name <- paste(sep = "", "chr", getSNP$chr_name)
 
 
-SOIsError <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id", all.x = TRUE, all.y = TRUE)
+SOIsBed <- data.frame(chrom = SOI$chr_name,
+                      chromStart = SOI$chrom_start - 0, # BEWARE: in bed the first chrom position is 0
+                      chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
+                      name = SOI$refsnp_id)
 
-biomaRtError <- subset(SOIsError, is.na(refsnp_source))
+# SOIs <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id",
+#               all.x = FALSE, all.y = TRUE)
+# 
 
-message("The following DAsnpIDs had no information available on dbSNP:  ",
-              paste( biomaRtError$rsID , collapse = ", "),
-              call. = FALSE)
+# SOIsError <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id", all.x = TRUE, all.y = TRUE)
+
+# biomaRtError <- subset(SOIsError, is.na(refsnp_source))
+
+# message("The following DAsnpIDs had no information available on dbSNP:  ",
+#               paste( biomaRtError$rsID , collapse = ", "),
+#               call. = FALSE)
 
 
-# Export SOIs full results in TSV table
-haplor.file <- "SOIs.tsv"
-haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-write.table(x = SOIs,
-            file = haplor.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+# TO DO :; Export SOIs full results in TSV table
 
-# Export SOIs in bed format
-haplor.file <- "SOIs.bed"
-haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-write.table(x = SOIsBed,
-            file = haplor.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = FALSE)
 
-# Export SOIs in txt format
-haplor.file <- "SOIs.txt"
-haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-write.table(x = SOIs$rsID,
-            file = haplor.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = FALSE)
+# haplor.file <- "SOIs.tsv"
+# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
+# write.table(x = SOIs,
+#             file = haplor.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
+# 
+# # Export SOIs in bed format
+# haplor.file <- "SOIs.bed"
+# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
+# write.table(x = SOIsBed,
+#             file = haplor.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = FALSE)
+# 
+# # Export SOIs in txt format
+# haplor.file <- "SOIs.txt"
+# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
+# write.table(x = SOIs$rsID,
+#             file = haplor.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = FALSE)
 
 #kable(head(SOIs[, c( "chr_name", "chrom_start", "rsID", "ref", "alt")]), caption = "SNPs of interest (SOIs)")
 ```
@@ -799,12 +817,15 @@ We select the **SOIs** by keeping all **LD SNPs in non-coding regions** and we c
 
 ```{r fig.cap = paste("Genomic context of SNPs of interest"), out.width = "100%"}
 message("Drawing pie chart of SNP distribution in non-coding regions")
+
 # Proportion of genomic context
-nonCoding$dbSNP_functional_annotation <- sub(pattern = "^.$", "intergenic", nonCoding$dbSNP_functional_annotation)
-nonCoding$dbSNP_functional_annotation <- sub(pattern = "^INT$", "intron", nonCoding$dbSNP_functional_annotation)
-nonCoding$dbSNP_functional_annotation <- sub(pattern = "^U3$", "3'UTR", nonCoding$dbSNP_functional_annotation)
-nonCoding$dbSNP_functional_annotation <- sub(pattern = "^U5$", "5'UTR", nonCoding$dbSNP_functional_annotation)
-table <- table(nonCoding$dbSNP_functional_annotation)
+## TO DO: adapt
+SOI$dbSNP_functional_annotation <- sub(pattern = "^.$", "intergenic", 
+                                       SOI$consequence_type_tv)
+SOI$dbSNP_functional_annotation <- sub(pattern = "^INT$", "intron", SOI$dbSNP_functional_annotation)
+SOI$dbSNP_functional_annotation <- sub(pattern = "^U3$", "3'UTR", SOI$dbSNP_functional_annotation)
+SOI$dbSNP_functional_annotation <- sub(pattern = "^U5$", "5'UTR", SOI$dbSNP_functional_annotation)
+table <- table(SOI$dbSNP_functional_annotation)
 pct <- signif(table/sum(table)*100, digits = 3)
 lbls <- names(table)
 lbls <- paste(lbls, pct) # add percents to labels
@@ -819,8 +840,9 @@ pie(table,
 
 
 ```{r haplotype}
-
-haplotype <- SOIs[, c("chr_name", "chrom_start", "rsID", "query_snp_rsid")]
+#names(SOI)
+## TO ADAPT
+haplotype <- SOI[, c("chr_name", "chrom_start", "refsnp_id", "query_snp_rsid")]
 #haplotype <- na.omit(haplotype)
 haplotype$pos_hg38 <- as.numeric(haplotype$chrom_start)
 
