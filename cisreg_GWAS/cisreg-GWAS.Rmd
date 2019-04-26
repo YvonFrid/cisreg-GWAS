@@ -421,6 +421,8 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 ```
 
 
+
+
 ```{r export_tag_snps, eval=FALSE, echo=FALSE}
 
 ## NOT WORKING FOR THE TIME BEING, DUE TO LISTS IN THE TABLE COLUMNS
@@ -604,7 +606,7 @@ getSNP <- function(rs, mart = snpmart) {
 
 # Run biomaRt
 snpInfo <- getSNP(rs = rsIDs, snpmart)
-# View(snpInfo)
+ #View(snpInfo)
 
 ## TO DO: UNDERSTAND WHY THERE ARE MULTIPLE ROWS FOR THE SAME SNP !!!
 ## CHECK IF THIS IS DUE TO THE POPULATIONS FOR EXAMPLE
@@ -618,7 +620,7 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 isSOI <- is.na(snpInfo$cds_start)
 # table(isSOI)
 SOI <- snpInfo[isSOI, ]
-
+dim(SOI)
 
 SOI.file <- "ensemblNonConding.tsv"
 nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
@@ -635,34 +637,7 @@ write.table(x = SOI,
 
 
 
-```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
-LD <- haploR[, c("chr", "pos_hg38", "rsID", "query_snp_rsid")]
-LD <- na.omit(LD)
-LD$pos_hg38 <- as.numeric(LD$pos_hg38)
-LDgr <- with(LD,
-GRanges( seqnames = Rle(chr),
-ranges   = IRanges(start = pos_hg38, end = pos_hg38),
-strand   = Rle("*"), idLd = rsID, idTag = query_snp_rsid))
 
-# Check the size of each LD block
-bca.avs <- makeAVS(LDgr)
-tata <- data.frame(bca.avs)
-avs.size <- avsSize(bca.avs)
-#head(avs.size)
-df1 <- tata[, c("seqnames", "start","idTag")]
-df1 <- df1[!duplicated(df1$idTag),]
-df2 <- merge(avs.size,
-            df1,
-            by.x = "tagID",
-            by.y = "idTag")
-df2$start <- as.numeric(df2$start)
-df2$end <- df2$start + 1
-df2 <- df2[, c("seqnames", "start", "end", "tagID", "Size")]
-names(df2) <- c("chrom", "tagSNPs", "start", "end", "nb LDSNPs")
-
-kable(head(df2), caption = "Number of LD SNPs per Tag SNPs.")
-
-```
 
 
 
@@ -858,73 +833,84 @@ getSNP <- function(rs, mart = snpmart) {
 }
 
 # Run biomaRt
-LdSNPsInfo <- getSNP(rs = newLdSNPs$variation2, snpmart)
+LdSNPsInfo <- getSNP(rs = LdSNPs$variation2, snpmart)
 LdSNPsInfo <- LdSNPsInfo[!duplicated(LdSNPsInfo$refsnp_id),]
 
 
 haplotype <- merge(x = LdSNPsInfo,
-                   y = newLdSNPs,
+                   y = LdSNPs,
                    by.x = "refsnp_id",
                    by.y = "variation2",
                    all.x = TRUE,
                    all.y = FALSE)
 
-View(haplotype)
+#View(haplotype)
 
 
 # Select the non-coding variant by discarding the variants with an annotated CDS start
-isLDSOI <- is.na(LdSNPsInfo$cds_start)
+isLDSOI <- is.na(haplotype$cds_start)
 # table(isSOI)
-LDSOI <- LdSNPsInfo[isLDSOI, ]
+LDSOI <- haplotype[isLDSOI, ]
 LDSOI$chr_name <- paste("chr", LDSOI$chr_name, sep = "")
-LDSOI <- LDSOI[, c("chr_name", "chrom_start", "chrom_end","refsnp_id")]
-View(LDSOI)
+LDSOI <- LDSOI[, c("chr_name", "chrom_start", "chrom_end","refsnp_id",  "variation1")]
+#View(LDSOI)
+#LDSOI <- LDSOI[!duplicated(LDSOI$refsnp_id),]
+LDSOI <- na.omit(LDSOI)
 
 
-
-
-ic(haplotype$chrom_start)
-
-haplotypeGR <- with(haplotype,
+haplotypeGR <- with(LDSOI,
                     GRanges( seqnames = Rle(chr_name),
-                             ranges   = IRanges(start = chrom_start, end = chrom_start),
-                             strand   = Rle("*"), idLd = rsID, idTag = query_snp_rsid))
+                             ranges   = IRanges(start = chrom_start, end = chrom_end),
+                             strand   = Rle("*"), LDSNPs = refsnp_id, TagSNPs = variation1))
 
-# Check the size of each LD block
-bca.avs <- makeAVS(haplotypeGR)
+haplotype.block <- LDSOI %>% 
+  dplyr::group_by(variation1) %>% 
+  dplyr::mutate(Region_start = min(chrom_start),
+            Region_end = max(chrom_end),
+            Nb_SNPs = n())
 
-block.df <- data.frame(bca.avs)
-#View(block.df)
+haplotype.block <- haplotype.block[!duplicated(haplotype.block$variation1),]
 
-haplotype.block <- block.df[, c("group", "start")]
+haplotype.blockGR <- with(haplotype.block,
+                          GRanges( seqnames = Rle(chr_name),
+                                   ranges   = IRanges(start = Region_start, end = Region_end),
+                                   strand   = Rle("*")))
 
-haplotype.block$start <- as.numeric(haplotype.block$start)
-
-block <- as.data.frame(with(haplotype.block, 
-                         data.frame(start = tapply(start, group, paste, collapse = ', '), 
-                                    group = unique(group))))
-
-# View(haplotype.block)
-# 
-# 
-# df1 <- subset(haplotype.block,
-#               group == 1)
-# 
-# df <- range(df1$start)
-# df
-
-
-# Upload block haplotype regions
-
-haplotypeBlock <- read.delim(file = "results/SOIs/haplotype.block.tsv", 
-                       header = TRUE, 
-                       sep = "\t", 
-                       stringsAsFactors = FALSE,
-                       na.strings = c(""," ","NA"))
 
 ```
 
 
+
+```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
+
+
+LD <- haploR[, c("chr", "pos_hg38", "rsID", "query_snp_rsid")]
+LD <- na.omit(LD)
+LD$pos_hg38 <- as.numeric(LD$pos_hg38)
+LDgr <- with(LD,
+GRanges( seqnames = Rle(chr),
+ranges   = IRanges(start = pos_hg38, end = pos_hg38),
+strand   = Rle("*"), idLd = rsID, idTag = query_snp_rsid))
+
+# Check the size of each LD block
+bca.avs <- makeAVS(LDgr)
+tata <- data.frame(bca.avs)
+avs.size <- avsSize(bca.avs)
+#head(avs.size)
+df1 <- tata[, c("seqnames", "start","idTag")]
+df1 <- df1[!duplicated(df1$idTag),]
+df2 <- merge(avs.size,
+            df1,
+            by.x = "tagID",
+            by.y = "idTag")
+df2$start <- as.numeric(df2$start)
+df2$end <- df2$start + 1
+df2 <- df2[, c("seqnames", "start", "end", "tagID", "Size")]
+names(df2) <- c("chrom", "tagSNPs", "start", "end", "nb LDSNPs")
+
+kable(head(df2), caption = "Number of LD SNPs per Tag SNPs.")
+
+```
 
 
 
@@ -1075,11 +1061,15 @@ The principle of the test is to measure the significance of the intersection bet
 load('~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/database/remap2018_nr_macs2_hg38_v1_2.RData')
 
 
-# Make a grange object od SOIs.bed
 
-SOIsGR <- bed_to_granges(SOIsBed)
+snpInfoBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
+snpInfoBed$chr_name <- paste("chr", snpInfoBed$chr_name, sep = "")
 
 
+snpInfoGR <- with(snpInfoBed,
+                   GRanges( seqnames = Rle(chr_name),
+                            ranges   = IRanges(start = chrom_start, end = chrom_end),
+                            strand   = Rle("*")), rsid = refsnp_id)
 
 # Intersect function
 IntersectBed <- function(a, b) {
@@ -1090,34 +1080,19 @@ IntersectBed <- function(a, b) {
   return(my.df)
 }
 
-remap.intersect.SOIs <- IntersectBed(remapCatalog, SOIsGR)
+remap.intersect.SOIs <- IntersectBed(remapCatalog, snpInfoGR)
 ## Find intersect between remap catalog and haplor data
 remap.inter.SOIs <- data.frame(remap.intersect.SOIs) 
-
-remap.col <- c(
-"chrom" = "seqnames",
-"startPeak" = "start", 
-"endPeak" = "end",
- "width" = "width",
-"strand" = "strand", 
-"TF" = "id",  
-"score" = "score", 
-"seqnames" = "seqnames.1",
-"snpStart"  = "start.1" , 
-"snpEnd" = "end.1", 
-"width" = "width.1",
-"strand" = "strand.1" ,
-"rsID" = "ID"
-)
-
-remap.inter.SOIs <- remap.inter.SOIs[, remap.col] 
-names(remap.inter.SOIs) <- names(remap.col)
-remap.inter.SOIs <- remap.inter.SOIs[, c("chrom", "startPeak","endPeak", "TF", "score",  "snpStart", "snpEnd", "rsID")]
-
-
 #View(remap.inter.SOIs)
-  
-barplot(sort(table(remap.inter.SOIs$TF), decreasing = TRUE), 
+
+remap.inter.SOIs <- merge(snpInfo,
+      remap.inter.SOIs,
+      by.x = c("chrom_start", "chrom_end"),
+      by.y = c("start.1", "end.1"),
+      all.x = FALSE,
+      all.y = TRUE)
+
+barplot(sort(table(remap.inter.SOIs$id), decreasing = TRUE), 
         names.arg = "",
         main  = "ReMap peaks overlapping SNPS of interest",
         xlab = "Ranked SNPs",
@@ -1128,37 +1103,15 @@ barplot(sort(table(remap.inter.SOIs$TF), decreasing = TRUE),
 
 
 
-# Remap results in grange object
-remap.intersect.SOIs$start <- as.numeric(remap.intersect.SOIs$start)
-remap.intersect.SOIs$end <- as.numeric(remap.intersect.SOIs$end)
-regionSNPs <- with(remap.intersect.SOIs,
-                   GRanges( seqnames = Rle(seqnames),
-                            ranges   = IRanges(start = start, end = end),
-                            strand   = Rle("*")), rsid = ID)
+# Enrichment of TFs
 
-enrich <- enrichment(regionSNPs, remapCatalog)  
-
-
-
-
-
-# Intersectbed
-#enrich <- enrichment(regionSNPs, remapCatalog)
-
+enrich <- enrichment(haplotype.blockGR, remapCatalog)  
 
 # Negative control
 
-haplotypeBlock$start <- as.numeric(haplotypeBlock$start)
-haplotypeBlock$end <- as.numeric(haplotypeBlock$end)
-regionSNPs <- with(haplotypeBlock,
-                   GRanges( seqnames = Rle(chrom),
-                            ranges   = IRanges(start = start, end = end),
-                            strand   = Rle("*")))
-
-shufflesRegion <- shuffle(regionSNPs)
+shufflesRegion <- shuffle(haplotype.blockGR)
 
 enrichNeg <- enrichment(shufflesRegion, remapCatalog)
-
 
 ```
 
@@ -1206,7 +1159,7 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-View(varScanJasparTF)
+#View(varScanJasparTF)
 
 ```
 
@@ -1217,8 +1170,16 @@ View(varScanJasparTF)
 
 ```{r varscan_score_distributions, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** **A.** P-value ratio. **B.** best and worst p-value. **C.** emphazise the differences between  best and worst weight ")}
 
+x<-1:10; y1=x*x; y2=2*y1
+plot(x, y1, type="b", pch=19, col="red", xlab="x", ylab="y")
+# Ajouter une ligne
+lines(x, y2, pch=18, col="blue", type="b", lty=2)
+# Ajouter une légende
+legend(1, 95, legend=c("Line 1", "Line 2"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
 
-par(mfrow = c(2,2))
+
+#par(mfrow = c(2,2))
 varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
 varScanJasparTF$worst_pval <- as.numeric(varScanJasparTF$worst_pval)
 
@@ -1281,123 +1242,34 @@ plot(sort(best.weight), f, type = "l", col = "blue",
 
 lines(sort(worst.weight), f, type = "l", col = "red")
 
-#legend(2000,9.5, # places a legend at the appropriate place 
- #      c("best.weight", "worst.weight"))
+legend(2000,9.5, # places a legend at the appropriate place 
+      c("best.weight", "worst.weight"))
 
 grid(col = "#DDDDDD", lty = "solid")
 
-par(mfrow = c(1,1))
+#par(mfrow = c(1,1))
 
 ```
 
 
 
 
-## HaploReg inter ReMap inter variation-scan
+##  ReMap inter variation-scan
 
 ```{r rSNPs}
-
 varscan.with.peaks <- merge(
   varScanJasparTF, 
   remap.inter.SOIs, 
-  by.x = c("var_id",  "name"),
-  by.y = c("rsID",  "TF"))
-
-
-varscan.inter.SOIs <- merge(
-  varScanJasparTF, 
-  SOIs, 
-  by.x = c("var_id",  "snpStart"),
-  by.y = c("rsID",  "chrom_start"),
-  all.x = FALSE, all.y = FALSE)
+  by.x = c("var_id", "name"),
+  by.y = c("refsnp_id", "id"))
 
 #View(varscan.with.peaks)
 
-# Potential regulatory SNPs
-rSNPs <- merge(x = varscan.with.peaks,
-            y = SOIs,
-            by.x = c("var_id", "snpStart.x"),
-            by.y = c("rsID", "pos_hg38"),
-            all.x = TRUE, all.y = FALSE)
-
-
-
-# rSNPs <- rSNPs[, c(
-#   "chr_name",
-#   "GENCODE_id",
-#   "ENSG",
-#   "GENCODE_name",
-#   "GENCODE_direction",
-#   "GENCODE_distance",
-#   "snpStart",
-#   "snpEnd",
-#   "var_id",
-#   "var_class",
-#   "r2",
-#   "D'",
-#   "is_query_snp",
-#   "query_snp_rsid",
-#   "ref",
-#   "alt",
-#   "AFR",
-#   "AMR",
-#   "ASN", 
-#   "EUR",
-#   "strand",
-#   "X.ac_motif",
-#   "TF.x",
-#   "best_w",
-#   "worst_w",
-#   "w_diff",
-#   "best_pval",
-#   "worst_pval",
-#   "pval_ratio",
-#   "best_variant",
-#   "worst_variant",
-#   "best_offset",
-#   "worst_offset",
-#   "min_offset_diff",
-#   "best_strand",
-#   "worst_strand", 
-#   "str_change",
-#   "best_seq",
-#   "worst_seq",
-#   "minor_allele_freq",
-#   "startPeak",
-#   "endPeak",
-#   "TF.y",
-#   "score",
-#   "GERP_cons",
-#   "SiPhy_cons",
-#   "Chromatin_States", 
-#   "Chromatin_States_Imputed",
-#   "Chromatin_Marks",
-#   "DNAse",
-#   "Proteins",
-#   "eQTL",
-#   "gwas",
-#   "grasp",
-#   "Motifs",
-#   "RefSeq_id",
-#   "RefSeq_name",
-#   "RefSeq_direction",
-#   "RefSeq_distance",
-#   "RefSeq_id",
-#   "RefSeq_name",
-#   "RefSeq_direction",
-#   "RefSeq_distance", 
-#   "dbSNP_functional_annotation",
-#   "Promoter_histone_marks",
-#   "Enhancer_histone_marks",
-#   "allele"
-# )]
-
-#View(rSNPs[, c("GENCODE_name","var_id", "TF.x", "TF.y" )])
 ```
 
 
 ```{r rsnps_barplot}
-par(mfrow=c(2,2))
+
 
 barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE), 
         names.arg = "",
@@ -1408,63 +1280,6 @@ barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE),
         col = "violet"
 )
 
-
-# Gene
-gene <- as.data.frame(table(varscan.inter.SOIs$GENCODE_name))
-gene.sorted <- gene$Freq
-names(gene.sorted) <-  gene$Var1
-gene.sorted <- sort(gene.sorted, decreasing = FALSE)
-if (length(gene.sorted) > 30) {
-  gene.sorted <- gene.sorted[1:30]
-}
-
-#par.ori <- par(no.readonly = TRUE)
-par(mar = c(4,6,1,1))
-barplot(gene.sorted, 
-        horiz = TRUE, 
-        las = 1,
-        cex.names = 0.5,
-        #col=rainbow(30),
-        xlab = "Number of SNPs",
-        main = "Gene and intergenic regions")
-par(par.ori)
-
-
-## Allele distributions of rSNPs
-
-#genotype <- paste(SOIs$ref, SOIs$alt, sep = "/")
-# allele <- as.data.frame(table(rSNPs$allele))
-# allele.sorted <- allele$Freq
-# names(allele.sorted) <-  allele$Var1
-# allele.sorted <- sort(allele.sorted, decreasing = FALSE)
-# if (length(allele.sorted) > 30) {
-#   allele.sorted <- allele.sorted[1:30]
-# }
-# 
-# #par.ori <- par(no.readonly = TRUE)
-# par(mar = c(4,6,1,1))
-# barplot(allele.sorted, horiz = TRUE, las = 1, cex.names = 0.5,
-#         xlab = "Number of genotypes",
-#         main = "Genotype")
-# #par(par.ori)
-# 
-# 
-# 
-# 
-# 
-# var.class <- table(rSNPs$var_class)
-# #par.ori <- par(no.readonly = TRUE)
-# #par(mar = c(4,6,1,1))
-# barplot(var.class, 
-#         horiz = FALSE, 
-#         las = 1,
-#         cex.names = 0.5,
-#         col=rainbow(30),
-#         main = "Variant class")
-# #par(par.ori)
-
-
-par(mfrow=c(1,1))
 ```
 
 
@@ -1475,30 +1290,30 @@ In this section, we calculate the enrichment of tissue-specific genes in an inpu
 
 ```{r tissueEnrich, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values and the y-axis shows each of the tissues. The  tissue-specific gene show enrichment for colon, heart muscle, lung, stomach, urinary bladder, esophagus, skeletal muscle and small intestinal specific genes.")}
 
-inputGenes <- unique(na.omit(varscan.inter.SOIs$GENCODE_name))
-
-gs<-GeneSet(geneIds=inputGenes,organism="Homo Sapiens",geneIdType=SymbolIdentifier())
-output<-teEnrichment(inputGenes = gs)
-
-seEnrichmentOutput<-output[[1]]
-enrichmentOutput<-setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-enrichmentOutput$Tissue<-row.names(enrichmentOutput)
-
-
-## ggplot
-ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label = Tissue.Specific.Genes,fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = '-LOG10(P-Adjusted)')+
-      theme_bw()+
-      #coord_flip() +
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1), 
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank()) +
-      ggtitle("A. Tissue-specific gene enrichment (−log10(p-value))")
-  
+# inputGenes <- unique(na.omit(varscan.inter.SOIs$GENCODE_name))
+# 
+# gs<-GeneSet(geneIds=inputGenes,organism="Homo Sapiens",geneIdType=SymbolIdentifier())
+# output<-teEnrichment(inputGenes = gs)
+# 
+# seEnrichmentOutput<-output[[1]]
+# enrichmentOutput<-setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+# enrichmentOutput$Tissue<-row.names(enrichmentOutput)
+# 
+# 
+# ## ggplot
+# ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label = Tissue.Specific.Genes,fill = Tissue))+
+#       geom_bar(stat = 'identity')+
+#       labs(x='', y = '-LOG10(P-Adjusted)')+
+#       theme_bw()+
+#       #coord_flip() +
+#       theme(legend.position="none")+
+#       theme(plot.title = element_text(hjust = 0.5,size = 20),
+#             axis.title = element_text(size=15))+
+#       theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1), 
+#             panel.grid.major= element_blank(),
+#             panel.grid.minor = element_blank()) +
+#       ggtitle("A. Tissue-specific gene enrichment (−log10(p-value))")
+#   
 
 
 
@@ -1527,20 +1342,20 @@ ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label =
 The heatmap showing the expression of the significant tissues specific genes across all the tissues.
 
 ```{r heatmap, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression profiles of tissue-specific genes.** The tissue enriched have genes with an expression level greater than or equal to 1. Gene expression values are presented either as TPM (transcript per million) that also have at least five-fold higher expression levels in a particular tissue compared to all other tissues.")}
-seExp<-output[[2]][["Lung"]]
-exp<-setNames(data.frame(assay(seExp), row.names = rowData(seExp)[,1]), colData(seExp)[,1])
-exp$Gene<-row.names(exp)
-exp<-exp %>% gather(Tissue=1:(ncol(exp)-1))
-
-ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
-     colour = "white") + scale_fill_gradient(low = "white",
-     high = "steelblue")+
-     labs(x='', y = '')+
-      theme_bw()+
-      guides(fill = guide_legend(title = "Log2(TPM)"))+
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+# seExp<-output[[2]][["Lung"]]
+# exp<-setNames(data.frame(assay(seExp), row.names = rowData(seExp)[,1]), colData(seExp)[,1])
+# exp$Gene<-row.names(exp)
+# exp<-exp %>% gather(Tissue=1:(ncol(exp)-1))
+# 
+# ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
+#      colour = "white") + scale_fill_gradient(low = "white",
+#      high = "steelblue")+
+#      labs(x='', y = '')+
+#       theme_bw()+
+#       guides(fill = guide_legend(title = "Log2(TPM)"))+
+#       #theme(legend.position="none")+
+#       theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
+#       theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 ```
 
 
