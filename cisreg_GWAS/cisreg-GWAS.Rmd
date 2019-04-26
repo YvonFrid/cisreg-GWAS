@@ -1,6 +1,6 @@
 ---
 title: "Detection of tuberculosis regulatory SNPs in GWAS studies"
-author: "Yvon Mbouamboua, Pascal Rihet & Jacques van Helden "
+author: "Yvon Mbouamboua, Pascal Rihet, Andrew Parton & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
   html_document:
@@ -625,7 +625,6 @@ isSOI <- is.na(snpInfo$cds_start)
 # table(isSOI)
 SOI <- snpInfo[isSOI, ]
 
-SOI.bed <- SOI[, c("chr_name" ,"chrom_start", "chrom_end", "refsnp_id")]
 
 SOI.file <- "ensemblNonConding.tsv"
 nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
@@ -845,9 +844,48 @@ pie(table,
 ```{r haplotype}
 #names(SOI)
 ## TO ADAPT
-haplotype <- SOI[, c("chr_name", "chrom_start", "refsnp_id", "query_snp_rsid")]
-#haplotype <- na.omit(haplotype)
-haplotype$pos_hg38 <- as.numeric(haplotype$chrom_start)
+
+
+snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+
+getSNP <- function(rs, mart = snpmart) {
+  results <- getBM(attributes = c(
+    'chr_name',
+    'chrom_start',
+    'chrom_end',
+    'refsnp_id',
+    'cds_start',
+    'cds_end'
+  ),
+  filters    = "snp_filter",
+  values = rs, 
+  mart = mart)
+  return(results)
+}
+
+# Run biomaRt
+LdSNPsInfo <- getSNP(rs = LDsnpIDs, snpmart)
+LdSNPsInfo <- LdSNPsInfo[!duplicated(LdSNPsInfo$refsnp_id),]
+
+# Select the non-coding variant by discarding the variants with an annotated CDS start
+isLDSOI <- is.na(LdSNPsInfo$cds_start)
+# table(isSOI)
+LDSOI <- LdSNPsInfo[isLDSOI, ]
+LDSOI$chr_name <- paste("chr", LDSOI$chr_name, sep = "")
+LDSOI <- LDSOI[, c("chr_name", "chrom_start", "chrom_end","refsnp_id")]
+View(LDSOI)
+
+
+# haplotype <- merge(x = LDSOI,
+#                    y = newLdSNPs,
+#                    by.x = "refsnp_id",
+#                    by.y = "variation2",
+#                    all.x = TRUE,
+#                    all.y = FALSE)
+# 
+# View(haplotype)
+
+ic(haplotype$chrom_start)
 
 haplotypeGR <- with(haplotype,
                     GRanges( seqnames = Rle(chr_name),
@@ -932,7 +970,7 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 ```{r importing_variascan_resilts}
 
 # Importing RSAT variation-scan results
-varScanJaspar.file <- 'results/RSAT/varScanJaspar'
+varScanJaspar.file <- "~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/database/varScanJaspar.txt"
 varScanJaspar <- read.delim(file = varScanJaspar.file,
                             header = TRUE,
                             sep = "\t",
@@ -954,43 +992,6 @@ varScanJaspar$X.ac_motif <- gsub(pattern = "_", ".", varScanJaspar$X.ac_motif)
 varscanColumns <- c("X.ac_motif", "var_id", "var_class", "chrom", "pos_Start", "pos_End", "strand", "best_w", "worst_w", "w_diff", "best_pval", "worst_pval", "pval_ratio", "best_variant", "worst_variant", "best_offset", "worst_offset", "min_offset_diff", "best_strand", "worst_strand", "str_change", "best_seq", "worst_seq", "minor_allele_freq")
 
 varScanJaspar <- varScanJaspar[, varscanColumns]
-
-varScanJaspar$pos_End <- as.numeric(varScanJaspar$pos_End)
-
-varScanJaspar <- data.frame("chrom" = varScanJaspar$chrom,
-                            "X.ac_motif" = varScanJaspar$X.ac_motif,
-                            "var_id" = varScanJaspar$var_id,
-                            "var_class" = varScanJaspar$var_class, 
-                            "snpStart" = varScanJaspar$pos_End, 
-                            "snpEnd" = varScanJaspar$pos_End + 1,
-                            "strand" = varScanJaspar$strand, 
-                            "best_w" = varScanJaspar$best_w, 
-                            "worst_w" = varScanJaspar$worst_w, 
-                            "w_diff" = varScanJaspar$w_diff, 
-                            "best_pval" = varScanJaspar$best_pval,
-                            "worst_pval" = varScanJaspar$worst_pval, 
-                            "pval_ratio" = varScanJaspar$pval_ratio,
-                            "best_variant" = varScanJaspar$best_variant, 
-                            "worst_variant" = varScanJaspar$worst_variant, 
-                            "best_offset" = varScanJaspar$best_offset, 
-                            "worst_offset" = varScanJaspar$worst_offset,
-                            "min_offset_diff" = varScanJaspar$min_offset_diff, 
-                            "best_strand" = varScanJaspar$best_strand,
-                            "worst_strand" = varScanJaspar$worst_strand, 
-                            "str_change" = varScanJaspar$str_change, 
-                            "best_seq" = varScanJaspar$best_seq, 
-                            "worst_seq" = varScanJaspar$worst_seq, 
-                            "minor_allele_freq" = varScanJaspar$minor_allele_freq)
-
-# Export the variation-scan results in tsv format
-varscan.file <- "varScanJaspar.tsv"
-varscan.path <- file.path(result.dir.path["RSAT"], varscan.file)
-write.table(x = varScanJaspar,
-            file = varscan.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
 
 #View(varScanJaspar)
 
