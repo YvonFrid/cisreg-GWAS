@@ -539,6 +539,10 @@ write.table(x = nonCoding,
             sep = "\t",
             row.names = FALSE,
             col.names = TRUE)
+
+# Make a non-coding variant bed file
+
+
 ```
 
 
