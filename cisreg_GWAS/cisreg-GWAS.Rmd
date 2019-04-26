@@ -111,7 +111,7 @@ parameters <- list(
   population = "EUR",
   #maf = 0.05,
   r2 = 0.8,
-  ld.distance = "200",
+  ld.distance = "500",
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
@@ -424,87 +424,22 @@ message("SNPs with non-rs identifier: ", length(nonRsIDs))
 
 
 
-```{r tagSNPs, eval=FALSE, echo=FALSE}
-#message("Reading GWAS catalog in tsv format")
-gwasResults <- read.delim(file = gwas.file, 
-                          header = TRUE, 
-                          sep = "\t", 
-                          stringsAsFactors = FALSE,
-                          na.strings = c(""," ","NA"))
-
-#Filter out missing data
-gwasResultsError <- subset(gwasResults,  is.na(SNP_ID_CURRENT))
-message(nrow(gwasResultsError), " lines are missing chromosome, position and/or SNPs from GWAS catalog")
-#dim(gwasResultsError)
-gwasResults <- subset(gwasResults, ! is.na(SNP_ID_CURRENT))
-
-# Removing the duplicated SNPs
-tagSNPs <- gwasResults[!duplicated(gwasResults$SNPS), ]
-message(nrow(tagSNPs), " available SNPs from GWAS catalog")
-
-#View(gwasResults)
-
-# Export missing data in TSV table
-gwas.err.file <- "gwasResultsError.tsv"
-gwas.err.path <- file.path(dir.path["TagSNPs"], gwas.err.file)
-outfiles <- rbind(outfiles, data.frame(
-  name = "GWAS catalog errors", 
-  file = gwas.err.file, 
-  path = gwas.err.path,
-  source = "GWAS catalog",
-  description = "Disease-associated SNPs with incomplete information in GWAS catalog"))
-write.table(x = gwasResultsError,
-            file = gwas.err.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-# Paste rs on SNP number ID
-tagSNPs$tagSNPs <- paste0("rs", sep = "", tagSNPs$SNP_ID_CURRENT)
-#dim(gwasResults)
-
-
-# Export Tag SNPs in TSV format table
-tag.snp.file <- "tagSNPs.tsv"
-tag.snp.path <- file.path(dir.path["TagSNPs"], tag.snp.file)
-outfiles <- rbind(outfiles, data.frame(
-  name = "Tag SNPs", 
-  file = tag.snp.file, 
-  path = tag.snp.path,
-  source = "GWAS catalog",
-  description = "Tag SNP, i.e. disease-associated SNPs with complete information in GWAS catalog"))
-
-write.table(x = tagSNPs,
-            file = tag.snp.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-
-# Display 
-# kable(head(tagSNPs[, c("PUBMEDID", "DISEASE.TRAIT", "REGION", "CHR_ID", "CHR_POS", "tagSNPs",  "MAPPED_GENE", "CNV", "CONTEXT")]), caption = "**Tag SNPs from GWAS catalog**")
-```
-
-In total, we found `r length(tagSNPs$tagSNPs)` **TagSNPs** from GWAS catalog.
-
 
 # Proportion of genomic context
 
 ```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS"), out.width = "100%", eval=FALSE, echo=FALSE}
-table <- table(tagSNPs$CONTEXT)
-pct <- round(table/sum(table)*100)
-lbls <- names(table)
-lbls <- paste(lbls, pct) # add percents to labels
-lbls <- paste(lbls, "%", sep = "") # ad % to labels
-lbls <- sub(pattern = "_variant", replacement = "", lbls)
-pie(table,
-    labels = lbls,
-    cex = 1,
-    col = rainbow(length(names(table)))
+# table <- table(tagSNPs$CONTEXT)
+# pct <- round(table/sum(table)*100)
+# lbls <- names(table)
+# lbls <- paste(lbls, pct) # add percents to labels
+# lbls <- paste(lbls, "%", sep = "") # ad % to labels
+# lbls <- sub(pattern = "_variant", replacement = "", lbls)
+# pie(table,
+#     labels = lbls,
+#     cex = 1,
+#     col = rainbow(length(names(table)))
     #main="Pie Chart of SNP regions"
-)
+#)
 ```
 
 
@@ -514,10 +449,7 @@ pie(table,
 
 In order to get causal SNPs, we collect from each tag SNP all the other SNPs in linkage desiquilibrium. 
 
-We used the [halpoR package](https://cran.r-project.org/web/packages/haploR/vignettes/haplor-vignette.html) [@ward_haploreg:_2012; @ward_haploreg_2016] which allows to recover SNPs in high LD (with the **r^2^ = 0.8**) using HaploReg by specifying the population. We specified the African population and submitted the **Tag SNPs from GWAS catalog.**
-
-
-  
+We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_get) which allows to recover SNPs in high LD (with the **r^2^ = 0.8**) by specifying the population. The *Ensembl endpoint* computes and returns LD values between the given variant set and all other variants in a window centered around the given variant set. We used the window size of set to 200 kb.
 
 
 ```{r linkage_desiquilibrium}
@@ -539,12 +471,14 @@ for (rsID in rsIDs) {
   # names(newLdSNPs)
   lsSNPsIDs <- append(lsSNPsIDs, newLdSNPs$variation2)
   message("\tCollected\t",  nrow(newLdSNPs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
-  View(ldSNPs)
+  #View(ldSNPs)
 }
 lsSNPsIDs <- unique(lsSNPsIDs)
 nbLDSNPs <- length(lsSNPsIDs)
 message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
 #sort(table(lsSNPsIDs))
+
+kable(head(newLdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 
 
 ## TO DO
@@ -554,33 +488,58 @@ message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
 # - gather all the information (coordinates, ...) for SOIs
 # ...
 
-# ## Querying haploreg for the linkage desequilibrium
-# message("Querying HaploReg to get SNPs in linkage disequilibrium with tag SNPs")
-# haploR <- queryHaploreg(query = tagSNPs$tagSNPs, 
-#                         ldThresh = r2, 
-#                         ldPop = parameters$population,
-#                         epi = "imputed",
-#                         genetypes = "both", 
-#                         verbose = TRUE,
-#                         timeout = 1000) 
-# 
-# haploR <- haploR[!duplicated(haploR$rsID),]
-# 
-# message(length(haploR$rsID), " SNPs in LD")
-# 
-# haploreg.file <- "haploreg.tsv"
-# haploreg.path <- file.path(dir.path["HaploReg"], haploreg.file)
-# write.table(x = haploR,
-#             file = haploreg.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
-
-#kable(head(haploR[, c( "chr", "pos_hg38", "rsID",  "is_query_snp", "query_snp_rsid" , "ref", "alt" , "r2", "D'",  "AFR", "AMR",  "ASN", "EUR")]), caption = "SNPs in linkage disequilibrium (LD)")
-
 ```
 
+
+## Genomic features of SNPs in linkage disequilibrium
+
+In this section, we gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
+
+```{r LD_biomart_annotation}
+## biomaRt annotation
+message("Gathering information about LD SNPs from Ensembl")
+
+snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+
+getSNP <- function(rs = "rsID", mart = snpmart) {
+  results <- getBM(attributes = c(
+    'refsnp_source',
+    'refsnp_id',
+    'chr_name',
+    'chrom_start',
+    'chrom_end',
+    'allele_1',
+    'allele',
+    'cds_start',
+    'cds_end',
+    'consequence_type_tv'
+  ),
+  filters    = "snp_filter",
+  values = rs, mart = mart)
+  return(results)
+}
+
+# Run biomaRt
+getSNP <- getSNP(rs = lsSNPsIDs, snpmart)
+getSNP <- getSNP[!duplicated(getSNP$refsnp_id),]
+
+#dim(getSNP)
+
+# Select the non-coding variant by discarding the CDS variants
+
+nonCoding <- subset(getSNP,
+                    is.na(cds_start))
+
+
+nocoding.file <- "ensemblNonConding.tsv"
+nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", nocoding.file)
+write.table(x = nonCoding,
+            file = nocoding.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+```
 
 
 
