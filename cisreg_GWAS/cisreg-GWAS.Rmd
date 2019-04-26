@@ -623,7 +623,7 @@ isSOI <- is.na(snpInfo$cds_start)
 SOI <- snpInfo[isSOI, ]
 dim(SOI)
 
-SOI.file <- "ensemblNonConding.tsv"
+SOI.file <- "snps_of_interest.tsv"
 nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
 write.table(x = SOI,
             file = nocoding.path,
@@ -871,7 +871,7 @@ haplotype.block <- LDSOI %>%
             Nb_SNPs = n())
 
 haplotype.block <- haplotype.block[!duplicated(haplotype.block$variation1),]
-
+#View(haplotype.block)
 haplotype.blockGR <- with(haplotype.block,
                           GRanges( seqnames = Rle(chr_name),
                                    ranges   = IRanges(start = Region_start, end = Region_end),
@@ -919,7 +919,7 @@ kable(head(df2), caption = "Number of LD SNPs per Tag SNPs.")
 
 ```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap="Enrichment of the set of SOIs for diseases, analysed with the XGR package. "}
 # enrichment analysis of SNPs of interest
-eTerm <- xEnricherSNPs(SOIs$rsID, ontology = c("EF", "EF_disease",
+eTerm <- xEnricherSNPs(SOI$refsnp_id, ontology = c("EF", "EF_disease",
                                                "EF_phenotype", "EF_bp"), include.LD = NA, LD.r2 = 0.8,
                        size.range = c(10, 2000),
                        RData.location = "http://galahad.well.ox.ac.uk/bigdata")
@@ -1070,7 +1070,7 @@ snpInfoBed$chr_name <- paste("chr", snpInfoBed$chr_name, sep = "")
 snpInfoGR <- with(snpInfoBed,
                    GRanges( seqnames = Rle(chr_name),
                             ranges   = IRanges(start = chrom_start, end = chrom_end),
-                            strand   = Rle("*")), rsid = refsnp_id)
+                            strand   = Rle("*"), rsid = refsnp_id))
 
 # Intersect function
 IntersectBed <- function(a, b) {
@@ -1083,9 +1083,17 @@ IntersectBed <- function(a, b) {
 
 remap.intersect.SOIs <- IntersectBed(remapCatalog, snpInfoGR)
 ## Find intersect between remap catalog and haplor data
-remap.inter.SOIs <- data.frame(remap.intersect.SOIs) 
-#View(remap.inter.SOIs)
 
+var.file <- "remap.tsv"
+var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
+write.table(x = remap.intersect.SOIs,
+            file = var.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
+# Export remap data in tsv table
 remap.inter.SOIs <- merge(snpInfo,
       remap.inter.SOIs,
       by.x = c("chrom_start", "chrom_end"),
@@ -1093,7 +1101,8 @@ remap.inter.SOIs <- merge(snpInfo,
       all.x = FALSE,
       all.y = TRUE)
 
-barplot(sort(table(remap.inter.SOIs$id), decreasing = TRUE), 
+# Barplot of TFs
+barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
         names.arg = "",
         main  = "ReMap peaks overlapping SNPS of interest",
         xlab = "Ranked SNPs",
@@ -1160,7 +1169,17 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-#View(varScanJasparTF)
+View(varScanJasparTF)
+
+var.file <- "varScanJasparTF.tsv"
+var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
+write.table(x = varScanJasparTF,
+            file = var.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
 
 ```
 
@@ -1265,6 +1284,15 @@ varscan.with.peaks <- merge(
   by.y = c("refsnp_id", "id"))
 
 #View(varscan.with.peaks)
+
+SOI.file <- "varscan.with.peaks.tsv"
+nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
+write.table(x = varscan.with.peaks,
+            file = nocoding.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
 
 ```
 
