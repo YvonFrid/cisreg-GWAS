@@ -557,6 +557,7 @@ nbLDSNPs <- length(LDsnpIDs)
 message("Total number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
+## Merge DA-SNPs and LD-SNPs
 rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
 message("Total number of DA-SNPs and LD SNPs: ", nbSNPs)
