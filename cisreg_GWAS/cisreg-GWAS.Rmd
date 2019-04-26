@@ -111,7 +111,8 @@ parameters <- list(
   population = "EUR",
   #maf = 0.05,
   r2 = 0.8,
-  ld.distance = "200",
+  ld.distance = 200,
+  max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
@@ -229,17 +230,16 @@ for (lib in names(github.libraries.to.install)) {
 message("Creating output directories")
 
 # Result directory (export result tables)
-result.folders <- list(TagSNPs = "TagSNPs",
-                       HaploReg = "HaploReg",
-                       SOIs = "SOIs",
-                       ReMap = "ReMap",
-                       RSAT = "RSAT",
-                       rSNPs = "rSNPs"
-)
-result.folders <- file.path(parameters$result.dir, result.folders)
+result.dirs <- c(TagSNPs = "TagSNPs",
+                 HaploReg = "HaploReg",
+                 SOIs = "SOIs",
+                 ReMap = "ReMap",
+                 RSAT = "RSAT",
+                 rSNPs = "rSNPs")
+result.dir.path <- file.path(parameters$result.dir, result.dirs)
+names(result.dir.path) <- names(result.dirs) ## entry names were lost with the file.paths
 
-dir.path <- vector()
-for (dir in c(parameters$result.dir, result.folders)) {
+for (dir in c(parameters$result.dir, result.dir.path)) {
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 }
 
@@ -267,8 +267,8 @@ GWASstudiesRestOutput <- fromJSON(
 parameters$trait <- GWASstudiesRestOutput$trait
 
 ## Generate a table displaying the parameters for the report
-kable(t(as.data.frame(parameters)), 
-      col.names = c("Parameter", "value"))
+kable(t(as.data.frame(parameters))[,1], 
+      col.names = c("Parameter value"))
 
 ```
 
@@ -385,19 +385,12 @@ for (studyURL in SNPstudyLinks) {
   i <- i + 1
   message("Retrieving SNPs for study ", i , "/", nbStudies, "\t", studyURL)
   studyRESToutput <- fromJSON(studyURL,  
-                              content_type("application/json"), 
-                             simplifyDataFrame = TRUE)
-  nbSNPs <- nrow(snpTable)
-  rownames(snpTable)
-  newSnpTable <- studyRESToutput$`_embedded`$singleNucleotidePolymorphisms
-  rownames(newSnpTable)
-  rownames(newSnpTable) <- nbSNPs + (1:nrow(newSnpTable))
-#  rownames(newSnpTable)
-  ## JvH:  BUG FOR ROW BINDING
-  # snpTable <- rbind(snpTable, newSnpTable)
-#  View(studyRESToutput)
-  DAsnpIDs <- append(DAsnpIDs, newSnpTable$rsId)
+                              simplifyDataFrame = TRUE)
+  # We have to discard the _links column because it contains lists
+  newSnpTable <- as.data.frame(studyRESToutput$`_embedded`$singleNucleotidePolymorphisms)[,1:6]
+  snpTable <- rbind(snpTable, newSnpTable)
 }
+DAsnpIDs <- unique(snpTable$rsId)
 nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
 message("Number of disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
 
@@ -414,74 +407,62 @@ gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 # }
 
 ## Check SNP IDs
-rsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
 
-nonRsIDs <- setdiff(DAsnpIDs, rsIDs)
-message("SNPs with rs identifier: ", length(rsIDs))
+nonRsIDs <- setdiff(DAsnpIDs, DArsIDs)
+message("SNPs with rs identifier: ", length(DArsIDs))
 message("SNPs with non-rs identifier: ", length(nonRsIDs))
+
+
+# for (i in 1:ncol(snpTable)) {
+#   snpTable[i, ] <- as.vector(snpTable[i,])
+# }
 
 ```
 
 
+```{r export_tag_snps, eval=FALSE, echo=FALSE}
 
-```{r tagSNPs, eval=FALSE, echo=FALSE}
-#message("Reading GWAS catalog in tsv format")
-gwasResults <- read.delim(file = gwas.file, 
-                          header = TRUE, 
-                          sep = "\t", 
-                          stringsAsFactors = FALSE,
-                          na.strings = c(""," ","NA"))
-
-#Filter out missing data
-gwasResultsError <- subset(gwasResults,  is.na(SNP_ID_CURRENT))
-message(nrow(gwasResultsError), " lines are missing chromosome, position and/or SNPs from GWAS catalog")
-#dim(gwasResultsError)
-gwasResults <- subset(gwasResults, ! is.na(SNP_ID_CURRENT))
-
-# Removing the duplicated SNPs
-tagSNPs <- gwasResults[!duplicated(gwasResults$SNPS), ]
-message(nrow(tagSNPs), " available SNPs from GWAS catalog")
-
-#View(gwasResults)
+## NOT WORKING FOR THE TIME BEING, DUE TO LISTS IN THE TABLE COLUMNS
 
 # Export missing data in TSV table
-gwas.err.file <- "gwasResultsError.tsv"
-gwas.err.path <- file.path(dir.path["TagSNPs"], gwas.err.file)
+gwas.err.file <- "GWAS_noRSID.tsv"
+gwas.err.path <- file.path(result.dir.path["TagSNPs"], gwas.err.file)
 outfiles <- rbind(outfiles, data.frame(
   name = "GWAS catalog errors", 
   file = gwas.err.file, 
   path = gwas.err.path,
   source = "GWAS catalog",
   description = "Disease-associated SNPs with incomplete information in GWAS catalog"))
-write.table(x = gwasResultsError,
-            file = gwas.err.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+# write.table(x = as.data.frame(subset(snpTable, rsId %in% nonRsIDs)),
+#             file = gwas.err.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
 
 # Paste rs on SNP number ID
-tagSNPs$tagSNPs <- paste0("rs", sep = "", tagSNPs$SNP_ID_CURRENT)
+# tagSNPs$tagSNPs <- paste0("rs", sep = "", tagSNPs$SNP_ID_CURRENT)
 #dim(gwasResults)
-
-
-# Export Tag SNPs in TSV format table
-tag.snp.file <- "tagSNPs.tsv"
-tag.snp.path <- file.path(dir.path["TagSNPs"], tag.snp.file)
-outfiles <- rbind(outfiles, data.frame(
-  name = "Tag SNPs", 
-  file = tag.snp.file, 
-  path = tag.snp.path,
-  source = "GWAS catalog",
-  description = "Tag SNP, i.e. disease-associated SNPs with complete information in GWAS catalog"))
-
-write.table(x = tagSNPs,
-            file = tag.snp.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
+# 
+# 
+# # Export Tag SNPs in TSV format table
+# tag.snp.file <- "tagSNPs.tsv"
+# tag.snp.path <- file.path(result.dir.path["TagSNPs"], tag.snp.file)
+# outfiles <- rbind(outfiles, data.frame(
+#   name = "Tag SNPs", 
+#   file = tag.snp.file, 
+#   path = tag.snp.path,
+#   source = "GWAS catalog",
+#   description = "Tag SNP, i.e. disease-associated SNPs with complete information in GWAS catalog"))
+# 
+# write.table(x = tagSNPs,
+#             file = tag.snp.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
+# 
 
 # Display 
 # kable(head(tagSNPs[, c("PUBMEDID", "DISEASE.TRAIT", "REGION", "CHR_ID", "CHR_POS", "tagSNPs",  "MAPPED_GENE", "CNV", "CONTEXT")]), caption = "**Tag SNPs from GWAS catalog**")
@@ -493,18 +474,18 @@ In total, we found `r length(tagSNPs$tagSNPs)` **TagSNPs** from GWAS catalog.
 # Proportion of genomic context
 
 ```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS"), out.width = "100%", eval=FALSE, echo=FALSE}
-table <- table(tagSNPs$CONTEXT)
-pct <- round(table/sum(table)*100)
-lbls <- names(table)
-lbls <- paste(lbls, pct) # add percents to labels
-lbls <- paste(lbls, "%", sep = "") # ad % to labels
-lbls <- sub(pattern = "_variant", replacement = "", lbls)
-pie(table,
-    labels = lbls,
-    cex = 1,
-    col = rainbow(length(names(table)))
-    #main="Pie Chart of SNP regions"
-)
+# table <- table(tagSNPs$CONTEXT)
+# pct <- round(table/sum(table)*100)
+# lbls <- names(table)
+# lbls <- paste(lbls, pct) # add percents to labels
+# lbls <- paste(lbls, "%", sep = "") # ad % to labels
+# lbls <- sub(pattern = "_variant", replacement = "", lbls)
+# pie(table,
+#     labels = lbls,
+#     cex = 1,
+#     col = rainbow(length(names(table)))
+#     #main="Pie Chart of SNP regions"
+# )
 ```
 
 
@@ -526,20 +507,28 @@ message("Getting LD SNPs from Ensembl")
 
 lsSNPsIDs <- vector()
 i <- 0
-nbRsIDs <- length(rsIDs)
-for (rsID in rsIDs) {
+nbRsIDs <- length(DArsIDs)
+for (rsID in DArsIDs) {
   i <- i + 1
   ldURL <- paste(sep = "", 
                  "http://rest.ensembl.org/ld/human/", rsID, "/",
                  parameters$ld.pop.prefix, parameters$population,
                  "?content-type=application/json",
                  "&r2=", parameters$r2, 
-                 "&window_size=", parameters$ld.distance)
+                 "&window_size=", as.character(parameters$ld.distance))
   newLdSNPs <- fromJSON(ldURL, simplifyDataFrame = TRUE)
-  # names(newLdSNPs)
-  lsSNPsIDs <- append(lsSNPsIDs, newLdSNPs$variation2)
-  message("\tCollected\t",  nrow(newLdSNPs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
-  View(ldSNPs)
+  newLdSNpIDs <-  as.vector(newLdSNPs$variation2)
+  if (is.null(newLdSNpIDs)) {
+    newLdSNpIDs <- vector()
+  } 
+  
+  if (length(newLdSNpIDs) > parameters$max.ld.per.snp) {
+    message("Number of LD for tag SNP ", rsID, " exceeds limit (", parameters$max.ld.per.snp, "). LD SNPs are ignored for this Tag SNP. ")
+  } else if (length(newLdSNpIDs) > 0) {
+    lsSNPsIDs <- append(lsSNPsIDs, newLdSNpIDs)
+  }
+  message("\tCollected\t",  length(newLdSNpIDs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
+  # sView(ldSNPs)
 }
 lsSNPsIDs <- unique(lsSNPsIDs)
 nbLDSNPs <- length(lsSNPsIDs)
@@ -569,7 +558,7 @@ message("Total number of DA-SNPs and LD SNPs: ", nbLDSNPs)
 # message(length(haploR$rsID), " SNPs in LD")
 # 
 # haploreg.file <- "haploreg.tsv"
-# haploreg.path <- file.path(dir.path["HaploReg"], haploreg.file)
+# haploreg.path <- file.path(result.dir.path["HaploReg"], haploreg.file)
 # write.table(x = haploR,
 #             file = haploreg.path,
 #             quote = FALSE,
@@ -662,7 +651,7 @@ nonCoding$ENSG <- gsub('\\..+$', '', nonCoding$GENCODE_id)
 
 # Export SOIs full results in TSV table
 haplor.file <- "ENSG.txt"
-haplor.path <- file.path(dir.path["HaploReg"], haplor.file)
+haplor.path <- file.path(result.dir.path["HaploReg"], haplor.file)
 write.table(x = unique(nonCoding$GENCODE_name),
             file = haplor.path,
             quote = FALSE,
@@ -723,7 +712,7 @@ message("The following DAsnpIDs had no information available on dbSNP:  ",
 
 # Export SOIs full results in TSV table
 haplor.file <- "SOIs.tsv"
-haplor.path <- file.path(dir.path["SOIs"], haplor.file)
+haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
 write.table(x = SOIs,
             file = haplor.path,
             quote = FALSE,
@@ -733,7 +722,7 @@ write.table(x = SOIs,
 
 # Export SOIs in bed format
 haplor.file <- "SOIs.bed"
-haplor.path <- file.path(dir.path["SOIs"], haplor.file)
+haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
 write.table(x = SOIsBed,
             file = haplor.path,
             quote = FALSE,
@@ -743,7 +732,7 @@ write.table(x = SOIsBed,
 
 # Export SOIs in txt format
 haplor.file <- "SOIs.txt"
-haplor.path <- file.path(dir.path["SOIs"], haplor.file)
+haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
 write.table(x = SOIs$rsID,
             file = haplor.path,
             quote = FALSE,
@@ -920,7 +909,7 @@ varScanJaspar <- data.frame("chrom" = varScanJaspar$chrom,
 
 # Export the variation-scan results in tsv format
 varscan.file <- "varScanJaspar.tsv"
-varscan.path <- file.path(dir.path["RSAT"], varscan.file)
+varscan.path <- file.path(result.dir.path["RSAT"], varscan.file)
 write.table(x = varScanJaspar,
             file = varscan.path,
             quote = FALSE,
@@ -1147,7 +1136,7 @@ varScanJasparTF <- merge(x = jaspar_results,
 
 # Export the variation-scan results in tsv format
 varscan.file <- "varScanJaspar.tsv"
-varscan.path <- file.path(dir.path["RSAT"], varscan.file)
+varscan.path <- file.path(result.dir.path["RSAT"], varscan.file)
 write.table(x = varScanJasparTF,
             file = varscan.path,
             quote = FALSE,
