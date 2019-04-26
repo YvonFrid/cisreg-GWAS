@@ -1,0 +1,235 @@
+digraph {
+
+	subgraph cluster_0 {
+		 color="#0066BB";
+	 	 label="";
+	 	 
+	graph [fontname="ArialBlack",fontsize="20", label="" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2", rankdir=TB];
+	edge [fontname="ArialMT",fontsize="20",labelfontname="ArialMT",labelfontsize="20", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="20",shape=record,height="0.2", color="#666666"];
+
+	gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#FFC133", label = "GWAS catalog \n REST API", URL = "http://www.ebi.ac.uk/gwas/"];
+			
+	gwas_catalog -> download
+
+#F8EE2B
+
+
+		 download [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated genes \n and variants features | tab-delimited}"]
+
+		 download -> preformating1
+
+		 preformating1  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{biomaRt (R package) | Preformating \n and complete missing data}"]
+
+		 preformating1 -> tagsnp
+     
+		 tagsnp  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated SNPs (Tag SNPs) | tab-delimited}"]
+
+		 tagsnp -> haplor1
+
+		subgraph cluster_4 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "Ensembl";
+		style = "rounded";
+
+
+	haplor1[shape = "record", 
+			style = "rounded,filled", 
+			fillcolor = "#FFC133", 
+			label = "{REST API| Getting LD SNPs}"];
+}
+
+haplor1 -> snp1
+ snp1  [shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label="{LD SNP annotations | tab-delimited}"]
+
+snp1 -> preformating2
+
+preformating2  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{biomaRt (R package) | Preformating \n and complete missing data}"]
+
+		preformating2 -> haplor2
+		preformating2 -> haplor3
+			#preformating2 -> haplor4
+		
+	haplor2 [shape = "record", 
+			style = "filled", 
+			fillcolor = "#FFEEDD", 
+			label = "{SNPs Of Interest (SOIs) | LD SNPs in non-coding regions | tab-delimited}"];
+			
+			
+		#		haplor4 [shape = "record", 
+		#	style = "filled", 
+		#	fillcolor = "#FFEEDD", 
+		#	label = "{Epigenomic marks | tab-delimited}"];
+			
+	 haplor3 [shape="record", 
+	 style="filled", 
+	 fillcolor="#FFEEDD",
+	 label="{LD SNPs \n in coding regions}"]
+		
+
+haplor2 -> rsid
+#rsid -> remap
+
+
+rsid [shape = "", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "rsID bed file", 
+				fontcolor = "#0D73A7"];
+				
+	rsid -> variation_info
+				
+  ## RSAT
+	subgraph cluster_5 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "RSAT";
+		style = "rounded";
+	
+	## variation-info
+	variation_info [shape = "record", 
+					style = "rounded,filled", 
+					fillcolor = "#FFC133", 
+					label = "{variation-info \n REST API | Coordinate list of SNP IDs}", 
+					URL = "http://rsat.sb-roscoff.fr/variation-info_form.cgi", 
+					fontcolor = "#0D73A7"];
+
+	variation_info -> snp_info
+	
+	snp_info [shape = "record", 
+				style = "filled", 
+				fillcolor = "#FFEEDD", 
+				label = "{SNP coordinates | tab-delimited }"];
+
+	snp_info -> retrieve_variation_seq
+
+	## retrieve-variation-seq
+	retrieve_variation_seq [shape = "record", 
+							style = "rounded,filled", 
+							fillcolor = "#FFC133", 
+							label = "{retrieve-variation-seq \n REST API | SNP sequences retrieval}", 
+							URL = "http://rsat.sb-roscoff.fr/retrieve-variation-seq_form.cgi", 
+							fontcolor = "#0D73A7"];
+
+	retrieve_variation_seq -> snp_seq
+
+	snp_seq  [shape = "record", 
+			  style = "filled", 
+			  fillcolor = "#FFEEDD", 
+			  label = "{SNP sequences | tab-delimited }"];
+				
+	snp_seq -> variation_scan
+
+
+	## variation-scan
+	variation_scan [shape = "record", 
+					style = "rounded,filled", 
+					fillcolor = "#FFC133", 
+					label = "{variation-scan \n REST API | SNP sequence scanning}", 
+					URL = "http://rsat.sb-roscoff.fr/variation-scan_form.cgi", 
+					fontcolor = "#0D73A7"];
+	
+
+	## Matrice database
+	matrices  [shape = "cylinder", 
+	style = "rounded,filled", 
+	fillcolor = "#D6EEFA", 
+	label = "TFBM collection\n(HOCCOMOCO,\nJASPAR)", 
+		URL = "http://jaspar.genereg.net/", 
+		fontcolor = "#0D73A7"];
+
+	matrices -> variation_scan
+	}
+
+variation_scan -> rsat2
+
+		 
+		 #rsat1  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{RSAT | rSNP predictions}"]
+		 
+		 #rsat1 -> rsat2
+		 
+		  rsat2 [shape="record", style="filled", fillcolor="#FFEEDD", label="{Predicted rSNPs | tab-delimited}"]
+		  
+	rsid -> remapenrich
+	rsid -> remap
+		  
+		  	## REMAP
+subgraph cluster_3 {
+		color = "#0066BB";
+		bgcolor = "#C0C0C0";
+		label  =  "ReMap";
+		style = "rounded";
+				
+				
+		remapenrich [shape = "record", 
+				style = "rounded,filled", 
+				fillcolor = "#EEFFDD", 
+				label = "{ReMapEnrich \n R package}", 
+				fontcolor = "#0D73A7"];
+	
+	remap [shape = "record", 
+				style = "rounded,filled", 
+				fillcolor = "#EEFFDD", 
+				label = "{ReMap \n No REST API}", 
+				fontcolor = "#0D73A7"];
+				
+		remapcatalogue [shape = "cylinder", 
+						style = "rounded,filled", 
+						fillcolor = "#D6EEFA", 
+						label = "ReMap catalogue \n ftp download", 
+						URL = "http://tagc.univ-mrs.fr/remap/index.php?page = download/", 
+						fontcolor = "#0D73A7"];
+	remapcatalogue -> remapenrich 
+	remapcatalogue -> remap
+
+		}
+	 
+	 remapenrich -> tfenrichissment
+	 
+	 	tfenrichissment [shape = "record", 
+					style = "filled", 
+					fillcolor = "#FFEEDD", 
+					label = "{TF enrichissments | tab-delimited}"];
+					
+	 
+		 #remap1  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{ReMap | ReMapEnrich}"]
+		 remap -> remap2
+		  remap2 [shape="record", style="filled", fillcolor="#FFEEDD", label="{TF binding peaks \n overlapping SNPs | Intersect bed}"]
+		  
+	
+	
+		 rsat2 -> join
+		 remap2 -> join
+		 #haplor4 -> join
+		 
+    join  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{GenomicRanges| Merge datasets}"]
+    
+    join -> annot_table
+    
+    
+    	jaspar  [shape = "cylinder", 
+	style = "rounded,filled", 
+	fillcolor = "#FFC133", 
+	label = "JASPAR \n REST API", 
+		URL = "http://jaspar.genereg.net/", 
+		fontcolor = "#0D73A7"];
+		
+		jaspar -> jaspar_res
+		
+		jaspar_res[shape="record", style="filled", fillcolor="#FFEEDD", label="{Accession motif + TF | tab-delimited}"]
+		
+		jaspar_res -> join
+
+		 annot_table  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Annotation tab-delimited}"]
+    annot_table -> stat
+ stat  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{Statistical analysis}"]
+    stat -> rsnp
+    rsnp  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Regulatory SNPs | tab-delimited}"]
+	}
+
+	
+}
