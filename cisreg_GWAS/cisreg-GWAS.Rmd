@@ -142,29 +142,6 @@ knitr::opts_chunk$set(fig.path = paste(
 ```
 
 
-```{r disease_of_interest}
-## Identify the disease based on the EFO ID
-message("Identifying the disease of interest")
-diseaseURL <- paste(sep = "/", 
-                    "http://www.ebi.ac.uk/gwas/rest/api/efoTraits", 
-                    parameters$query)
-
-GWASstudiesRestOutput <- fromJSON(
-  diseaseURL, 
-  content_type("application/json"), 
-  simplifyDataFrame = FALSE)
-
-
-parameters$trait <- GWASstudiesRestOutput$trait
-
-## Generate a table displaying the parameters for the report
-kable(t(as.data.frame(parameters)), 
-      col.names = c("Parameter", "value"))
-
-
-```
-
-
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
 message("Loading required libraries")
@@ -177,22 +154,22 @@ cran.libraries.to.install <-
     # "Gviz",
     "tidyr",
     "VSE",
-#    "DiagrammeR",
+    "DiagrammeR",
     "VennDiagram",
     "jsonlite",
     "httr",
     "xml2",
-#    "stringr",
+    #    "stringr",
     "RCurl"
   )     
 
 bioconductor.libraries.to.install <- c(
   "biomaRt",
   "GenomicRanges",
-  "rGREAT",
+  #"rGREAT",
   "XGR",
   #"FunciSNP",
-   "TissueEnrich"
+  "TissueEnrich"
 )
 
 
@@ -214,8 +191,8 @@ for (lib in cran.libraries.to.install) {
 message("Loading Bioconductor libraries")
 for (lib in bioconductor.libraries.to.install) {
   if (!require(lib, character.only = TRUE, quietly = TRUE)) {
-  #   message("\tLoaded library\t", lib)
-  # } else {
+    #   message("\tLoaded library\t", lib)
+    # } else {
     message("Installing Bioconductor library\t", lib)
     if (!("BiocManager" %in% rownames(installed.packages()))) {
       install.packages("BiocManager")
@@ -248,8 +225,6 @@ for (lib in names(github.libraries.to.install)) {
 
 
 
-
-
 ```{r output_directories}
 message("Creating output directories")
 
@@ -275,6 +250,30 @@ outfiles <- data.frame()
 ```
 
 
+
+```{r disease_of_interest}
+## Identify the disease based on the EFO ID
+message("Identifying the disease of interest")
+diseaseURL <- paste(sep = "/", 
+                    "http://www.ebi.ac.uk/gwas/rest/api/efoTraits", 
+                    parameters$query)
+
+GWASstudiesRestOutput <- fromJSON(
+  diseaseURL, 
+  content_type("application/json"), 
+  simplifyDataFrame = FALSE)
+
+
+parameters$trait <- GWASstudiesRestOutput$trait
+
+## Generate a table displaying the parameters for the report
+kable(t(as.data.frame(parameters)), 
+      col.names = c("Parameter", "value"))
+
+```
+
+
+
 ## Introduction
 
 This report summarises the results of **cisreg-GWAS**, an automatic workflow to predict the impact of genetic variations on cis-regulation, based on the integration of complementary data types. 
@@ -294,14 +293,16 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 ```{r fig.cap = "Annotation pipeline of genetic variants.", out.width = "100%"}
 
 # Include flowchart
-knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
-                              parameters["flowchart.format"]))
+#knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
+                              #parameters["flowchart.format"]))
+
+DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
 
 
 
-```{r}
+```{r }
 # url <- "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/EFO_0001068/associations?projection=associationByEfoTrait"
 # 
 # resGWAS <- fromJSON(url)
@@ -519,7 +520,7 @@ We used the [halpoR package](https://cran.r-project.org/web/packages/haploR/vign
   
 
 
-```{r querying_haploreg}
+```{r linkage_desiquilibrium}
 
 message("Getting LD SNPs from Ensembl")
 
@@ -538,7 +539,7 @@ for (rsID in rsIDs) {
   # names(newLdSNPs)
   lsSNPsIDs <- append(lsSNPsIDs, newLdSNPs$variation2)
   message("\tCollected\t",  nrow(newLdSNPs), " LD SNPs for DA-SNP ", i, "/", nbRsIDs, "\t", rsID)
-  # View(ldSNPs)
+  View(ldSNPs)
 }
 lsSNPsIDs <- unique(lsSNPsIDs)
 nbLDSNPs <- length(lsSNPsIDs)
