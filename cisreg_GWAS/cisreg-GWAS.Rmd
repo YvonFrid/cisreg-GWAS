@@ -1,6 +1,6 @@
 ---
 title: "Detection of tuberculosis regulatory SNPs in GWAS studies"
-author: "Yvon Mbouamboua, Pascal Rihet, Andrew Parton & Jacques van Helden "
+author: "Yvon Mbouamboua, Pascal Rihet, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
   html_document:
