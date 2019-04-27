@@ -113,10 +113,12 @@ parameters <- list(
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
+  include.LD = "EUR", # additional SNPs in LD with Lead SNPs in XGR package
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
+  #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   working.dir = getwd()
 )
 
@@ -231,7 +233,7 @@ message("Creating output directories")
 
 # Result directory (export result tables)
 result.dirs <- c(TagSNPs = "TagSNPs",
-                 HaploReg = "HaploReg",
+                 Ensembl = "Ensembl",
                  SOIs = "SOIs",
                  ReMap = "ReMap",
                  RSAT = "RSAT",
@@ -242,7 +244,6 @@ names(result.dir.path) <- names(result.dirs) ## entry names were lost with the f
 for (dir in c(parameters$result.dir, result.dir.path)) {
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 }
-
 
 ## Prepare a table for the output files
 outfiles <- data.frame()
@@ -279,12 +280,9 @@ kable(t(as.data.frame(parameters))[,1],
 This report summarises the results of **cisreg-GWAS**, an automatic workflow to predict the impact of genetic variations on cis-regulation, based on the integration of complementary data types. 
 
 1. Genome-Wise Association Studies (GWAS), obtained from [**GWAS catalog**](https://www.ebi.ac.uk/gwas/)
-2. Linkage desequilibrium data, from [**HaploReg**](https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php)
+2. Linkage desequilibrium data, from [**Ensembl**](https://www.ensembl.org/Homo_sapiens/Tools/LD)
 3. Analysis of transcription factor binding motifs, with the [**Regulatory Sequence Analysis Tools (RSAT)**](http://rsat.eu/)
 4. ChIP-seq data for transcription factor binding, from the [**Remap**](http://pedagogix-tagc.univ-mrs.fr/remap/) database
-5. Epigenetic marks (histone modifications)
-6. DNA accessibility, from [**HaploReg**](https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php)
-5. eQTL, from [**HaploReg**](https://pubs.broadinstitute.org/mammals/haploreg/haploreg.php)
 
 
 ## Flow chart of the workflow
@@ -300,42 +298,21 @@ DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
 
-
-
-```{r }
-# url <- "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/EFO_0001068/associations?projection=associationByEfoTrait"
-# 
-# resGWAS <- fromJSON(url)
-# #create a dataframe
-# 
-# df <- data.frame(resGWAS$`_embedded`)
-# #View(df)
-```
-
-
-
 To select all disease trait-associated variants, we downloaded the publicly available GWAS data from the [GWAS catalog](https://www.ebi.ac.uk/gwas) website [@macarthur_new_2017].
-
-Parameters for the GWAS catalog: 
-  
-- Query disease identifier: `r parameters$query`
-- Query URL: `r gwascatalog.disease.url`
-- GWAS catalog data table for disease: [click to download](`r gwascatalog.table.url`)
-
 
 **Note:**
   
   - The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
 
 
-## Retrieval of disease-associated SNPs
+## Retrieval of disease-associated variants
 
 We define as **tag SNPs** the non-coding SNPs associated to the disease. 
 It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
 
 We select the **Tag SNPs** by  filtering out:
   
-  - all missing variants by keeping all with rs ID variant.
+- all missing variants by keeping all with rs ID variant.
 - some redundant disease-SNPs associations  resulting from different studies.
 
 
@@ -421,73 +398,45 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 ```
 
 
+In total, we found `r length(DArsIDs)` **TagSNPs** from GWAS catalog.
 
 
-```{r export_tag_snps, eval=FALSE, echo=FALSE}
+### Proportion of genomic context of the disease-associated variants
 
-## NOT WORKING FOR THE TIME BEING, DUE TO LISTS IN THE TABLE COLUMNS
+```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS catalog"), out.width = "100%", eval=FALSE, echo=FALSE}
 
-# Export missing data in TSV table
-gwas.err.file <- "GWAS_noRSID.tsv"
-gwas.err.path <- file.path(result.dir.path["TagSNPs"], gwas.err.file)
-outfiles <- rbind(outfiles, data.frame(
-  name = "GWAS catalog errors", 
-  file = gwas.err.file, 
-  path = gwas.err.path,
-  source = "GWAS catalog",
-  description = "Disease-associated SNPs with incomplete information in GWAS catalog"))
-# write.table(x = as.data.frame(subset(snpTable, rsId %in% nonrsIDs)),
-#             file = gwas.err.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
+# Find the genomic tag SNPs informations
 
-# Paste rs on SNP number ID
-# tagSNPs$tagSNPs <- paste0("rs", sep = "", tagSNPs$SNP_ID_CURRENT)
-#dim(gwasResults)
-# 
-# 
-# # Export Tag SNPs in TSV format table
-# tag.snp.file <- "tagSNPs.tsv"
-# tag.snp.path <- file.path(result.dir.path["TagSNPs"], tag.snp.file)
-# outfiles <- rbind(outfiles, data.frame(
-#   name = "Tag SNPs", 
-#   file = tag.snp.file, 
-#   path = tag.snp.path,
-#   source = "GWAS catalog",
-#   description = "Tag SNP, i.e. disease-associated SNPs with complete information in GWAS catalog"))
-# 
-# write.table(x = tagSNPs,
-#             file = tag.snp.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
-# 
+snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp") # BioMart database and dataset to use.
+tagSNPsInfo <- getBM(attributes = c('chr_name', 
+                                    'refsnp_id',
+                                    'chrom_start', 
+                                    'allele', 
+                                    'consequence_type_tv'), 
+                     filters =  "snp_filter", 
+                     values = DArsIDs, 
+                     mart = snpmart)
+# Remove the duplicated SNPs
+tagSNPsInfo <- tagSNPsInfo[!duplicated(tagSNPsInfo$refsnp_id),]
 
-# Display 
-# kable(head(tagSNPs[, c("PUBMEDID", "DISEASE.TRAIT", "REGION", "CHR_ID", "CHR_POS", "tagSNPs",  "MAPPED_GENE", "CNV", "CONTEXT")]), caption = "**Tag SNPs from GWAS catalog**")
-```
+# Replace the missing data by the NAs
+tagSNPsInfo$consequence_type_tv <- sub(pattern = " ", NA, 
+                                       tagSNPsInfo$consequence_type_tv)
 
-In total, we found `r print("TO BE ADAPTED")` **TagSNPs** from GWAS catalog.
+# Run the pie
 
-
-# Proportion of genomic context
-
-```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS"), out.width = "100%", eval=FALSE, echo=FALSE}
-# table <- table(tagSNPs$CONTEXT)
-# pct <- round(table/sum(table)*100)
-# lbls <- names(table)
-# lbls <- paste(lbls, pct) # add percents to labels
-# lbls <- paste(lbls, "%", sep = "") # ad % to labels
-# lbls <- sub(pattern = "_variant", replacement = "", lbls)
-# pie(table,
-#     labels = lbls,
-#     cex = 1,
-#     col = rainbow(length(names(table)))
-#     #main="Pie Chart of SNP regions"
-# )
+table <- table(tagSNPsInfo$consequence_type_tv)
+pct <- round(table/sum(table)*100)
+lbls <- names(table)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls, "%", sep = "") # ad % to labels
+lbls <- sub(pattern = "_variant", replacement = "", lbls)
+pie(table,
+    labels = lbls,
+    cex = 1,
+    col = rainbow(length(names(table)))
+    #main="Pie Chart of SNP regions"
+)
 ```
 
 
@@ -562,17 +511,9 @@ rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
 message("Total number of DA-SNPs and LD SNPs: ", nbSNPs)
 
+# Kable
+#kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 
-## TO DO : replace newLdSNPs by LdSnps once we have fixed the fusion problem
-kable(head(newLdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
-
-
-## TO DO
-
-# - merge DASNPs and LD-SNPs
-# - filter out coding SNPs -> SNPs of interest (SOIs)
-# - gather all the information (coordinates, ...) for SOIs
-# ...
 ```
 
 
@@ -583,68 +524,142 @@ In this section, we gathering the informations about LD SNPs from Ensembl using 
 ```{r LD_biomart_annotation}
 ## biomaRt annotation
 message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs")
+snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp") # BioMart database and dataset to use.
+snpInfo <- getBM(attributes = c('refsnp_source',
+                                'chr_name',
+                                'chrom_start',
+                                'chrom_end',
+                                'refsnp_id',
+                                'allele',
+                                'cds_start',
+                                'cds_end',
+                                'ensembl_gene_stable_id',
+                                'consequence_type_tv'), 
+                 filters =  "snp_filter", 
+                 values = rsIDs, # (DArsIDs + LDsnpIDs)
+                 mart = snpmart)
 
-snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
 
-getSNP <- function(rs, mart = snpmart) {
-  results <- getBM(attributes = c(
-    'refsnp_source',
-    'refsnp_id',
-    'chr_name',
-    'chrom_start',
-    'chrom_end',
-    'allele_1',
-    'allele',
-    'cds_start',
-    'cds_end',
-    'consequence_type_tv'
-  ),
-  filters    = "snp_filter",
-  values = rs, 
-  mart = mart)
-  return(results)
-}
-
-# Run biomaRt
-snpInfo <- getSNP(rs = rsIDs, snpmart)
- #View(snpInfo)
 
 ## TO DO: UNDERSTAND WHY THERE ARE MULTIPLE ROWS FOR THE SAME SNP !!!
 ## CHECK IF THIS IS DUE TO THE POPULATIONS FOR EXAMPLE
 snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
+#View(snpInfo)
+# Get gene features
 
-# pie(table(snpInfo$consequence_type_tv))
+# geneInfo <- getBM(attributes = c('chromosome_name', 'hgnc_symbol', 'start_position', 'end_position', 'ensembl_gene_id', 'entrezgene', 'go_id'),
+#                   filters = c('chromosome_name', 'hgnc_symbol', 'start_position', 'end_position'),
+#                   values = ,
+#                  mart = parameters$ensemblmart
+#                   )
+#dim(snpInfo)
 
-# dim(snpInfo)
-
-# Select the non-coding variant by discarding the variants with an annotated CDS start
-isSOI <- is.na(snpInfo$cds_start)
-# table(isSOI)
-SOI <- snpInfo[isSOI, ]
-dim(SOI)
-
-SOI.file <- "snps_of_interest.tsv"
-nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
-write.table(x = SOI,
-            file = nocoding.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-# Make a non-coding variant bed file
-
+kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end" ,          "refsnp_id", "allele" , "consequence_type_tv")]), caption = "LD SNPs informations")
 ```
 
 
 
+## SNPs Of Interest (SOIs)
 
+We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, or in LD with these associated SNPs. 
+
+
+```{r biomart_annotation, eval=FALSE, echo=FALSE}
+
+# Select the non-coding variant by discarding the variants with an annotated CDS start
+message("Selecting SNPs of Interest (in non-coding regions) from HaploReg")
+isSOI <- is.na(snpInfo$cds_start)
+# table(isSOI)
+SOI <- snpInfo[isSOI, ]
+#dim(SOI)
+
+# SOI.file <- "snps_of_interest.tsv"
+# nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
+# write.table(x = SOI,
+#             file = nocoding.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
+
+# Make a non-coding variant bed file
+SOIsBed <- data.frame(chrom = SOI$chr_name,
+                      chromStart = SOI$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
+                      chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
+                      name = SOI$refsnp_id)
+
+```
+
+We select the **SOIs** by keeping all **LD SNPs in non-coding regions** and we checking these SNPs in dbSNP using `biomaRt package`. We are a total **`r length(SOI$refsnp_id)` SOIs.**
+
+
+```{r  fig.cap = paste("Genomic context of SNPs of interest"), out.width = "100%"}
+#SOI$consequence_type_tv <- sub(pattern = " ", "intergenic", 
+#                                       SOI$consequence_type_tv)
+table <- table(SOI$consequence_type_tv)
+pct <- round(table/sum(table)*100)
+lbls <- names(table)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls, "%", sep = "") # ad % to labels
+#lbls <- sub(pattern = "_variant", replacement = "", lbls)
+pie(table,
+    labels = lbls,
+    cex = 1,
+    col = rainbow(length(names(table)))
+    #main="Pie Chart of SNP regions"
+)
+```
 
 
 
 ## Enrichment of associated variant set (AVS)
 
 ```{r enrich_association_variant_set, eval=FALSE, echo=FALSE}
+
+haplotype <- merge(x = SOI,
+                   y = LdSNPs,
+                   by.x = "refsnp_id",
+                   by.y = "variation2",
+                   all.x = TRUE,
+                   all.y = FALSE)
+
+#View(haplotype)
+
+
+haplotype$chr_name <- paste("chr", haplotype$chr_name, sep = "")
+haplotype <- haplotype[, c("chr_name", "chrom_start", "chrom_end","refsnp_id", "allele", "consequence_type_tv",  "variation1", "r2", "d_prime","population")]
+haplotype <- na.omit(haplotype)
+
+haplotype$chrom_start <- as.numeric(haplotype$chrom_start)
+haplotypeGR <- with(haplotype,
+                    GRanges( seqnames = Rle(chr_name),
+                             ranges   = IRanges(start = chrom_start, end = chrom_end),
+                             strand   = Rle("*"), LDSNPs = refsnp_id, TagSNPs = variation1))
+
+haplotype.block <- haplotype %>% 
+  dplyr::group_by(variation1) %>% 
+  dplyr::mutate(Region_start = min(chrom_start),
+            Region_end = max(chrom_end),
+            Nb_SNPs = n())
+
+```
+
+
+
+```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
+
+LD <- haplotype[, c("chr_name", "chrom_start", "refsnp_id", "variation1")]
+LD <- na.omit(LD)
+LD$chrom_start <- as.numeric(LD$chrom_start)
+LDgr <- with(LD,
+GRanges( seqnames = Rle(chr_name),
+ranges   = IRanges(start = chrom_start, end = chrom_start),
+strand   = Rle("*"), idLd = refsnp_id, idTag = variation1))
+
+# Check the size of each LD block
+bca.avs <- makeAVS(LDgr)
+tata <- data.frame(bca.avs)
+avs.size <- avsSize(bca.avs)
 
 avs.sizes.sorted <- avs.size$Size
 names(avs.sizes.sorted) <- avs.size$tagID
@@ -659,283 +674,53 @@ barplot(avs.sizes.sorted, horiz = TRUE, las = 1, cex.names = 0.5,
 xlab = "Number of SNPs in LD")
 par(par.ori)
 
-```
-
-
-
-## SNPs Of Interest (SOIs)
-
-We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, or in LD with these associated SNPs. 
-
-
-```{r biomart_annotation, eval=FALSE, echo=FALSE}
-
-# message("Selecting SNPs of Interest (in non-coding regions) from HaploReg")
-# 
-# # Remove the Redundancies SNPs from HaploReg
-# haploR <- haploR[!duplicated(haploR$rsID),]
-# # Filtering non-conding variant
-# 
-# attach(haploR)
-# SOI <- haploR[which(dbSNP_functional_annotation == "INT" |
-#                             dbSNP_functional_annotation == "." |
-#                             dbSNP_functional_annotation == "U3" |
-#                             dbSNP_functional_annotation == "U5"
-# ),]
-# 
-# detach(haploR)
-# 
-# SOI$ENSG <- gsub('\\..+$', '', SOI$GENCODE_id)
-# 
-# # Export SOIs full results in TSV table
-# haplor.file <- "ENSG.txt"
-# haplor.path <- file.path(result.dir.path["HaploReg"], haplor.file)
-# write.table(x = unique(SOI$GENCODE_name),
-#             file = haplor.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = FALSE)
-
-
-## biomaRt annotation
-# message("Gathering information about SNPs of Interest (SOIs) from HaploReg")
-# 
-# snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
-# 
-# getSNP <- function(rs = "rsID", mart = snpmart) {
-#   results <- getBM(attributes = c(
-#     'refsnp_source',
-#     'refsnp_id',
-#     'chr_name',
-#     'chrom_start',
-#     'allele_1',
-#     'allele'
-#   ),
-#   filters    = "snp_filter",
-#   values = rs, mart = mart)
-#   return(results)
-# }
-# 
-# # LD SNPs object
-# snpList <- SOI$rsID
-# 
-# # Run biomaRt
-# getSNP <- getSNP(rs = snpList, snpmart)
-# getSNP <- getSNP[!duplicated(getSNP$refsnp_id), ]
-# 
-# ## Make grange object of SOIs
-# 
-# getSNP$chrom_start <- as.numeric(getSNP$chrom_start)
-# getSNP$chr_name <- paste(sep = "", "chr", getSNP$chr_name)
-
-
-SOIsBed <- data.frame(chrom = SOI$chr_name,
-                      chromStart = SOI$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
-                      chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
-                      name = SOI$refsnp_id)
-
-# SOIs <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id",
-#               all.x = FALSE, all.y = TRUE)
-# 
-
-# SOIsError <- merge(nonCoding, getSNP, by.x = "rsID", by.y = "refsnp_id", all.x = TRUE, all.y = TRUE)
-
-# biomaRtError <- subset(SOIsError, is.na(refsnp_source))
-
-# message("The following DAsnpIDs had no information available on dbSNP:  ",
-#               paste( biomaRtError$rsID , collapse = ", "),
-#               call. = FALSE)
-
-
-# TO DO :; Export SOIs full results in TSV table
-
-
-# haplor.file <- "SOIs.tsv"
-# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-# write.table(x = SOIs,
-#             file = haplor.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
-# 
-# # Export SOIs in bed format
-# haplor.file <- "SOIs.bed"
-# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-# write.table(x = SOIsBed,
-#             file = haplor.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = FALSE)
-# 
-# # Export SOIs in txt format
-# haplor.file <- "SOIs.txt"
-# haplor.path <- file.path(result.dir.path["SOIs"], haplor.file)
-# write.table(x = SOIs$rsID,
-#             file = haplor.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = FALSE)
-
-#kable(head(SOIs[, c( "chr_name", "chrom_start", "rsID", "ref", "alt")]), caption = "SNPs of interest (SOIs)")
-```
-
-We select the **SOIs** by keeping all **LD SNPs in non-coding regions** and we checking these SNPs in dbSNP using `biomaRt package`. We are a total **`r length(getSNP$refsnp_id)` SOIs.**
-
-
-
-```{r fig.cap = paste("Genomic context of SNPs of interest"), out.width = "100%"}
-message("Drawing pie chart of SNP distribution in non-coding regions")
-
-# Proportion of genomic context
-## TO DO: adapt
-SOI$dbSNP_functional_annotation <- sub(pattern = "^.$", "intergenic", 
-                                       SOI$consequence_type_tv)
-SOI$dbSNP_functional_annotation <- sub(pattern = "^INT$", "intron", SOI$dbSNP_functional_annotation)
-SOI$dbSNP_functional_annotation <- sub(pattern = "^U3$", "3'UTR", SOI$dbSNP_functional_annotation)
-SOI$dbSNP_functional_annotation <- sub(pattern = "^U5$", "5'UTR", SOI$dbSNP_functional_annotation)
-table <- table(SOI$dbSNP_functional_annotation)
-pct <- signif(table/sum(table)*100, digits = 3)
-lbls <- names(table)
-lbls <- paste(lbls, pct) # add percents to labels
-lbls <- paste(lbls, "%", sep = "") # ad % to labels
-pie(table,
-    labels = lbls,
-    cex = 1,
-    col = rainbow(length(names(table)))
-    #main="Pie Chart of SNP regions"
-)
-```
-
-
-```{r haplotype}
-#names(SOI)
-## TO ADAPT
-
-
-snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
-
-getSNP <- function(rs, mart = snpmart) {
-  results <- getBM(attributes = c(
-    'chr_name',
-    'chrom_start',
-    'chrom_end',
-    'refsnp_id',
-    'cds_start',
-    'cds_end'
-  ),
-  filters    = "snp_filter",
-  values = rs, 
-  mart = mart)
-  return(results)
-}
-
-# Run biomaRt
-LdSNPsInfo <- getSNP(rs = LdSNPs$variation2, snpmart)
-LdSNPsInfo <- LdSNPsInfo[!duplicated(LdSNPsInfo$refsnp_id),]
-
-
-haplotype <- merge(x = LdSNPsInfo,
-                   y = LdSNPs,
-                   by.x = "refsnp_id",
-                   by.y = "variation2",
-                   all.x = TRUE,
-                   all.y = FALSE)
-
-#View(haplotype)
-
-
-# Select the non-coding variant by discarding the variants with an annotated CDS start
-isLDSOI <- is.na(haplotype$cds_start)
-# table(isSOI)
-LDSOI <- haplotype[isLDSOI, ]
-LDSOI$chr_name <- paste("chr", LDSOI$chr_name, sep = "")
-LDSOI <- LDSOI[, c("chr_name", "chrom_start", "chrom_end","refsnp_id",  "variation1")]
-#View(LDSOI)
-#LDSOI <- LDSOI[!duplicated(LDSOI$refsnp_id),]
-LDSOI <- na.omit(LDSOI)
-
-
-haplotypeGR <- with(LDSOI,
-                    GRanges( seqnames = Rle(chr_name),
-                             ranges   = IRanges(start = chrom_start, end = chrom_end),
-                             strand   = Rle("*"), LDSNPs = refsnp_id, TagSNPs = variation1))
-
-haplotype.block <- LDSOI %>% 
-  dplyr::group_by(variation1) %>% 
-  dplyr::mutate(Region_start = min(chrom_start),
-            Region_end = max(chrom_end),
-            Nb_SNPs = n())
-
-haplotype.block <- haplotype.block[!duplicated(haplotype.block$variation1),]
-#View(haplotype.block)
-haplotype.blockGR <- with(haplotype.block,
-                          GRanges( seqnames = Rle(chr_name),
-                                   ranges   = IRanges(start = Region_start, end = Region_end),
-                                   strand   = Rle("*")))
-
-
-```
-
-
-
-```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
-
-
-LD <- haploR[, c("chr", "pos_hg38", "rsID", "query_snp_rsid")]
-LD <- na.omit(LD)
-LD$pos_hg38 <- as.numeric(LD$pos_hg38)
-LDgr <- with(LD,
-GRanges( seqnames = Rle(chr),
-ranges   = IRanges(start = pos_hg38, end = pos_hg38),
-strand   = Rle("*"), idLd = rsID, idTag = query_snp_rsid))
-
-# Check the size of each LD block
-bca.avs <- makeAVS(LDgr)
-tata <- data.frame(bca.avs)
-avs.size <- avsSize(bca.avs)
-#head(avs.size)
-df1 <- tata[, c("seqnames", "start","idTag")]
-df1 <- df1[!duplicated(df1$idTag),]
-df2 <- merge(avs.size,
-            df1,
-            by.x = "tagID",
-            by.y = "idTag")
-df2$start <- as.numeric(df2$start)
-df2$end <- df2$start + 1
-df2 <- df2[, c("seqnames", "start", "end", "tagID", "Size")]
-names(df2) <- c("chrom", "tagSNPs", "start", "end", "nb LDSNPs")
-
-kable(head(df2), caption = "Number of LD SNPs per Tag SNPs.")
-
-```
+ ```
 
 
 
 ## Enrichment of SOI set for diseases
 
-```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap="Enrichment of the set of SOIs for diseases, analysed with the XGR package. "}
+We used the `xEnricherSNPs` function to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either Fisher's exact test or Hypergeometric test.
+
+```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package. "}
 # enrichment analysis of SNPs of interest
-eTerm <- xEnricherSNPs(SOI$refsnp_id, ontology = c("EF", "EF_disease",
-                                               "EF_phenotype", "EF_bp"), include.LD = NA, LD.r2 = 0.8,
+
+eTerm <- xEnricherSNPs(SOI$refsnp_id, 
+                       ontology = c("EF", 
+                                    "EF_disease",
+                                    "EF_phenotype", 
+                                    "EF_bp"), 
+                       include.LD = parameters$include.LD,
+                       LD.r2 = parameters$r2,
                        size.range = c(10, 2000),
                        RData.location = "http://galahad.well.ox.ac.uk/bigdata")
 
 
 # View enrichment results
-enrichSNPsResults <- xEnrichViewer(eTerm, top_num = 10, sortBy = c("adjp", "fdr", "pvalue",
-                                                                   "zscore", "fc", "nAnno", "nOverlap", "or", "none"), decreasing = NULL,
+enrichSNPsResults <- xEnrichViewer(eTerm, 
+                                   top_num = 10, 
+                                   sortBy = c("adjp", 
+                                              "fdr", 
+                                              "pvalue",
+                                              "zscore", 
+                                              "fc", 
+                                              "nAnno", 
+                                              "nOverlap",
+                                              "or", 
+                                              "none"), 
+                                   decreasing = NULL,
                                    details = F)
 #View(enrichSNPsResults)
 # visualises enrichment results using a barplot.
+
 bp <- xEnrichBarplot(
   eTerm, top_num = 10, 
   displayBy = c("fc", "adjp", "fdr",
-                "zscore", "pvalue"), FDR.cutoff = 0.05, bar.label = TRUE,
-  bar.label.size = 3, bar.color = "yellow-orange",
+                "zscore", "pvalue"), 
+  FDR.cutoff = 0.05, 
+  bar.label = TRUE,
+  bar.label.size = 3, 
+  bar.color = "yellow-orange",
   bar.width = 0.8, 
   wrap.width = NULL, 
   font.family = "sans",
