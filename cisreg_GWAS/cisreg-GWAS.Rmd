@@ -612,7 +612,7 @@ pie(table,
 
 ## Enrichment of associated variant set (AVS)
 
-```{r enrich_association_variant_set, eval=FALSE, echo=FALSE}
+```{r haplotype_block}
 
 haplotype <- merge(x = SOIsBed,
                    y = LdSNPs,
@@ -742,9 +742,6 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 
 ```{r rsat_rest_api_R}
-variant <- data.frame(SOI$refsnp_id)
-names(variant) <- NULL
-vv <- as.factor(variant[1:2, ])
 
 #data <- c("rs59576053", "rs73409643")
 ## Variation-info
@@ -753,8 +750,7 @@ res <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-info",
             body = list(
               species = "Homo_sapiens", 
               assembly = "GRCh38", 
-              i = vv))
-              #i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
+              i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
 
 var <- content(res, "text", encoding = "UTF-8")
 
