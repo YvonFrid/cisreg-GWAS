@@ -1,5 +1,5 @@
 ---
-title: "Detection of tuberculosis regulatory SNPs in GWAS studies"
+title: "Detection of  regulatory SNPs in GWAS studies"
 author: "Yvon Mbouamboua, Pascal Rihet, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
@@ -60,7 +60,7 @@ output:
     toc_depth: 3
 font-import: http://fonts.googleapis.com/css ?family=Risque
 font-family: Garamond
-subtitle: Susceptibility to Mycobacterium tuberculosis infection measurement 
+subtitle: Disease 
 address: TAGC lab, Aix-Marseille Université, France
 transition: linear
 editor_options: 
@@ -89,8 +89,6 @@ knitr::opts_chunk$set(
   results = TRUE, 
   message = FALSE, 
   comment = "")
-
-
 
 ## Load custom functions
 source("R/bed_to_granges.R")
@@ -162,7 +160,6 @@ cran.libraries.to.install <-
     "jsonlite",
     "httr",
     "xml2",
-    #    "stringr",
     "RCurl"
   )     
 
@@ -586,8 +583,9 @@ SOI <- snpInfo[isSOI, ]
 SOIsBed <- data.frame(chrom = SOI$chr_name,
                       chromStart = SOI$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
                       chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
-                      name = SOI$refsnp_id)
+                      snp = SOI$refsnp_id)
 
+SOIsBed$chrom <- paste("chr", SOIsBed$chrom, sep = "")
 ```
 
 We select the **SOIs** by keeping all **LD SNPs in non-coding regions** and we checking these SNPs in dbSNP using `biomaRt package`. We are a total **`r length(SOI$refsnp_id)` SOIs.**
@@ -616,45 +614,45 @@ pie(table,
 
 ```{r enrich_association_variant_set, eval=FALSE, echo=FALSE}
 
-haplotype <- merge(x = SOI,
+haplotype <- merge(x = SOIsBed,
                    y = LdSNPs,
-                   by.x = "refsnp_id",
+                   by.x = "snp",
                    by.y = "variation2",
                    all.x = TRUE,
                    all.y = FALSE)
 
-#View(haplotype)
 
-
-haplotype$chr_name <- paste("chr", haplotype$chr_name, sep = "")
-haplotype <- haplotype[, c("chr_name", "chrom_start", "chrom_end","refsnp_id", "allele", "consequence_type_tv",  "variation1", "r2", "d_prime","population")]
-haplotype <- na.omit(haplotype)
-
-haplotype$chrom_start <- as.numeric(haplotype$chrom_start)
-haplotypeGR <- with(haplotype,
-                    GRanges( seqnames = Rle(chr_name),
-                             ranges   = IRanges(start = chrom_start, end = chrom_end),
-                             strand   = Rle("*"), LDSNPs = refsnp_id, TagSNPs = variation1))
-
+# Make 
 haplotype.block <- haplotype %>% 
+  dplyr::select("chrom", "chromStart", "chromEnd", "variation1") %>% 
   dplyr::group_by(variation1) %>% 
-  dplyr::mutate(Region_start = min(chrom_start),
-            Region_end = max(chrom_end),
+  dplyr::mutate(regionStart = min(chromStart),
+            regionEnd = max(chromEnd),
             Nb_SNPs = n())
 
+haplotype.block <- na.omit(haplotype.block)
+
+haplotype.block <- haplotype.block[!duplicated(haplotype.block$regionStart),]
+#View(haplotype.block)
+
+# Make a grange object
+haplotype.block.gr <- with(haplotype.block,
+GRanges( seqnames = Rle(chrom),
+ranges   = IRanges(start = regionStart, end = regionEnd),
+strand   = Rle("*"), rsID = variation1))
 ```
 
 
 
-```{r number_of_LDSNPs, eval=FALSE, echo=FALSE}
+```{r enrich_association_variant_set}
 
-LD <- haplotype[, c("chr_name", "chrom_start", "refsnp_id", "variation1")]
+LD <- haplotype[, c( "chrom","chromStart", "chromEnd", "snp",  "variation1")]
 LD <- na.omit(LD)
-LD$chrom_start <- as.numeric(LD$chrom_start)
+LD$chromStart <- as.numeric(LD$chromStart)
 LDgr <- with(LD,
-GRanges( seqnames = Rle(chr_name),
-ranges   = IRanges(start = chrom_start, end = chrom_start),
-strand   = Rle("*"), idLd = refsnp_id, idTag = variation1))
+GRanges( seqnames = Rle(chrom),
+ranges   = IRanges(start = chromStart, end = chromEnd),
+strand   = Rle("*"), idLd = snp, idTag = variation1))
 
 # Check the size of each LD block
 bca.avs <- makeAVS(LDgr)
@@ -674,16 +672,16 @@ barplot(avs.sizes.sorted, horiz = TRUE, las = 1, cex.names = 0.5,
 xlab = "Number of SNPs in LD")
 par(par.ori)
 
- ```
+```
 
 
 
 ## Enrichment of SOI set for diseases
 
-We used the `xEnricherSNPs` function to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either Fisher's exact test or Hypergeometric test.
+We used the `xEnricherSNPs` function to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either "Fisher's" exact test or Hypergeometric test.
 
-```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package. "}
-# enrichment analysis of SNPs of interest
+
+```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package."}
 
 eTerm <- xEnricherSNPs(SOI$refsnp_id, 
                        ontology = c("EF", 
@@ -710,6 +708,8 @@ enrichSNPsResults <- xEnrichViewer(eTerm,
                                               "none"), 
                                    decreasing = NULL,
                                    details = F)
+
+
 #View(enrichSNPsResults)
 # visualises enrichment results using a barplot.
 
@@ -726,7 +726,12 @@ bp <- xEnrichBarplot(
   font.family = "sans",
   signature = TRUE)
 print(bp)
+
 ```
+
+
+
+
 
 
 
@@ -734,6 +739,80 @@ print(bp)
 ## RSAT variation-scan analysis
 
 In this section, we using the SNPs of interest results from variation-scan, a subset tools in RSAT suite [@turatsinze_using_2008; @nguyen_rsat_2018] to scans variant sequences with PSSM and report variations that affect the binding score, in order to predict regulatory variants.
+
+
+```{r rsat_rest_api_R}
+variant <- data.frame(SOI$refsnp_id)
+names(variant) <- NULL
+vv <- as.factor(variant[1:2, ])
+
+#data <- c("rs59576053", "rs73409643")
+## Variation-info
+message("Get variation information from RSAT")
+res <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-info", 
+            body = list(
+              species = "Homo_sapiens", 
+              assembly = "GRCh38", 
+              i = vv))
+              #i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
+
+var <- content(res, "text", encoding = "UTF-8")
+
+varinfo <- fromJSON(var)
+
+#varBed <- varinfo$output
+varBed <- varinfo$result_path
+
+
+write.table(x = varinfo$output,
+            file = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/varBed",
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
+# varBed <- read.delim(file = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/varBed",
+#                        header = TRUE,
+#                        sep = "\t",
+#                        stringsAsFactors = FALSE,
+#                        na.strings = c(""," ","NA"))
+
+#View(varBed)
+
+## Retrieve variation sequence
+
+seq <- POST("http://rsat-tagc.univ-mrs.fr/rest/retrieve-variation-seq", 
+            body = list(
+              species = "Homo_sapiens", 
+              assembly = "GRCh38", 
+              i_input_string = varBed,
+              i_input_string_type = 'piping',
+              mml = 30,
+              format =  "varBed"))
+
+sequence <- content(seq, "text", encoding = "UTF-8")
+retrieveSeq <- fromJSON(sequence)
+varSeq <- retrieveSeq$result_path
+
+
+## Variation-scan
+varscan <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-scan", 
+            body = list(
+              species = "Homo_sapiens", 
+              assembly = "GRCh38", 
+              i_input_string = varSeq,
+              i_input_string_type = 'piping',
+              m = upload_file("~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
+              m_format =  "transfac"),
+            #add_headers("Accept" = "application/json"))
+add_headers("Accept" = "text/plain"))
+
+var <- content(varscan, "text", encoding = "UTF-8")
+#scan <- fromJSON(var, simplifyDataFrame = TRUE)
+print(var)
+dd <- data.frame(var)
+
+```
 
 
 
@@ -852,10 +931,10 @@ snpInfoBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
 snpInfoBed$chr_name <- paste("chr", snpInfoBed$chr_name, sep = "")
 
 
-snpInfoGR <- with(snpInfoBed,
-                   GRanges( seqnames = Rle(chr_name),
-                            ranges   = IRanges(start = chrom_start, end = chrom_end),
-                            strand   = Rle("*"), rsid = refsnp_id))
+SOIsBed.gr <- with(SOIsBed,
+                   GRanges( seqnames = Rle(chrom),
+                            ranges   = IRanges(start = chromStart, end = chromEnd),
+                            strand   = Rle("*"), rsid = snp))
 
 # Intersect function
 IntersectBed <- function(a, b) {
@@ -866,25 +945,20 @@ IntersectBed <- function(a, b) {
   return(my.df)
 }
 
-remap.intersect.SOIs <- IntersectBed(remapCatalog, snpInfoGR)
+
+remap.intersect.SOIs <- IntersectBed(remapCatalog, SOIsBed.gr)
 ## Find intersect between remap catalog and haplor data
 
-var.file <- "remap.tsv"
-var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
-write.table(x = remap.intersect.SOIs,
-            file = var.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+# var.file <- "remap.tsv"
+# var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
+# write.table(x = remap.intersect.SOIs,
+#             file = var.path,
+#             quote = FALSE,
+#             sep = "\t",
+#             row.names = FALSE,
+#             col.names = TRUE)
 
-# Export remap data in tsv table
-remap.inter.SOIs <- merge(snpInfo,
-      remap.inter.SOIs,
-      by.x = c("chrom_start", "chrom_end"),
-      by.y = c("start.1", "end.1"),
-      all.x = FALSE,
-      all.y = TRUE)
+
 
 # Barplot of TFs
 barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
@@ -899,17 +973,50 @@ barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE),
 
 
 # Enrichment of TFs
-
-enrich <- enrichment(haplotype.blockGR, remapCatalog)  
+enrich <- enrichment(SOIsBed.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
 
 # Negative control
+shufflesRegion <- shuffle(haplotype.block.gr)
 
-shufflesRegion <- shuffle(haplotype.blockGR)
-
-enrichNeg <- enrichment(shufflesRegion, remapCatalog)
+enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
 
 ```
 
+
+
+```{r enrichment_barplot_volcanoplot}
+
+par(mfrow=c(1,2))
+enrichmentBarPlot(enrich, 
+                  top = 20,
+                  main = paste("Significance, top 20 categories"),
+                  aRisk = 0.05,
+                  sigDisplayQuantile = 0.95,
+                  col = c("#6699ff", "#ff5050"),
+                  sigType = "q",
+                  #xlab = sigTypeTitle,
+                  beside = TRUE, 
+                  space = 0.1,
+                  cex.names = 0.8,
+                  border = NA,
+                  las = 1)
+
+
+# Display a volcano plot (na.omit() is mandatory as there is NAs in the enrichment data frame).
+enrichmentVolcanoPlot(na.omit(enrich),
+                      main = "Volcano plot",
+                      aRisk = 0.05,
+                      sigDisplayQuantile = 0.95,
+                      col = c("#ff5050", "#6699ff"),
+                      #sigType = "q",
+                      #ylim = c(0,yMax),
+                      xlab = "Effect size",
+                      ylab = "sigTypeTitle",
+                      pch = pch,
+                      cex = 0.8,
+                      las = 1)
+par(mfrow=c(1,1))
+```
 
 
 ```{r dotplot, fig.width=7, fig.height=5, out.width="90%"}
