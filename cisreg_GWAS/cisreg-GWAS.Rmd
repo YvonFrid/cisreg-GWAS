@@ -743,14 +743,15 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 ```{r rsat_rest_api_R}
 
-#data <- c("rs59576053", "rs73409643")
+data <- c("rs59576053", "rs73409643")
 ## Variation-info
 message("Get variation information from RSAT")
 res <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-info", 
             body = list(
               species = "Homo_sapiens", 
               assembly = "GRCh38", 
-              i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
+             # i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
+           i = c("rs141426589", "rs2148108")))
 
 var <- content(res, "text", encoding = "UTF-8")
 
@@ -781,8 +782,8 @@ seq <- POST("http://rsat-tagc.univ-mrs.fr/rest/retrieve-variation-seq",
             body = list(
               species = "Homo_sapiens", 
               assembly = "GRCh38", 
-              i_input_string = varBed,
-              i_input_string_type = 'piping',
+              i_string = varBed,
+              i_string_type = 'piping',
               mml = 30,
               format =  "varBed"))
 
@@ -796,8 +797,8 @@ varscan <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-scan",
             body = list(
               species = "Homo_sapiens", 
               assembly = "GRCh38", 
-              i_input_string = varSeq,
-              i_input_string_type = 'piping',
+              i_string = varSeq,
+              i_string_type = 'piping',
               m = upload_file("~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
               m_format =  "transfac"),
             #add_headers("Accept" = "application/json"))
