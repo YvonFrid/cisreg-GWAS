@@ -1,6 +1,6 @@
 ---
 title: "Detection of  regulatory SNPs in GWAS studies"
-author: "Yvon Mbouamboua, Pascal Rihet, Andrew Parton, Aziz Khan & Jacques van Helden "
+author: "Yvon Mbouamboua, Pascal Rihet, Thi Thuy Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
   html_document:
@@ -91,7 +91,7 @@ knitr::opts_chunk$set(
   comment = "")
 
 ## Load custom functions
-source("R/bed_to_granges.R")
+#source("R/bed_to_granges.R")
 
 
 ```
@@ -152,7 +152,6 @@ cran.libraries.to.install <-
     "ggplot2", ## dataviz
     "scater",
     "haploR",
-    # "Gviz",
     "tidyr",
     "VSE",
     "DiagrammeR",
@@ -286,11 +285,6 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 
 
 ```{r fig.cap = "Annotation pipeline of genetic variants.", out.width = "100%"}
-
-# Include flowchart
-#knitr::include_graphics(paste(sep = "", "flowchart/cisreg-GWAS.",
-                              #parameters["flowchart.format"]))
-
 DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
@@ -427,7 +421,7 @@ pct <- round(table/sum(table)*100)
 lbls <- names(table)
 lbls <- paste(lbls, pct) # add percents to labels
 lbls <- paste(lbls, "%", sep = "") # ad % to labels
-lbls <- sub(pattern = "_variant", replacement = "", lbls)
+#lbls <- sub(pattern = "_variant", replacement = "", lbls)
 pie(table,
     labels = lbls,
     cex = 1,
@@ -527,6 +521,7 @@ snpInfo <- getBM(attributes = c('refsnp_source',
                                 'chrom_start',
                                 'chrom_end',
                                 'refsnp_id',
+                                'allele_1',
                                 'allele',
                                 'cds_start',
                                 'cds_end',
@@ -560,41 +555,55 @@ kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end"
 
 We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, or in LD with these associated SNPs. 
 
+We gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
 
-```{r biomart_annotation, eval=FALSE, echo=FALSE}
+```{r snps_of_interest}
+
+## biomaRt annotation
+message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs")
+snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp") # BioMart database and dataset to use.
+snpInfo <- getBM(attributes = c('refsnp_source',
+                                'chr_name',
+                                'chrom_start',
+                                'chrom_end',
+                                'refsnp_id',
+                                'allele_1',
+                                'allele',
+                                'cds_start',
+                                'cds_end',
+                                'ensembl_gene_stable_id',
+                                'consequence_type_tv'), 
+                 filters =  "snp_filter", 
+                 values = rsIDs, # (DArsIDs + LDsnpIDs)
+                 mart = snpmart)
+
+# Remove the duplicated SNPs
+snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
+#View(snpInfo)
+
 
 # Select the non-coding variant by discarding the variants with an annotated CDS start
-message("Selecting SNPs of Interest (in non-coding regions) from HaploReg")
-isSOI <- is.na(snpInfo$cds_start)
-# table(isSOI)
-SOI <- snpInfo[isSOI, ]
-#dim(SOI)
+message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
 
-# SOI.file <- "snps_of_interest.tsv"
-# nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
-# write.table(x = SOI,
-#             file = nocoding.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
+SOIs <- subset(snpInfo,
+               cds_start = "NA")
 
 # Make a non-coding variant bed file
-SOIsBed <- data.frame(chrom = SOI$chr_name,
-                      chromStart = SOI$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
-                      chromEnd = SOI$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
-                      snp = SOI$refsnp_id)
+SOIsBed <- data.frame(chrom = SOIs$chr_name,
+                      chromStart = SOIs$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
+                      chromEnd = SOIs$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
+                      snp = SOIs$refsnp_id)
 
 SOIsBed$chrom <- paste("chr", SOIsBed$chrom, sep = "")
+
 ```
 
-We select the **SOIs** by keeping all **LD SNPs in non-coding regions** and we checking these SNPs in dbSNP using `biomaRt package`. We are a total **`r length(SOI$refsnp_id)` SOIs.**
 
 
 ```{r  fig.cap = paste("Genomic context of SNPs of interest"), out.width = "100%"}
 #SOI$consequence_type_tv <- sub(pattern = " ", "intergenic", 
 #                                       SOI$consequence_type_tv)
-table <- table(SOI$consequence_type_tv)
+table <- table(SOIs$consequence_type_tv)
 pct <- round(table/sum(table)*100)
 lbls <- names(table)
 lbls <- paste(lbls, pct) # add percents to labels
@@ -644,6 +653,7 @@ strand   = Rle("*"), rsID = variation1))
 
 
 
+
 ```{r enrich_association_variant_set}
 
 LD <- haplotype[, c( "chrom","chromStart", "chromEnd", "snp",  "variation1")]
@@ -676,14 +686,17 @@ par(par.ori)
 
 
 
-## Enrichment of SOI set for diseases
+## Enrichment of SOIs set for diseases
 
-We used the `xEnricherSNPs` function to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either "Fisher's" exact test or Hypergeometric test.
+We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either "Fisher's" exact test or Hypergeometric test.
 
 
 ```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package."}
 
-eTerm <- xEnricherSNPs(SOI$refsnp_id, 
+snpList <- SOIs$refsnp_id
+
+# Run xEnricherSNPs
+eTerm <- xEnricherSNPs(snpList, 
                        ontology = c("EF", 
                                     "EF_disease",
                                     "EF_phenotype", 
@@ -732,10 +745,6 @@ print(bp)
 
 
 
-
-
-
-
 ## RSAT variation-scan analysis
 
 In this section, we using the SNPs of interest results from variation-scan, a subset tools in RSAT suite [@turatsinze_using_2008; @nguyen_rsat_2018] to scans variant sequences with PSSM and report variations that affect the binding score, in order to predict regulatory variants.
@@ -743,16 +752,14 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 ```{r rsat_rest_api_R}
 
-data <- c("rs59576053", "rs73409643")
+names(rsIDs) <- NULL
 ## Variation-info
 message("Get variation information from RSAT")
-res <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-info", 
-            body = list(
-              species = "Homo_sapiens", 
-              assembly = "GRCh38", 
-             # i = upload_file("~/Google Drive/Yvon_Mbouamboua_these_2018/rest/file.txt")))
-           i = c("rs141426589", "rs2148108")))
 
+res <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-info/Homo_sapiens/GRCh38",
+            body=list( i_string = c("rs141426589, rs2148108"), 
+                       i_string_type='text'))
+          
 var <- content(res, "text", encoding = "UTF-8")
 
 varinfo <- fromJSON(var)
@@ -761,31 +768,10 @@ varinfo <- fromJSON(var)
 varBed <- varinfo$result_path
 
 
-write.table(x = varinfo$output,
-            file = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/varBed",
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-# varBed <- read.delim(file = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/varBed",
-#                        header = TRUE,
-#                        sep = "\t",
-#                        stringsAsFactors = FALSE,
-#                        na.strings = c(""," ","NA"))
-
-#View(varBed)
-
 ## Retrieve variation sequence
 
-seq <- POST("http://rsat-tagc.univ-mrs.fr/rest/retrieve-variation-seq", 
-            body = list(
-              species = "Homo_sapiens", 
-              assembly = "GRCh38", 
-              i_string = varBed,
-              i_string_type = 'piping',
-              mml = 30,
-              format =  "varBed"))
+seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/retrieve-variation-seq/Homo_sapiens/GRCh38",
+body=list(i_string=varBed, i_string_type='piping'))
 
 sequence <- content(seq, "text", encoding = "UTF-8")
 retrieveSeq <- fromJSON(sequence)
@@ -793,10 +779,8 @@ varSeq <- retrieveSeq$result_path
 
 
 ## Variation-scan
-varscan <- POST("http://rsat-tagc.univ-mrs.fr/rest/variation-scan", 
+varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/Homo_sapiens/GRCh38", 
             body = list(
-              species = "Homo_sapiens", 
-              assembly = "GRCh38", 
               i_string = varSeq,
               i_string_type = 'piping',
               m = upload_file("~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
@@ -844,7 +828,8 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 ```
 
 
-### Downloading JASPAR2018 CORE vertebrates non-redundant
+
+## Assignation of TF from JASPAR with the corresponding motif in RSAT variation-scan
 
 In this section, we download the Jaspar motifs identifier and  corresponding transcription factor (TF) names. We need these data for to compare and select the TF names correspending their motifs in variation-scan results.
 
@@ -853,7 +838,6 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 ```{r get_JASPAR_annotation}
 ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
-
 
 #set path to store results
 results_path = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/cisreg-GWAS/results/JASPAR2018/"
@@ -899,7 +883,33 @@ jaspar_results = as.data.frame(results_matrix)
 colnames(jaspar_results) = c("matrix_id", "name", "uniprot_ids", "jaspar2018_pubmedid","validation_pubmed_ids", "data_source","data_type")
 write.table(jaspar_results, paste0(results_path,"jaspar2018_annotations.tsv"), sep="\t", col.names = TRUE, row.names = FALSE, quote = FALSE)
 
+
+# Assignation of TF names corresponding the matrice name
+
+varScanJasparTF <- merge(x = jaspar_results,
+                         y = varScanJaspar, 
+                         by.x = "matrix_id",
+                         by.y = "X.ac_motif"
+)
+
+#View(varScanJasparTF)
 ```
+
+
+
+```{r matrices_tfs, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Distribution of TFBS potentially affected by each SOI from variation-scan results."}
+
+# Barplot of TFs
+barplot(sort(table(varScanJasparTF$name), decreasing = TRUE), 
+        names.arg = "",
+        main  = "Distribution of TFBS potentially affected by each SOI",
+        xlab = "Ranked SNPs",
+        ylab = "TFs",
+        las = 1, border = "blue",
+        col = "blue"
+)
+```
+
 
 
 
@@ -943,7 +953,7 @@ IntersectBed <- function(a, b) {
 }
 
 
-remap.intersect.SOIs <- IntersectBed(remapCatalog, SOIsBed.gr)
+remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 ## Find intersect between remap catalog and haplor data
 
 # var.file <- "remap.tsv"
@@ -970,7 +980,7 @@ barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE),
 
 
 # Enrichment of TFs
-enrich <- enrichment(SOIsBed.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
+enrich <- enrichment(haplotype.block.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
 
 # Negative control
 shufflesRegion <- shuffle(haplotype.block.gr)
@@ -1058,7 +1068,7 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-View(varScanJasparTF)
+#View(varScanJasparTF)
 
 var.file <- "varScanJasparTF.tsv"
 var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
@@ -1078,15 +1088,6 @@ write.table(x = varScanJasparTF,
 ## Distribution of variation-scan score
 
 ```{r varscan_score_distributions, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** **A.** P-value ratio. **B.** best and worst p-value. **C.** emphazise the differences between  best and worst weight ")}
-
-x<-1:10; y1=x*x; y2=2*y1
-plot(x, y1, type="b", pch=19, col="red", xlab="x", ylab="y")
-# Ajouter une ligne
-lines(x, y2, pch=18, col="blue", type="b", lty=2)
-# Ajouter une légende
-legend(1, 95, legend=c("Line 1", "Line 2"),
-       col=c("red", "blue"), lty=1:2, cex=0.8)
-
 
 #par(mfrow = c(2,2))
 varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
@@ -1165,12 +1166,19 @@ grid(col = "#DDDDDD", lty = "solid")
 
 ##  ReMap inter variation-scan
 
+In this section, we predict the regulatory SNPs, TFs and  the TFBS potentially affected by each SOI.
+
+
 ```{r rSNPs}
+
 varscan.with.peaks <- merge(
   varScanJasparTF, 
-  remap.inter.SOIs, 
+  remap.intersect.SOIs, 
   by.x = c("var_id", "name"),
-  by.y = c("refsnp_id", "id"))
+  by.y = c("rsid", "id"))
+
+#View(varscan.with.peaks)
+kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "pos_End", "var_id", "matrix_id", "name", "best_pval","worst_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
 #View(varscan.with.peaks)
 
