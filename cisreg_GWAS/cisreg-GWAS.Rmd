@@ -752,12 +752,14 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 ```{r rsat_rest_api_R}
 
-names(rsIDs) <- NULL
+input <- paste(collapse = ",", SOIs$refsnp_id)
+
+
 ## Variation-info
-message("Get variation information from RSAT")
+message(" retrieval of information of Ensembl annotated variants")
 
 res <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-info/Homo_sapiens/GRCh38",
-            body=list( i_string = c("rs141426589, rs2148108"), 
+            body=list( i_string = input, 
                        i_string_type='text'))
           
 var <- content(res, "text", encoding = "UTF-8")
@@ -770,6 +772,8 @@ varBed <- varinfo$result_path
 
 ## Retrieve variation sequence
 
+message("retrieval of the sequences surrounding variants")
+
 seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/retrieve-variation-seq/Homo_sapiens/GRCh38",
 body=list(i_string=varBed, i_string_type='piping'))
 
@@ -779,7 +783,9 @@ varSeq <- retrieveSeq$result_path
 
 
 ## Variation-scan
-varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/Homo_sapiens/GRCh38", 
+
+message("scanning of different alleles of a variant with one or several motifs")
+varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-scan/Homo_sapiens/GRCh38", 
             body = list(
               i_string = varSeq,
               i_string_type = 'piping',
@@ -789,9 +795,6 @@ varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/Homo_sapiens/GRCh38",
 add_headers("Accept" = "text/plain"))
 
 var <- content(varscan, "text", encoding = "UTF-8")
-#scan <- fromJSON(var, simplifyDataFrame = TRUE)
-print(var)
-dd <- data.frame(var)
 
 ```
 
