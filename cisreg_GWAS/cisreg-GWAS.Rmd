@@ -764,21 +764,19 @@ res <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-info/Homo_sapien
           
 var <- content(res, "text", encoding = "UTF-8")
 
-varinfo <- fromJSON(var)
-
 #varBed <- varinfo$output
 varBed <- varinfo$result_path
-
 
 ## Retrieve variation sequence
 
 message("retrieval of the sequences surrounding variants")
 
 seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/retrieve-variation-seq/Homo_sapiens/GRCh38",
-body=list(i_string=varBed, i_string_type='piping'))
+            body=list(i_string=varBed, 
+                      i_string_type='piping'))
 
 sequence <- content(seq, "text", encoding = "UTF-8")
-retrieveSeq <- fromJSON(sequence)
+
 varSeq <- retrieveSeq$result_path
 
 
@@ -796,6 +794,24 @@ add_headers("Accept" = "text/plain"))
 
 var <- content(varscan, "text", encoding = "UTF-8")
 
+
+
+var.file <- "variation-scan.tsv"
+var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
+write.table(x = var,
+            file = var.path,
+            quote = FALSE,
+            sep = "\t",
+            row.names = FALSE,
+            col.names = TRUE)
+
+
+# Importing variation-scan result
+variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0008407/variation-scan.tsv",
+                            header = TRUE,
+                            sep = "\t")
+
+#View(variationScan)
 ```
 
 
