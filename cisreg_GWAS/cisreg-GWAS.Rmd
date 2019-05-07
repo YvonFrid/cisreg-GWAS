@@ -150,8 +150,8 @@ cran.libraries.to.install <-
   c("dplyr",    ## data manipulation
     "devtools", ## Required to install github libraries
     "ggplot2", ## dataviz
-    "scater",
-    "haploR",
+    # "scater",
+    # "haploR",
     "tidyr",
     "VSE",
     "DiagrammeR",
@@ -172,9 +172,6 @@ bioconductor.libraries.to.install <- c(
 )
 
 
-
-## For github libraries we need to know the account for each package -> we encode this as a named vector
-github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
 
 message("Loading CRAN libraries")
 for (lib in cran.libraries.to.install) {
@@ -205,6 +202,8 @@ for (lib in bioconductor.libraries.to.install) {
   require(lib, character.only = TRUE, quietly = TRUE)
 }
 
+## For github libraries we need to know the account for each package -> we encode this as a named vector
+github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
 
 message("Loading github libraries")
 for (lib in names(github.libraries.to.install)) {
@@ -413,6 +412,8 @@ tagSNPsInfo <- tagSNPsInfo[!duplicated(tagSNPsInfo$refsnp_id),]
 # Replace the missing data by the NAs
 tagSNPsInfo$consequence_type_tv <- sub(pattern = " ", NA, 
                                        tagSNPsInfo$consequence_type_tv)
+
+tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "Undefined"
 
 # Run the pie
 
