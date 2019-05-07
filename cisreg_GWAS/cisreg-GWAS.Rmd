@@ -103,8 +103,8 @@ knitr::opts_chunk$set(
 ## Parameters
 parameters <- list(
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068", # malaria
-#  query =  "EFO_0008407", # tuberculosis
+  # query =  "EFO_0001068", # malaria
+  query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "EUR",
   #maf = 0.05,
