@@ -769,7 +769,7 @@ input <- paste(collapse = ",", SOIs$refsnp_id)
 ## Variation-info
 message(" retrieval of information of Ensembl annotated variants")
 
-res <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-info/Homo_sapiens/GRCh38",
+res <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-info/Homo_sapiens/GRCh38",
             body=list( i_string = input, 
                        i_string_type='text'))
           
@@ -782,7 +782,7 @@ varBed <- varinfo$result_path
 
 message("retrieval of the sequences surrounding variants")
 
-seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/retrieve-variation-seq/Homo_sapiens/GRCh38",
+seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/retrieve-variation-seq/Homo_sapiens/GRCh38",
             body=list(i_string=varBed, 
                       i_string_type='piping'))
 
@@ -794,7 +794,7 @@ varSeq <- retrieveSeq$result_path
 ## Variation-scan
 
 message("scanning of different alleles of a variant with one or several motifs")
-varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-scan/Homo_sapiens/GRCh38/m_input_string/m_format", 
+varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-scan/Homo_sapiens/GRCh38/m_input_string/m_format", 
             body = list(
               i_string = varSeq,
               i_string_type = 'piping'),
