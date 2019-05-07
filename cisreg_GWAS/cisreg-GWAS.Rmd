@@ -103,8 +103,8 @@ knitr::opts_chunk$set(
 ## Parameters
 parameters <- list(
   output.dir = "~/cisreg-GWAS_results",
-#  query =  "EFO_0001068", # malaria
-  query =  "EFO_0008407", # tuberculosis
+  query =  "EFO_0001068", # malaria
+#  query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "EUR",
   #maf = 0.05,
@@ -596,6 +596,17 @@ SOIsBed <- data.frame(chrom = SOIs$chr_name,
 
 SOIsBed$chrom <- paste("chr", SOIsBed$chrom, sep = "")
 
+# Export the SOIs
+
+soi.file <- "SOIs.txt"
+soi.path <- file.path("~/cisreg-GWAS_results/EFO_0001068/SOIs", soi.file)
+write.table(x = SOIs$refsnp_id,
+              file = soi.path,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+
 ```
 
 
@@ -762,8 +773,8 @@ res <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-info/Homo_sapien
             body=list( i_string = input, 
                        i_string_type='text'))
           
-var <- content(res, "text", encoding = "UTF-8")
-
+varinfo <- content(res, "text", encoding = "UTF-8")
+varinfo <- fromJSON(varinfo)
 #varBed <- varinfo$output
 varBed <- varinfo$result_path
 
@@ -776,24 +787,22 @@ seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/retrieve-variation-seq/Hom
                       i_string_type='piping'))
 
 sequence <- content(seq, "text", encoding = "UTF-8")
-
+retrieveSeq <- fromJSON(sequence)
 varSeq <- retrieveSeq$result_path
 
 
 ## Variation-scan
 
 message("scanning of different alleles of a variant with one or several motifs")
-varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-scan/Homo_sapiens/GRCh38", 
+varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat-api/v1/variation-scan/Homo_sapiens/GRCh38/m_input_string/m_format", 
             body = list(
               i_string = varSeq,
-              i_string_type = 'piping',
-              m = upload_file("~/Google\ Drive/Yvon_Mbouamboua_these_2018/rest/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
-              m_format =  "transfac"),
+              i_string_type = 'piping'),
             #add_headers("Accept" = "application/json"))
 add_headers("Accept" = "text/plain"))
 
 var <- content(varscan, "text", encoding = "UTF-8")
-
+var <- fromJSON(var)
 
 
 var.file <- "variation-scan.tsv"
@@ -809,7 +818,8 @@ write.table(x = var,
 # Importing variation-scan result
 variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0008407/variation-scan.tsv",
                             header = TRUE,
-                            sep = "\t")
+                            sep = "\t",
+                            comment.char = ";")
 
 #View(variationScan)
 ```
@@ -819,7 +829,7 @@ variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0008407/variation-
 ```{r importing_variascan_resilts}
 
 # Importing RSAT variation-scan results
-varScanJaspar.file <- "~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/database/varScanJaspar.txt"
+varScanJaspar.file <- "~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/variation-scan_2019-05-06_malaria_pvalE-4_pvalRatio100.txt"
 varScanJaspar <- read.delim(file = varScanJaspar.file,
                             header = TRUE,
                             sep = "\t",
@@ -859,7 +869,7 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 #set path to store results
-results_path = "~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/cisreg-GWAS/results/JASPAR2018/"
+results_path = "~/cisreg-GWAS_results/EFO_0001068/JASPAR2018/"
 dir.create(paste0(results_path,'pssm'), showWarnings = FALSE, recursive = TRUE)
 
 api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
@@ -932,7 +942,6 @@ barplot(sort(table(varScanJasparTF$name), decreasing = TRUE),
 
 
 
-
 ### ReMap 
 
 The ReMap catalog [@Griffon:2015en, @Cheneby:2018ix] is an integrative analysis of transcriptional regulators ChIP-seq experiments from both Public and Encode datasets [@ENCODEProjectConsortium:2012gc]. We used the `ReMapEnrich` package to identify the significant enriched region from ReMap catalog conrresponding of the TFBS altered by the potential regulatory SNPs.
@@ -949,7 +958,7 @@ The principle of the test is to measure the significance of the intersection bet
 #catalog <- bedToGranges("remap2018_nr_macs2_hg38_v1_2.bed")
 #save(catalog, file = "data/remap2018_nr_macs2_hg38_v1_2.bed")
 
-load('~/Google\ Drive/Yvon_Mbouamboua_these_2018/gwas/database/remap2018_nr_macs2_hg38_v1_2.RData')
+load('~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/remap2018_nr_macs2_hg38_v1_2.RData')
 
 
 
@@ -999,7 +1008,7 @@ barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE),
 
 
 # Enrichment of TFs
-enrich <- enrichment(haplotype.block.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
+enrich <- enrichment(SOIsBed.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
 
 # Negative control
 shufflesRegion <- shuffle(haplotype.block.gr)
@@ -1233,7 +1242,7 @@ barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE),
 In this section, we calculate the enrichment of tissue-specific genes in an input the candidate gene set corresponding to the potential regulatory SNPs using the `TissueEnrich package` [@jain_tissueenrich:_2018].
 
 
-```{r tissueEnrich, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values and the y-axis shows each of the tissues. The  tissue-specific gene show enrichment for colon, heart muscle, lung, stomach, urinary bladder, esophagus, skeletal muscle and small intestinal specific genes.")}
+```{r tissueEnrich, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values and the y-axis shows each of the tissues.")}
 
 # inputGenes <- unique(na.omit(varscan.inter.SOIs$GENCODE_name))
 # 
