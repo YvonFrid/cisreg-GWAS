@@ -125,6 +125,23 @@ fig.nb <- 0 ## Initialize figure counter
 message("\tWorking directory: ", parameters$working.dir)
 
 
+## Define a data dir for the data downloaded from other sources
+parameters$data.dir = file.path(parameters$output.dir, "data")
+message("Data directory\t", parameters$data.dir)
+dir.create(parameters$data.dir, showWarnings = FALSE, recursive = TRUE)
+
+## POUR YVON
+## Adapter (en-dessous) le code qui télécharge tous les fichiers de données 
+## dont tu as besoin (Jaspar, ReMap) dans ce dossier data.
+## Attention, pour éviter de télécharger à chaque exécution, inclure le download.file() 
+## dans un test
+##  if (!file.exists(machin)) {
+##    message ("Downloading")
+##    download.file(url, dest = machin)
+##  } else {
+##    message ("File ", machin, " already exists, skipping download. ")
+## }
+
 ## Define result directory for the current EFO 
 ## by concatenating the output dir and the query ID
 parameters$result.dir = file.path(parameters$output.dir, parameters$query)
@@ -765,12 +782,12 @@ input <- paste(collapse = ",", SOIs$refsnp_id)
 
 
 ## Variation-info
-message(" retrieval of information of Ensembl annotated variants")
+message("\tRetrieving information on variants from RSAT REST Web services")
 
 res <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-info/Homo_sapiens/GRCh38",
             body=list( i_string = input, 
                        i_string_type='text'))
-          
+
 varinfo <- content(res, "text", encoding = "UTF-8")
 varinfo <- fromJSON(varinfo)
 #varBed <- varinfo$output
@@ -778,7 +795,7 @@ varBed <- varinfo$result_path
 
 ## Retrieve variation sequence
 
-message("retrieval of the sequences surrounding variants")
+message("\t retrieval of the sequences surrounding variants from RSAT REST Web services")
 
 seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/retrieve-variation-seq/Homo_sapiens/GRCh38",
             body=list(i_string=varBed, 
@@ -791,7 +808,7 @@ varSeq <- retrieveSeq$result_path
 
 ## Variation-scan
 
-message("scanning of different alleles of a variant with one or several motifs")
+message("scanning of different alleles of a variant with one or several motifs from RSAT REST Web services")
 varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-scan/Homo_sapiens/GRCh38", 
                 body = list(
                   i_string = varSeq,
