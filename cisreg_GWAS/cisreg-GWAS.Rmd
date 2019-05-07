@@ -171,8 +171,6 @@ bioconductor.libraries.to.install <- c(
   "TissueEnrich"
 )
 
-
-
 message("Loading CRAN libraries")
 for (lib in cran.libraries.to.install) {
   if (require(lib, character.only = TRUE, quietly = TRUE)) {
@@ -204,7 +202,6 @@ for (lib in bioconductor.libraries.to.install) {
 
 ## For github libraries we need to know the account for each package -> we encode this as a named vector
 github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
-
 message("Loading github libraries")
 for (lib in names(github.libraries.to.install)) {
   if (require(lib, character.only = TRUE, quietly = TRUE)) {
@@ -415,8 +412,7 @@ tagSNPsInfo$consequence_type_tv <- sub(pattern = " ", NA,
 
 tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "Undefined"
 
-# Run the pie
-
+# Run the pie chart
 table <- table(tagSNPsInfo$consequence_type_tv)
 pct <- round(table/sum(table)*100)
 lbls <- names(table)
