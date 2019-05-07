@@ -796,8 +796,8 @@ varSeq <- retrieveSeq$result_path
 message("scanning of different alleles of a variant with one or several motifs")
 varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-scan/Homo_sapiens/GRCh38", 
                 body = list(
-                  i_input_string = varSeq,
-                  i_input_string_type = 'piping',
+                  i_string = varSeq,
+                  i_string_type = 'piping',
                   m = upload_file("~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
                   m_format =  "transfac"),
                   #add_headers("Accept" = "application/json"))
