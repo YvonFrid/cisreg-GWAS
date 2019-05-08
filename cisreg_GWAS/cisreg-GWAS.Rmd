@@ -118,7 +118,8 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/"
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"
 )
 
 fig.nb <- 0 ## Initialize figure counter
@@ -796,30 +797,27 @@ input <- paste(collapse = ",", SOIs$refsnp_id)
 ## Variation-info
 message("\tRetrieving information on variants from RSAT REST Web services")
 
-res <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
+varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
             body = list(i_string = input, 
                         i_string_type = 'text'))
 
-varinfo <- httr::content(res, as = "text", encoding = "UTF-8")
-varinfo.fromJSON <- fromJSON(varinfo)
-#varBed <- varinfo$output
-
-## Get the URL of the varBed file produced by variation-info, and still stored on the server
-varBed.URL <- varinfo.fromJSON$result_url
-varBed.server.path <- varinfo.fromJSON$result_path
+varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
+varinfo.fromJSON <- fromJSON(varInfo.content)
+varInfo.URL <- varinfo.fromJSON$result_url
+varInfo.server.path <- varinfo.fromJSON$result_path
 
 ## Download variation info result and store it to a local file
-varBed.file <- file.path(
+varInfo.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
-download.file(url = varBed.URL, destfile = varBed.file)
+download.file(url = varInfo.URL, destfile = varInfo.file)
 
 
 ## Retrieve variant sequences
 message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
 
 varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
-               body = list(i_string = varBed.server.path,
+               body = list(i_string = varInfo.server.path,
                            i_string_type = 'piping'))
 varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
 varSeq.fromJSON <- fromJSON(varSeq.content)
@@ -834,19 +832,31 @@ download.file(url = varSeq.URL, destfile = varSeq.file)
 # system(paste("open", result.dir.path["RSAT"]))
 
 ## Variation-scan
-message("Scanning the different alleles of a variant with motifs via RSAT REST services")
-varscan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
+message("Scanning variant alleles with motifs via RSAT REST services")
+varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
                 body = list(
                   i_string = varSeq.server.path,
                   i_string_type = 'piping',
-                  m = upload_file("~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
+                  #                  m = upload_file("~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
+                  m_string = parameters$motifDB.URL,
+                  m_string_type = "url",
                   m_format =  "transfac"),
-                  #add_headers("Accept" = "application/json"))
-                  add_headers("Accept" = "text/plain"))
+                  add_headers("Accept" = "application/json"))
+#                add_headers("Accept" = "text/plain"))
                 
+# var <- content(varscan, "text", encoding = "UTF-8")
+# var <- fromJSON(var)
+varScan.content <- httr::content(varScan, "text", encoding = "UTF-8")
+varScan.fromJSON <- fromJSON(varScan.content)
+varScan.server.path <- varScan.fromJSON$result_path
+varScan.URL <- varScan.fromJSON$result_url
 
-var <- content(varscan, "text", encoding = "UTF-8")
-var <- fromJSON(var)
+## Download variation info result and store it to a local file
+varScan.file <- file.path(
+  result.dir.path["RSAT"], 
+  paste(sep = "", parameters$query, "_SOIs_seq", ".varScan"))
+download.file(url = varScan.URL, destfile = varScan.file)
+# system(paste("open", result.dir.path["RSAT"]))
 
 
 var.file <- "variation-scan.tsv"
