@@ -102,6 +102,7 @@ knitr::opts_chunk$set(
 ## Define user-specified parameters for the analyses
 ## Parameters
 parameters <- list(
+  working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   # query =  "EFO_0001068", # malaria
   query =  "EFO_0008407", # tuberculosis
@@ -117,7 +118,7 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  working.dir = getwd()
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/"
 )
 
 fig.nb <- 0 ## Initialize figure counter
@@ -251,6 +252,7 @@ result.dir.path <- file.path(parameters$result.dir, result.dirs)
 names(result.dir.path) <- names(result.dirs) ## entry names were lost with the file.paths
 
 for (dir in c(parameters$result.dir, result.dir.path)) {
+  message("\t", dir)
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 }
 
@@ -324,10 +326,9 @@ We select the **Tag SNPs** by  filtering out:
 ```{r downloag_gwas_data}
 ## Downloading GWAS data
 
-message("Downloading GWAS catalog data")
+message("Retrieving information from GWAS catalog via REST interface")
 
 ## URL to the GWAS REST API query for the disease
-
 gwascatalog.studies.urlrest <- paste(
   sep = "", 
   "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", 
@@ -505,13 +506,13 @@ for (rsID in DArsIDs) {
 }
 LDsnpIDs <- unique(LDsnpIDs)
 nbLDSNPs <- length(LDsnpIDs)
-message("Total number of LD SNPs: ", nbLDSNPs)
+message("\tTotal number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
 ## Merge DA-SNPs and LD-SNPs
 rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
-message("Total number of DA-SNPs and LD SNPs: ", nbSNPs)
+message("\tTotal number of DA-SNPs and LD SNPs: ", nbSNPs)
 
 # Kable
 #kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
@@ -595,11 +596,11 @@ We gathering the informations about LD SNPs from Ensembl using `biomaRt package`
 
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
-
-SOIs <- subset(snpInfo,
-               cds_start = "NA")
-
+SOIs <- subset(snpInfo, cds_start = "NA")
 SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "Undefined"
+
+# dim(SOIs)
+message("\tSelected ", nrow(SOIs), " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
 
 # Make a non-coding variant bed file
 SOIsBed <- data.frame(chrom = SOIs$chr_name,
@@ -629,16 +630,17 @@ write.table(x = SOIs$refsnp_id,
 #                                       SOI$consequence_type_tv)
 
 
-table <- table(SOIs$consequence_type_tv)
-pct <- round(table/sum(table)*100)
-lbls <- names(table)
+SOIsConsequenceTable <- table(SOIs$consequence_type_tv)
+pct <- round(SOIsConsequenceTable/sum(SOIsConsequenceTable)*100)
+lbls <- names(SOIsConsequenceTable)
 lbls <- paste(lbls, pct) # add percents to labels
 lbls <- paste(lbls, "%", sep = "") # ad % to labels
 #lbls <- sub(pattern = "_variant", replacement = "", lbls)
-pie(table,
+pie(SOIsConsequenceTable,
+    main  = "Variant types of SNPs of interest",
     labels = lbls,
     cex = 1,
-    col = rainbow(length(names(table)))
+    col = rainbow(length(names(SOIsConsequenceTable)))
     #main="Pie Chart of SNP regions"
 )
 ```
@@ -648,6 +650,15 @@ pie(table,
 ## Enrichment of associated variant set (AVS)
 
 ```{r haplotype_block}
+
+## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+## Yvon, ce bloc génère des avertissements
+# Warning messages:
+# 1: Factor `variation1` contains implicit NA, consider using `forcats::fct_explicit_na` 
+# 2: Factor `variation1` contains implicit NA, consider using `forcats::fct_explicit_na` 
+# Il faut vérifier cela
+## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 haplotype <- merge(x = SOIsBed,
                    y = LdSNPs,
@@ -778,40 +789,55 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 ```{r rsat_rest_api_R}
 
+## Yvon: the GET should be replaced by a POST query to be able to handle very long lists of SNPs
 input <- paste(collapse = ",", SOIs$refsnp_id)
 
 
 ## Variation-info
 message("\tRetrieving information on variants from RSAT REST Web services")
 
-res <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-info/Homo_sapiens/GRCh38",
-            body=list( i_string = input, 
-                       i_string_type='text'))
+res <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
+            body = list(i_string = input, 
+                        i_string_type = 'text'))
 
-varinfo <- content(res, "text", encoding = "UTF-8")
-varinfo <- fromJSON(varinfo)
+varinfo <- httr::content(res, as = "text", encoding = "UTF-8")
+varinfo.fromJSON <- fromJSON(varinfo)
 #varBed <- varinfo$output
-varBed <- varinfo$result_path
 
-## Retrieve variation sequence
+## Get the URL of the varBed file produced by variation-info, and still stored on the server
+varBed.URL <- varinfo.fromJSON$result_url
+varBed.server.path <- varinfo.fromJSON$result_path
 
-message("\t retrieval of the sequences surrounding variants from RSAT REST Web services")
+## Download variation info result and store it to a local file
+varBed.file <- file.path(
+  result.dir.path["RSAT"], 
+  paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
+download.file(url = varBed.URL, destfile = varBed.file)
 
-seq <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/retrieve-variation-seq/Homo_sapiens/GRCh38",
-            body=list(i_string=varBed, 
-                      i_string_type='piping'))
 
-sequence <- content(seq, "text", encoding = "UTF-8")
-retrieveSeq <- fromJSON(sequence)
-varSeq <- retrieveSeq$result_path
+## Retrieve variant sequences
+message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
 
+varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+               body = list(i_string = varBed.server.path,
+                           i_string_type = 'piping'))
+varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
+varSeq.fromJSON <- fromJSON(varSeq.content)
+varSeq.server.path <- varSeq.fromJSON$result_path
+varSeq.URL <- varSeq.fromJSON$result_url
+
+## Download variation info result and store it to a local file
+varSeq.file <- file.path(
+  result.dir.path["RSAT"], 
+  paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
+download.file(url = varSeq.URL, destfile = varSeq.file)
+# system(paste("open", result.dir.path["RSAT"]))
 
 ## Variation-scan
-
-message("scanning of different alleles of a variant with one or several motifs from RSAT REST Web services")
-varscan <- POST("http://rsat-tagc.univ-mrs.fr/rsat/rest/variation-scan/Homo_sapiens/GRCh38", 
+message("Scanning the different alleles of a variant with motifs via RSAT REST services")
+varscan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
                 body = list(
-                  i_string = varSeq,
+                  i_string = varSeq.server.path,
                   i_string_type = 'piping',
                   m = upload_file("~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
                   m_format =  "transfac"),
