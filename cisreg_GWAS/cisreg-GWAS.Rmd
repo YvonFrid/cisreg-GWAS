@@ -870,7 +870,7 @@ varScan.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
 download.file(url = varScan.URL, destfile = varScan.file)
-system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
@@ -902,6 +902,13 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 #View(varScanJaspar)
 
+
+# Filter variation-scan result by pval = 1e-04 and pval_ratio = 100
+
+varScanJaspar <- subset(varScanJaspar,
+              best_pval <=  1e-03)
+
+#View(var)
 ```
 
 
@@ -915,8 +922,6 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 ```{r get_JASPAR_annotation}
 ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
-
-
 
 #set path to store results
 results_path = path <- file.path(result.dir.path["JASPAR"])
@@ -971,7 +976,8 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-View(varScanJasparTF)
+
+#View(varScanJasparTF)
 
 
 ## Export variation-scan file in tsv format
