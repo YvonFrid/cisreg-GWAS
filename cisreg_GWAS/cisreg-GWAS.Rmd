@@ -436,6 +436,7 @@ lbls <- paste(lbls, pct) # add percents to labels
 lbls <- paste(lbls, "%", sep = "") # ad % to labels
 #lbls <- sub(pattern = "_variant", replacement = "", lbls)
 pie(table,
+    main = "Disease-associated SNPs (tag SNPs)\nGenomic context",
     labels = lbls,
     cex = 1,
     col = rainbow(length(names(table)))
@@ -626,7 +627,7 @@ write.table(x = SOIs$refsnp_id,
 
 
 
-```{r  fig.cap = paste("Genomic context of SNPs of interest"), out.width = "100%"}
+```{r  fig.cap = "Genomic context of SNPs of interest", out.width = "100%"}
 #SOI$consequence_type_tv <- sub(pattern = " ", "intergenic", 
 #                                       SOI$consequence_type_tv)
 
@@ -638,7 +639,7 @@ lbls <- paste(lbls, pct) # add percents to labels
 lbls <- paste(lbls, "%", sep = "") # ad % to labels
 #lbls <- sub(pattern = "_variant", replacement = "", lbls)
 pie(SOIsConsequenceTable,
-    main  = "Variant types of SNPs of interest",
+    main  = "SNPs of interest (SOIs)\nGenomic context",
     labels = lbls,
     cex = 1,
     col = rainbow(length(names(SOIsConsequenceTable)))
@@ -698,9 +699,9 @@ LD <- haplotype[, c( "chrom","chromStart", "chromEnd", "snp",  "variation1")]
 LD <- na.omit(LD)
 LD$chromStart <- as.numeric(LD$chromStart)
 LDgr <- with(LD,
-GRanges( seqnames = Rle(chrom),
-ranges   = IRanges(start = chromStart, end = chromEnd),
-strand   = Rle("*"), idLd = snp, idTag = variation1))
+             GRanges(seqnames = Rle(chrom),
+                     ranges   = IRanges(start = chromStart, end = chromEnd),
+                     strand   = Rle("*"), idLd = snp, idTag = variation1))
 
 # Check the size of each LD block
 bca.avs <- makeAVS(LDgr)
@@ -717,7 +718,8 @@ if (length(avs.sizes.sorted) > 30) {
 par.ori <- par(no.readonly = TRUE)
 par(mar = c(4,6,1,1))
 barplot(avs.sizes.sorted, horiz = TRUE, las = 1, cex.names = 0.5,
-xlab = "Number of SNPs in LD")
+        main = "Number of SNPs in LD per SOI",
+        xlab = "Number of SNPs in LD")
 par(par.ori)
 
 ```
@@ -730,7 +732,7 @@ We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct
 
 
 ```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package."}
-
+message("Running enrichment analysis for diseases")
 snpList <- SOIs$refsnp_id
 
 # Run xEnricherSNPs
@@ -791,18 +793,25 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 ```{r rsat_rest_api_R}
 
 ## Yvon: the GET should be replaced by a POST query to be able to handle very long lists of SNPs
+## First save all the IDs of the SOIs in a text fie, with 1 ID per row
+## Then see how to use this file as query for the POST to variation-info
+## To do: rediscuss this with Nga
 input <- paste(collapse = ",", SOIs$refsnp_id)
-
 
 ## Variation-info
 message("\tRetrieving information on variants from RSAT REST Web services")
 
+### TO DO: replace i_string_type = 'text' by the upload of a file containit the SNP IDs. 
 varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
             body = list(i_string = input, 
                         i_string_type = 'text'))
-
+# class(varInfo)
+# View(varInfo)
 varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
+# class(varInfo.content)
 varinfo.fromJSON <- fromJSON(varInfo.content)
+# class(varinfo.fromJSON)
+# names(varinfo.fromJSON)
 varInfo.URL <- varinfo.fromJSON$result_url
 varInfo.server.path <- varinfo.fromJSON$result_path
 
@@ -811,11 +820,10 @@ varInfo.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
 download.file(url = varInfo.URL, destfile = varInfo.file)
-
+# system(paste("open", result.dir.path["RSAT"]))
 
 ## Retrieve variant sequences
 message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
-
 varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
                body = list(i_string = varInfo.server.path,
                            i_string_type = 'piping'))
