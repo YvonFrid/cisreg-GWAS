@@ -8,7 +8,7 @@ digraph {
 	edge [fontname="ArialMT",fontsize="20",labelfontname="ArialMT",labelfontsize="20", arrowsize="0.5", color="#666666"];
 	node [fontname="ArialMT",fontsize="20",shape=record,height="0.2", color="#666666"];
 
-	gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#FFC133", label = "GWAS catalog \n REST API", URL = "http://www.ebi.ac.uk/gwas/"];
+	gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#D6EEFA", label = "GWAS catalog \n REST API", URL = "http://www.ebi.ac.uk/gwas/"];
 			
 	gwas_catalog -> download
 
@@ -36,7 +36,7 @@ digraph {
 
 	haplor1[shape = "record", 
 			style = "rounded,filled", 
-			fillcolor = "#FFC133", 
+			fillcolor = "#EEFFDD", 
 			label = "{REST API| Getting LD SNPs}"];
 }
 
@@ -93,7 +93,7 @@ rsid [shape = "",
 	## variation-info
 	variation_info [shape = "record", 
 					style = "rounded,filled", 
-					fillcolor = "#FFC133", 
+					fillcolor = "#EEFFDD", 
 					label = "{variation-info \n REST API | Coordinate list of SNP IDs}", 
 					URL = "http://rsat.sb-roscoff.fr/variation-info_form.cgi", 
 					fontcolor = "#0D73A7"];
@@ -110,7 +110,7 @@ rsid [shape = "",
 	## retrieve-variation-seq
 	retrieve_variation_seq [shape = "record", 
 							style = "rounded,filled", 
-							fillcolor = "#FFC133", 
+							fillcolor = "#EEFFDD", 
 							label = "{retrieve-variation-seq \n REST API | SNP sequences retrieval}", 
 							URL = "http://rsat.sb-roscoff.fr/retrieve-variation-seq_form.cgi", 
 							fontcolor = "#0D73A7"];
@@ -128,7 +128,7 @@ rsid [shape = "",
 	## variation-scan
 	variation_scan [shape = "record", 
 					style = "rounded,filled", 
-					fillcolor = "#FFC133", 
+					fillcolor = "#EEFFDD", 
 					label = "{variation-scan \n REST API | SNP sequence scanning}", 
 					URL = "http://rsat.sb-roscoff.fr/variation-scan_form.cgi", 
 					fontcolor = "#0D73A7"];
@@ -213,7 +213,7 @@ subgraph cluster_3 {
     
     	jaspar  [shape = "cylinder", 
 	style = "rounded,filled", 
-	fillcolor = "#FFC133", 
+	fillcolor = "#D6EEFA", 
 	label = "JASPAR \n REST API", 
 		URL = "http://jaspar.genereg.net/", 
 		fontcolor = "#0D73A7"];

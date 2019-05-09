@@ -1,6 +1,6 @@
 ---
 title: "Detection of  regulatory SNPs in GWAS studies"
-author: "Yvon Mbouamboua, Pascal Rihet, Thi Thuy Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
+author: "Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
   html_document:
@@ -170,7 +170,7 @@ cran.libraries.to.install <-
     "devtools", ## Required to install github libraries
     "ggplot2", ## dataviz
     # "scater",
-    # "haploR",
+    # "haploR", 
     "tidyr",
     "VSE",
     "DiagrammeR",
@@ -573,29 +573,6 @@ We gathering the informations about LD SNPs from Ensembl using `biomaRt package`
 
 ```{r snps_of_interest}
 
-# # ## biomaRt annotation
-# # message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs")
-# # snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp") # BioMart database and dataset to use.
-# # snpInfo <- getBM(attributes = c('refsnp_source',
-# #                                 'chr_name',
-# #                                 'chrom_start',
-# #                                 'chrom_end',
-# #                                 'refsnp_id',
-# #                                 'allele_1',
-# #                                 'allele',
-# #                                 'cds_start',
-# #                                 'cds_end',
-# #                                 'ensembl_gene_stable_id',
-# #                                 'consequence_type_tv'),
-# #                  filters =  "snp_filter",
-# #                  values = rsIDs, # (DArsIDs + LDsnpIDs)
-# #                  mart = snpmart)
-# 
-# # Remove the duplicated SNPs
-# snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
-# #View(snpInfo)
-
-
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
 SOIs <- subset(snpInfo, cds_start = "NA")
@@ -612,16 +589,46 @@ SOIsBed <- data.frame(chrom = SOIs$chr_name,
 
 SOIsBed$chrom <- paste("chr", SOIsBed$chrom, sep = "")
 
-# Export the SOIs
 
-soi.file <- "SOIs.txt"
-soi.path <- file.path(result.dir.path["SOIs"], soi.file)
+## Export rsID of SOIs in txt format
+soiTxt.file <- file.path(
+  result.dir.path["SOIs"], 
+  paste(sep = "", parameters$query, "_SOIs", ".txt"))
+
 write.table(x = SOIs$refsnp_id,
-              file = soi.path,
+              file = soiTxt.file,
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
               col.names = FALSE)
+#system(paste("open", result.dir.path["SOIs"]))
+
+## Export SOIs in BED format
+soiBed.file <- file.path(
+  result.dir.path["SOIs"], 
+  paste(sep = "", parameters$query, "_SOIs", ".bed"))
+
+write.table(x = SOIsBed,
+              file = soiBed.file,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = FALSE)
+#system(paste("open", result.dir.path["SOIs"]))
+
+
+## Export SOIs file in tsv format
+soi.file <- file.path(
+  result.dir.path["SOIs"], 
+  paste(sep = "", parameters$query, "_SOIs", ".tsv"))
+
+write.table(x = SOIs,
+              file = soi.file,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+#system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
@@ -820,7 +827,7 @@ varInfo.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
 download.file(url = varInfo.URL, destfile = varInfo.file)
-# system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
 ## Retrieve variant sequences
 message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
@@ -837,7 +844,7 @@ varSeq.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
 download.file(url = varSeq.URL, destfile = varSeq.file)
-# system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
 ## Variation-scan
 message("Scanning variant alleles with motifs via RSAT REST services")
@@ -845,7 +852,6 @@ varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapien
                 body = list(
                   i_string = varSeq.server.path,
                   i_string_type = 'piping',
-                  #                  m = upload_file("~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"),
                   m_string = parameters$motifDB.URL,
                   m_string_type = "url",
                   m_format =  "transfac"),
@@ -862,45 +868,25 @@ varScan.URL <- varScan.fromJSON$result_url
 ## Download variation info result and store it to a local file
 varScan.file <- file.path(
   result.dir.path["RSAT"], 
-  paste(sep = "", parameters$query, "_SOIs_seq", ".varScan"))
+  paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
 download.file(url = varScan.URL, destfile = varScan.file)
-# system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
-
-var.file <- "variation-scan.tsv"
-var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
-write.table(x = var,
-            file = var.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-
-# Importing variation-scan result
-variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0008407/variation-scan.tsv",
-                            header = TRUE,
-                            sep = "\t",
-                            comment.char = ";")
-
-#View(variationScan)
 ```
 
 
 
-```{r importing_variascan_resilts}
+```{r importing_variascan_results}
 
-# Importing RSAT variation-scan results
-varScanJaspar.file <- "~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/variation-scan_2019-05-06_malaria_pvalE-4_pvalRatio100.txt"
-varScanJaspar <- read.delim(file = varScanJaspar.file,
+
+# Importing variation-scan result
+variationScan <- read.delim(file = varScan.file ,
                             header = TRUE,
                             sep = "\t",
-                            stringsAsFactors = FALSE,
-                            na.strings = c(""," ","NA"))
-
+                            comment.char = ";")
 
 # Split var_coord column
-varScanJaspar <- separate(data = varScanJaspar,
+varScanJaspar <- separate(data = variationScan,
                           col = "var_coord",
                           into = c("chrom", "pos_Start", "pos_End", "strand"),
                           sep = "[\\:\\-_]", remove = F)
@@ -930,8 +916,10 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
 
+
+
 #set path to store results
-results_path = "~/cisreg-GWAS_results/EFO_0001068/JASPAR2018/"
+results_path = path <- file.path(result.dir.path["JASPAR"])
 dir.create(paste0(results_path,'pssm'), showWarnings = FALSE, recursive = TRUE)
 
 api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
@@ -984,7 +972,99 @@ varScanJasparTF <- merge(x = jaspar_results,
 )
 
 #View(varScanJasparTF)
+
+
+## Export variation-scan file in tsv format
+varScan.file <- file.path(
+  result.dir.path["RSAT"], 
+  paste(sep = "", parameters$query, "_SOIs_varTF", ".tsv"))
+
+write.table(x = varScanJasparTF,
+              file = varScan.file,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+#system(paste("open", result.dir.path["RSAT"]))
 ```
+
+
+## Distribution of variation-scan score
+
+```{r varscan_score_distributions, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** **A.** P-value ratio. **B.** best and worst p-value. **C.** emphazise the differences between  best and worst weight ")}
+
+par(mfrow = c(2,2))
+varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
+varScanJasparTF$worst_pval <- as.numeric(varScanJasparTF$worst_pval)
+
+best.pval <- -log10(varScanJasparTF$best_pval)
+worst.pval <- -log10(varScanJasparTF$worst_pval)
+
+pval.range <- range(c(best.pval, worst.pval))
+
+n <- nrow(varScanJasparTF)
+f <- 1:n / n
+plot(sort(best.pval), f, type = "l", col = "blue", 
+     xlim = pval.range,
+     main = "A. P-value distributions",
+     xlab = "-log10(P-value)",
+     ylab = "Frequency")
+lines(sort(worst.pval), f, type = "l", col = "red")
+legend(1, 95, legend=c("Best P-value", "Worst P-value"),
+       col=c("blue", "red"), lty=1:2, cex=0.8)
+
+
+grid(col = "#DDDDDD", lty = "solid")
+
+###################################################
+## Plotting P-value ratio
+
+
+pvalRatioPos <- log10(varScanJasparTF$pval_ratio)
+
+
+#pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
+
+n <- nrow(varScanJasparTF)
+f <- 1:n / n
+plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
+     #xlim = pvalRatio,
+     main = "B. P-value ratio distributions",
+     xlab = "-log10(P-value ratio)",
+     ylab = "Frequency")
+
+
+grid(col = "#DDDDDD", lty = "solid")
+
+## Weight
+varScanJasparTF$best_w <- as.numeric(varScanJasparTF$best_w)
+varScanJasparTF$worst_w <- as.numeric(varScanJasparTF$worst_w)
+
+best.weight <- varScanJasparTF$best_w
+worst.weight <- varScanJasparTF$worst_w
+
+weight.range <- range(c(best.weight, worst.weight))
+
+
+n <- nrow(varScanJasparTF)
+f <- 1:n / n
+plot(sort(best.weight), f, type = "l", col = "blue",
+     xlim = weight.range,
+     main = "C. Weight distributions",
+     xlab = "Weight",
+     ylab = "Frequency")
+
+lines(sort(worst.weight), f, type = "l", col = "red")
+
+legend(2000,9.5, # places a legend at the appropriate place 
+      c("best.weight", "worst.weight"))
+
+grid(col = "#DDDDDD", lty = "solid")
+
+par(mfrow = c(1,1))
+
+```
+
 
 
 
@@ -993,7 +1073,7 @@ varScanJasparTF <- merge(x = jaspar_results,
 # Barplot of TFs
 barplot(sort(table(varScanJasparTF$name), decreasing = TRUE), 
         names.arg = "",
-        main  = "Distribution of TFBS potentially affected by each SOI",
+        main  = "Distribution of TFBS \n potentially affected by each SOI",
         xlab = "Ranked SNPs",
         ylab = "TFs",
         las = 1, border = "blue",
@@ -1011,7 +1091,7 @@ The ReMap catalog [@Griffon:2015en, @Cheneby:2018ix] is an integrative analysis 
 
 The principle of the test is to measure the significance of the intersection between regions of interest and each set of ReMap peaks (a peak game for each ChIP-seq experiment in ReMap). This significance is measured with a p-value, which represents the probability of obtaining an intersection at least as important under a null hypothesis, that is, if we chose regions of the same size randomly.
 
-```{r remapEnrich}
+```{r remap_intersectbed}
 
 # You can downloading the ReMap peak data 
 #URL <- "http://tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
@@ -1027,6 +1107,8 @@ load('~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/remap2018_nr_macs2_hg38_v
 snpInfoBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
 snpInfoBed$chr_name <- paste("chr", snpInfoBed$chr_name, sep = "")
 
+
+## Intersection between remap catalog and haplor data
 
 SOIsBed.gr <- with(SOIsBed,
                    GRanges( seqnames = Rle(chrom),
@@ -1044,38 +1126,51 @@ IntersectBed <- function(a, b) {
 
 
 remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
-## Find intersect between remap catalog and haplor data
-
-# var.file <- "remap.tsv"
-# var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
-# write.table(x = remap.intersect.SOIs,
-#             file = var.path,
-#             quote = FALSE,
-#             sep = "\t",
-#             row.names = FALSE,
-#             col.names = TRUE)
 
 
+## Export SOIs file in tsv format
+remap.file <- file.path(
+  result.dir.path["ReMap"], 
+  paste(sep = "", parameters$query, "_SOIs_inter_ReMap", ".tsv"))
 
-# Barplot of TFs
-barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
-        names.arg = "",
-        main  = "ReMap peaks overlapping SNPS of interest",
-        xlab = "Ranked SNPs",
-        ylab = "Overlapping peaks",
-        las = 1, border = "violet",
-        col = "blue"
-)
+write.table(x = remap.intersect.SOIs,
+              file = remap.file,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+#system(paste("open", result.dir.path["ReMap"]))
 
 
 
+```
+
+
+
+
+```{r remapenrichment}
 # Enrichment of TFs
-enrich <- enrichment(SOIsBed.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
+enrich <- enrichment(haplotype.block.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
 
 # Negative control
 shufflesRegion <- shuffle(haplotype.block.gr)
 
 enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
+
+```
+
+
+
+```{r remapTF, "ReMap peaks overlapping \n SNPS of interest", fig.width=7, fig.height=5, out.width="90%"}
+# Barplot of TFs
+barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
+        names.arg = "",
+        main  = "ReMap peaks overlapping \n SNPS of interest",
+        xlab = "Ranked SNPs",
+        ylab = "Overlapping peaks",
+        las = 1, border = "violet",
+        col = "blue"
+)
 
 ```
 
@@ -1145,115 +1240,6 @@ par(mfrow=c(1, 2))
 
 
 
-
-
-
-## Assignation of TF with the corresponding motif in RSAT variation-scan
-
-```{r motif_tf}
-# TO DO
-varScanJasparTF <- merge(x = jaspar_results,
-                         y = varScanJaspar, 
-                         by.x = "matrix_id",
-                         by.y = "X.ac_motif"
-)
-
-#View(varScanJasparTF)
-
-var.file <- "varScanJasparTF.tsv"
-var.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", var.file)
-write.table(x = varScanJasparTF,
-            file = var.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
-
-
-```
-
-
-
-
-## Distribution of variation-scan score
-
-```{r varscan_score_distributions, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** **A.** P-value ratio. **B.** best and worst p-value. **C.** emphazise the differences between  best and worst weight ")}
-
-#par(mfrow = c(2,2))
-varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
-varScanJasparTF$worst_pval <- as.numeric(varScanJasparTF$worst_pval)
-
-best.pval <- -log10(varScanJasparTF$best_pval)
-worst.pval <- -log10(varScanJasparTF$worst_pval)
-
-pval.range <- range(c(best.pval, worst.pval))
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(best.pval), f, type = "l", col = "blue", 
-     xlim = pval.range,
-     main = "A. variation-scan \n P-value distributions",
-     xlab = "-log10(P-value)",
-     ylab = "Frequency")
-lines(sort(worst.pval), f, type = "l", col = "red")
-legend(1, 95, legend=c("Best P-value", "Worst P-value"),
-       col=c("blue", "red"), lty=1:2, cex=0.8)
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-###################################################
-## Plotting P-value ratio
-
-
-pvalRatioPos <- log10(varScanJasparTF$pval_ratio)
-#pvalRatioNeg <- log10(varScanJasparNeg$pval_ratio)
-
-#pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
-     #xlim = pvalRatio,
-     main = "B. variation-scan \n P-value ratio distributions",
-     xlab = "-log10(P-value ratio)",
-     ylab = "Frequency")
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-## Weight
-varScanJasparTF$best_w <- as.numeric(varScanJasparTF$best_w)
-varScanJasparTF$worst_w <- as.numeric(varScanJasparTF$worst_w)
-
-best.weight <- varScanJasparTF$best_w
-worst.weight <- varScanJasparTF$worst_w
-
-weight.range <- range(c(best.weight, worst.weight))
-
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(best.weight), f, type = "l", col = "blue",
-     xlim = weight.range,
-     main = "C. variation-scan \n weight distributions",
-     xlab = "Weight",
-     ylab = "Frequency")
-
-lines(sort(worst.weight), f, type = "l", col = "red")
-
-legend(2000,9.5, # places a legend at the appropriate place 
-      c("best.weight", "worst.weight"))
-
-grid(col = "#DDDDDD", lty = "solid")
-
-#par(mfrow = c(1,1))
-
-```
-
-
-
-
 ##  ReMap inter variation-scan
 
 In this section, we predict the regulatory SNPs, TFs and  the TFBS potentially affected by each SOI.
@@ -1268,35 +1254,27 @@ varscan.with.peaks <- merge(
   by.y = c("rsid", "id"))
 
 #View(varscan.with.peaks)
+
 kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "pos_End", "var_id", "matrix_id", "name", "best_pval","worst_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
-#View(varscan.with.peaks)
 
-SOI.file <- "varscan.with.peaks.tsv"
-nocoding.path <- file.path("~/cisreg-GWAS_results/EFO_0008407/", SOI.file)
+
+## Export the rSNPs file in tsv format
+rsnps.file <- file.path(
+  result.dir.path["rSNPs"], 
+  paste(sep = "", parameters$query, "_rSNPs", ".tsv"))
+
 write.table(x = varscan.with.peaks,
-            file = nocoding.path,
-            quote = FALSE,
-            sep = "\t",
-            row.names = FALSE,
-            col.names = TRUE)
+              file = rsnps.file,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+system(paste("open", result.dir.path["rSNPs"]))
 
 ```
 
 
-```{r rsnps_barplot}
-
-
-barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE), 
-        names.arg = "",
-        main  = "ReMap peaks overlapping SNPs of interest \n and the corresponding altered TFBS",
-        xlab = "Ranked SNPs",
-        ylab = "Overlapping peaks",
-        las = 1, #border = "violet",
-        col = "violet"
-)
-
-```
 
 
 ## Exploring tissue-specific gene enrichment
