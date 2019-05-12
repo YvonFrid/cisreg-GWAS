@@ -855,6 +855,8 @@ varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapien
                   m_string = parameters$motifDB.URL,
                   m_string_type = "url",
                   m_format =  "transfac"),
+                  uth_pval = 0.004,
+                  lth_pval_ratio = 100,
                   add_headers("Accept" = "application/json"))
 #                add_headers("Accept" = "text/plain"))
                 
@@ -870,7 +872,7 @@ varScan.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
 download.file(url = varScan.URL, destfile = varScan.file)
-#system(paste("open", result.dir.path["RSAT"]))
+system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
