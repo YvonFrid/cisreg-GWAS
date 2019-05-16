@@ -848,15 +848,15 @@ download.file(url = varSeq.URL, destfile = varSeq.file)
 
 ## Variation-scan
 message("Scanning variant alleles with motifs via RSAT REST services")
-varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38", "uth_pval", "lth_pval_ratio"),
+varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
                 body = list(
                   i_string = varSeq.server.path,
                   i_string_type = 'piping',
                   m_string = parameters$motifDB.URL,
                   m_string_type = "url",
                   m_format =  "transfac"),
-                  #uth_pval = 0.004,
-                  #lth_pval_ratio = 100,
+                  uth_pval = 0.004,
+                  lth_pval_ratio = 100,
                   add_headers("Accept" = "application/json"))
 #                add_headers("Accept" = "text/plain"))
                 
@@ -1276,6 +1276,67 @@ geneInfo <- getBM(attributes = c('chromosome_name',
 geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
 
 #View(geneInfo.uniq)
+```
+
+
+### Enrichment analysis of genes
+
+We used the `xEnricherGenes` function to conduct enrichment analysis given a list of genes and the ontology in query. `xEnricherGenes` is supposed to conduct enrichment analysis given the input data and the ontology in query. It returns an object of class "eTerm". Enrichment analysis is based on either Fisher's exact test or Hypergeometric test. The test can respect the hierarchy of the ontology. Now it supports enrichment analysis using a wide variety of ontologies such as Gene Ontology and Phenotype Ontologies [@fang_xgr_2016].
+
+
+```{r xEnricherGenes}
+RData.location <- "http://galahad.well.ox.ac.uk/bigdata/"
+
+# Gene-based enrichment analysis using REACTOME pathways
+# a) provide the input Genes of interest (eg 500 randomly chosen human genes)
+## load human genes
+# org.Hs.eg <- xRDataLoader(RData='org.Hs.eg',
+# RData.location=RData.location)
+# set.seed(825)
+# data <- as.character(sample(org.Hs.eg$gene_info$Symbol, 500))
+
+data <- unique(na.omit(geneInfo.uniq$hgnc_symbol))
+
+# optionally, provide the test background (if not provided, all human genes)
+#background <- as.character(org.Hs.eg$gene_info$Symbol)
+
+# b) perform enrichment analysis
+eTerm <- xEnricherGenes(data=data, ontology="MsigdbC2REACTOME",
+RData.location=RData.location)
+
+# c) view enrichment results for the top significant terms
+xEnrichViewer(eTerm)
+
+# d) save enrichment results to the file called 'REACTOME_enrichments.txt'
+# res <- xEnrichViewer(eTerm, top_num=length(eTerm$adjp), sortBy="adjp",
+# details=TRUE)
+# output <- data.frame(term=rownames(res), res)
+# utils::write.table(output, file="REACTOME_enrichments.txt", sep="\t",
+# row.names=FALSE)
+
+# e) barplot of significant enrichment results
+gp <- xEnrichBarplot(eTerm, top_num="auto", displayBy="adjp")
+print(gp)
+
+# # f) visualise the top 10 significant terms in the ontology hierarchy
+# # color-code terms according to the adjust p-values (taking the form of 10-based negative logarithm)
+# xEnrichDAGplot(eTerm, top_num=10, displayBy="adjp",
+# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
+# # color-code terms according to the z-scores
+# xEnrichDAGplot(eTerm, top_num=10, displayBy="zscore",
+# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
+
+# g) visualise the significant terms in the ontology hierarchy 
+# restricted to Immune System ('R-HSA-168256') or Signal Transduction ('R-HSA-162582')
+# g <- xRDataLoader(RData.customised='ig.REACTOME',
+# RData.location=RData.location)
+# neighs.out <- igraph::neighborhood(g, order=vcount(g),
+# nodes=c("R-HSA-162582","R-HSA-168256"), mode="out")
+# nodeInduced <- V(g)[unique(unlist(neighs.out))]$name
+# ig <- igraph::induced.subgraph(g, vids=nodeInduced)
+# xEnrichDAGplot(eTerm, top_num="auto", ig=ig, displayBy="adjp",
+# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
+
 ```
 
 
