@@ -118,7 +118,8 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  RsatRestUrl = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"
 )
 
@@ -517,8 +518,7 @@ nbSNPs <- length(rsIDs)
 message("\tTotal number of DA-SNPs and LD SNPs: ", nbSNPs)
 
 # Kable
-#kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
-
+kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 ```
 
 
@@ -567,7 +567,7 @@ kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end"
 
 ## SNPs Of Interest (SOIs)
 
-We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, or in LD with these associated SNPs. 
+We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, and in LD with these associated SNPs. 
 
 We gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
 
@@ -810,8 +810,13 @@ message("\tRetrieving information on variants from RSAT REST Web services")
 
 ### TO DO: replace i_string_type = 'text' by the upload of a file containit the SNP IDs. 
 varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
-            body = list(i_string = input, 
-                        i_string_type = 'text'))
+                i_string = input,
+                #i_string = upload_file(soiTxt.file),
+                i_string_type = 'text')
+            
+
+
+
 # class(varInfo)
 # View(varInfo)
 varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
@@ -827,7 +832,7 @@ varInfo.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
 download.file(url = varInfo.URL, destfile = varInfo.file)
-#system(paste("open", result.dir.path["RSAT"]))
+system(paste("open", result.dir.path["RSAT"]))
 
 ## Retrieve variant sequences
 message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
