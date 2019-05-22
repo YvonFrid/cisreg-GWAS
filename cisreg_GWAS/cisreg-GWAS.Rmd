@@ -119,7 +119,8 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
-  RsatRestUrl = "http://134.158.247.7/rsat/rest/",
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
+  #RsatRestUrl = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"
 )
 
@@ -811,6 +812,7 @@ message("\tRetrieving information on variants from RSAT REST Web services")
 ### TO DO: replace i_string_type = 'text' by the upload of a file containit the SNP IDs. 
 varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
                 i_string = input,
+                #format = id,
                 #i_string = upload_file(soiTxt.file),
                 i_string_type = 'text')
             
