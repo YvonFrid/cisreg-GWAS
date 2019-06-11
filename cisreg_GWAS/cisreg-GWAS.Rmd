@@ -91,7 +91,7 @@ knitr::opts_chunk$set(
   comment = "")
 
 ## Load custom functions
-#source("R/bed_to_granges.R")
+source("R/bed_to_granges.R")
 
 
 ```
@@ -104,25 +104,28 @@ knitr::opts_chunk$set(
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  # query =  "EFO_0001068", # malaria
-  query =  "EFO_0008407", # tuberculosis
+  #query =  "EFO_0001068", # malaria
+  query = "HP_0100806", # sepsis
+  #query = "EFO_0000249", # Alzheimer's disease
+  #query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "EUR",
-  #maf = 0.05,
+  population = "AFR",
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
-  include.LD = "EUR", # additional SNPs in LD with Lead SNPs in XGR package
+  include.LD = "AFR", # additional SNPs in LD with Lead SNPs in XGR package
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
   #RsatRestUrl = "http://134.158.247.7/rsat/rest/",
-  motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt"
+  motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
+  remapUrl=  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
 )
+
 
 fig.nb <- 0 ## Initialize figure counter
 
@@ -133,18 +136,6 @@ message("\tWorking directory: ", parameters$working.dir)
 parameters$data.dir = file.path(parameters$output.dir, "data")
 message("Data directory\t", parameters$data.dir)
 dir.create(parameters$data.dir, showWarnings = FALSE, recursive = TRUE)
-
-## POUR YVON
-## Adapter (en-dessous) le code qui télécharge tous les fichiers de données 
-## dont tu as besoin (Jaspar, ReMap) dans ce dossier data.
-## Attention, pour éviter de télécharger à chaque exécution, inclure le download.file() 
-## dans un test
-##  if (!file.exists(machin)) {
-##    message ("Downloading")
-##    download.file(url, dest = machin)
-##  } else {
-##    message ("File ", machin, " already exists, skipping download. ")
-## }
 
 ## Define result directory for the current EFO 
 ## by concatenating the output dir and the query ID
@@ -168,11 +159,9 @@ knitr::opts_chunk$set(fig.path = paste(
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
 message("Loading required libraries")
 cran.libraries.to.install <- 
-  c("dplyr",    ## data manipulation
-    "devtools", ## Required to install github libraries
-    "ggplot2", ## dataviz
-    # "scater",
-    # "haploR", 
+  c("dplyr",   
+    "devtools",
+    "ggplot2", 
     "tidyr",
     "VSE",
     "DiagrammeR",
@@ -180,7 +169,8 @@ cran.libraries.to.install <-
     "jsonlite",
     "httr",
     "xml2",
-    "RCurl"
+    "RCurl",
+    "data.table"
   )     
 
 bioconductor.libraries.to.install <- c(
@@ -316,7 +306,7 @@ To select all disease trait-associated variants, we downloaded the publicly avai
 
 ## Retrieval of disease-associated variants
 
-We define as **tag SNPs** the non-coding SNPs associated to the disease. 
+We define as **tag SNPs** all SNPs (coding and non-coding) associated to the disease. 
 It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
 
 We select the **Tag SNPs** by  filtering out:
@@ -584,11 +574,18 @@ message("\tSelected ", nrow(SOIs), " SNPs of Interest (non-coding SNPs from GWAS
 
 # Make a non-coding variant bed file
 SOIsBed <- data.frame(chrom = SOIs$chr_name,
-                      chromStart = SOIs$chrom_start - 1, # BEWARE: in bed the first chrom position is 0
-                      chromEnd = SOIs$chrom_end, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
+                      chromStart = SOIs$chrom_start, # BEWARE: in bed the first chrom position is 0
+                      chromEnd = SOIs$chrom_end + 1, # BEWARE: in bed the end position is the first position after the feature, in 0-based coordinates
                       snp = SOIs$refsnp_id)
 
 SOIsBed$chrom <- paste("chr", SOIsBed$chrom, sep = "")
+
+
+# Create a grange object for SOIsBed
+SOIsBed.gr <- with(SOIsBed,
+                   GRanges( seqnames = Rle(chrom),
+                            ranges   = IRanges(start =  chromStart, end =  chromEnd),
+                            strand   = Rle("*"), rsid = snp))
 
 
 ## Export rsID of SOIs in txt format
@@ -661,15 +658,6 @@ pie(SOIsConsequenceTable,
 
 ```{r haplotype_block}
 
-## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-## Yvon, ce bloc génère des avertissements
-# Warning messages:
-# 1: Factor `variation1` contains implicit NA, consider using `forcats::fct_explicit_na` 
-# 2: Factor `variation1` contains implicit NA, consider using `forcats::fct_explicit_na` 
-# Il faut vérifier cela
-## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
 haplotype <- merge(x = SOIsBed,
                    y = LdSNPs,
                    by.x = "snp",
@@ -677,6 +665,7 @@ haplotype <- merge(x = SOIsBed,
                    all.x = TRUE,
                    all.y = FALSE)
 
+haplotype <- na.omit(haplotype)
 
 # Make 
 haplotype.block <- haplotype %>% 
@@ -686,9 +675,12 @@ haplotype.block <- haplotype %>%
             regionEnd = max(chromEnd),
             Nb_SNPs = n())
 
+# Remove lines contain NAs
 haplotype.block <- na.omit(haplotype.block)
 
+# Remove duplicated SNPs
 haplotype.block <- haplotype.block[!duplicated(haplotype.block$regionStart),]
+
 #View(haplotype.block)
 
 # Make a grange object
@@ -705,7 +697,9 @@ strand   = Rle("*"), rsID = variation1))
 
 LD <- haplotype[, c( "chrom","chromStart", "chromEnd", "snp",  "variation1")]
 LD <- na.omit(LD)
-LD$chromStart <- as.numeric(LD$chromStart)
+LD <- LD[!duplicated(LD$snp),]
+LD$chrom_start <- as.numeric(LD$chromStart)
+
 LDgr <- with(LD,
              GRanges(seqnames = Rle(chrom),
                      ranges   = IRanges(start = chromStart, end = chromEnd),
@@ -800,29 +794,21 @@ In this section, we using the SNPs of interest results from variation-scan, a su
 
 ```{r rsat_rest_api_R}
 
-## Yvon: the GET should be replaced by a POST query to be able to handle very long lists of SNPs
-## First save all the IDs of the SOIs in a text fie, with 1 ID per row
-## Then see how to use this file as query for the POST to variation-info
-## To do: rediscuss this with Nga
+# Create the vector of SOIs
 input <- paste(collapse = ",", SOIs$refsnp_id)
 
-## Variation-info
+## Build the API request for variation-info and submit it
 message("\tRetrieving information on variants from RSAT REST Web services")
 
-### TO DO: replace i_string_type = 'text' by the upload of a file containit the SNP IDs. 
 varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
-                i_string = input,
-                #format = id,
-                #i_string = upload_file(soiTxt.file),
-                i_string_type = 'text')
-            
+            body = list(i_string = input, 
+                        i_string_type = 'text'))
 
-
-
-# class(varInfo)
-# View(varInfo)
+## Parse the content returned from the server
 varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
 # class(varInfo.content)
+
+## Parse the JSON content 
 varinfo.fromJSON <- fromJSON(varInfo.content)
 # class(varinfo.fromJSON)
 # names(varinfo.fromJSON)
@@ -834,14 +820,20 @@ varInfo.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
 download.file(url = varInfo.URL, destfile = varInfo.file)
-system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
-## Retrieve variant sequences
+
+
+## Build the API request for retrieve-variation-seq and submit it
 message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
 varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
                body = list(i_string = varInfo.server.path,
                            i_string_type = 'piping'))
+
+## Parse the content returned from the server
 varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
+
+## Parse the JSON content 
 varSeq.fromJSON <- fromJSON(varSeq.content)
 varSeq.server.path <- varSeq.fromJSON$result_path
 varSeq.URL <- varSeq.fromJSON$result_url
@@ -853,7 +845,7 @@ varSeq.file <- file.path(
 download.file(url = varSeq.URL, destfile = varSeq.file)
 #system(paste("open", result.dir.path["RSAT"]))
 
-## Variation-scan
+## Build the API request for Variation-scan and submit it
 message("Scanning variant alleles with motifs via RSAT REST services")
 varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
                 body = list(
@@ -862,14 +854,19 @@ varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapien
                   m_string = parameters$motifDB.URL,
                   m_string_type = "url",
                   m_format =  "transfac"),
-                  uth_pval = 0.004,
-                  lth_pval_ratio = 100,
+                  #uth_pval = 0.004,
+                  #lth_pval_ratio = 100,
                   add_headers("Accept" = "application/json"))
 #                add_headers("Accept" = "text/plain"))
                 
 # var <- content(varscan, "text", encoding = "UTF-8")
 # var <- fromJSON(var)
+
+
+## Parse the content returned from the server
 varScan.content <- httr::content(varScan, "text", encoding = "UTF-8")
+
+## Parse the JSON content 
 varScan.fromJSON <- fromJSON(varScan.content)
 varScan.server.path <- varScan.fromJSON$result_path
 varScan.URL <- varScan.fromJSON$result_url
@@ -879,7 +876,7 @@ varScan.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
 download.file(url = varScan.URL, destfile = varScan.file)
-#system(paste("open", result.dir.path["RSAT"]))
+system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
@@ -1102,32 +1099,74 @@ barplot(sort(table(varScanJasparTF$name), decreasing = TRUE),
 
 The ReMap catalog [@Griffon:2015en, @Cheneby:2018ix] is an integrative analysis of transcriptional regulators ChIP-seq experiments from both Public and Encode datasets [@ENCODEProjectConsortium:2012gc]. We used the `ReMapEnrich` package to identify the significant enriched region from ReMap catalog conrresponding of the TFBS altered by the potential regulatory SNPs.
 
-
 The principle of the test is to measure the significance of the intersection between regions of interest and each set of ReMap peaks (a peak game for each ChIP-seq experiment in ReMap). This significance is measured with a p-value, which represents the probability of obtaining an intersection at least as important under a null hypothesis, that is, if we chose regions of the same size randomly.
 
-```{r remap_intersectbed}
-
-# You can downloading the ReMap peak data 
-#URL <- "http://tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
-#download.file(URL, destfile="remap2018_all_macs2_hg38_v1_2.bed.gz",method="libcurl")
-#df <- readLines("remap2018_all_macs2_hg38_v1_2.bed.gz")
-#catalog <- bedToGranges("remap2018_nr_macs2_hg38_v1_2.bed")
-#save(catalog, file = "data/remap2018_nr_macs2_hg38_v1_2.bed")
-
-load('~/Drive/Yvon_Mbouamboua_these_2018/gwas/database/remap2018_nr_macs2_hg38_v1_2.RData')
 
 
+```{r download_remap_data}
 
-snpInfoBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
-snpInfoBed$chr_name <- paste("chr", snpInfoBed$chr_name, sep = "")
+# Specify the directory results
+remapRes <-  paste(sep = "", parameters$data.dir, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
+
+# Downloading the ReMap peak data 
+#download.file(parameters$remapUrl, destfile = remapRes, method = "libcurl")
+
+if (!file.exists(remapRes)) {
+  message ("Downloading")
+  download.file(parameters$remapUrl, dest = remapRes, method = "libcurl")
+} else {
+  message ("remap2018_all_macs2_hg38_v1_2.bed.gz ", "already exists, skipping download. ")
+}
 
 
-## Intersection between remap catalog and haplor data
 
-SOIsBed.gr <- with(SOIsBed,
-                   GRanges( seqnames = Rle(chrom),
-                            ranges   = IRanges(start = chromStart, end = chromEnd),
-                            strand   = Rle("*"), rsid = snp))
+# Read the remapRes
+
+if (!exists("remap.data")) {
+  message ("Reading")
+  remap.data <- fread(file = remapRes)
+} else {
+  message ("remap.data", "already read, skipping reading. ")
+}
+
+#head(remap.data)
+
+# make a grange object of remap data
+#remapCatalog <- ReMapEnrich::bedToGranges(remap.data)
+
+if (!exists("remapCatalog.gr")) {
+  message ("Make grange object")
+  remapCatalog.gr <- with(remap.data,
+                   GRanges( seqnames = Rle(V1),
+                            ranges   = IRanges(start = V2, end = V3),
+                            strand   = Rle("*"), name = V4))
+} else {
+  message ("remapCatalog.gr", "already exists, skipping make grange object. ")
+}
+
+#bedToGranges(remap.data)
+
+
+# Define the path to saving .Rda file
+rda.file <- file.path(parameters$data.dir,
+                      paste(sep = "", "remap2018_all_macs2_hg38_v1_2", ".Rda"))
+
+# Save the remap data Grange format in Rda format
+if (!file.exists(rda.file)) {
+  message ("Saving ReMap file in Rda format")
+  save(remapCatalog, file = rda.file)
+} else {
+  message ("remap2018_all_macs2_hg38_v1_2.Rda ", " already exists, skipping saving. ")
+}
+
+# Load the ReMap Rda file
+load(rda.file)
+
+
+# Create a BED file of snpInfo data
+# SOIsBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
+# SOIsBed$chr_name <- paste("chr", SOIsBed$chr_name, sep = "")
+
 
 # Intersect function
 IntersectBed <- function(a, b) {
@@ -1138,9 +1177,10 @@ IntersectBed <- function(a, b) {
   return(my.df)
 }
 
+## Intersection between remap catalog and haplor data
+#remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 
-remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
-
+remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, haplotype.block.gr))
 
 ## Export SOIs file in tsv format
 remap.file <- file.path(
@@ -1154,22 +1194,6 @@ write.table(x = remap.intersect.SOIs,
               row.names = FALSE,
               col.names = TRUE)
 #system(paste("open", result.dir.path["ReMap"]))
-
-
-
-```
-
-
-
-
-```{r remapenrichment}
-# Enrichment of TFs
-enrich <- enrichment(haplotype.block.gr, remapCatalog, fractionQuery = 0, fractionCatalog = 0)  
-
-# Negative control
-shufflesRegion <- shuffle(haplotype.block.gr)
-
-enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
 
 ```
 
@@ -1191,10 +1215,75 @@ barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE),
 
 
 
-```{r dotplot, fig.width=7, fig.height=5, out.width="90%"}
+```{r remapenrichment}
+# Enrichment of TFs
+enrich <- enrichment(haplotype.block.gr, remapCatalog,  byChrom = TRUE)  
+#enrich <- enrichment(haplotype.block.gr, remapCatalog) 
+#enrich <- enrichment(haplotype.block.gr, remapCatalog, byChrom = TRUE)
+head(enrich)
+
+
+
+
+
+enrichment <- file.path(
+  result.dir.path["ReMap"], 
+  paste(sep = "", parameters$query, "_ReMap_enrichment", ".tsv"))
+
+write.table(x = enrich,
+              file = enrichment,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+
+
+# Negative control
+shufflesRegion <- shuffle(haplotype.block.gr,  byChrom = TRUE)
+#df <- data.frame(shufflesRegion)
+
+#enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
+enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
+#enrichNeg  <- enrichment(shufflesRegion, remapCatalog, byChrom = TRUE)
+
+
+enrichmentNeg <- file.path(
+  result.dir.path["ReMap"], 
+  paste(sep = "", parameters$query, "_ReMap_enrichment_neg_control", ".tsv"))
+
+write.table(x = enrichNeg,
+              file = enrichmentNeg,
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
+```
+
+
+```{r barplot}
+par(mfrow = c(1, 2))
+# Display a bar plot
+enrichmentBarPlot(enrich, 
+                  #sigDisplayQuantile = 0.5, 
+                  top = 20, 
+                  aRisk = 0.00001)
+
+
+# Display a bar plot
+enrichmentBarPlot(enrichNeg, 
+                  #sigDisplayQuantile = 0.5, 
+                  main = paste("Negative control"),
+                  top = 20, 
+                  aRisk = 0.00001)
+
+par(mfrow=c(1, 2))
+```
+
+
+```{r dotplot}
 #par(mfrow = c(1, 2))
 # Display a dot plot.
-enrichmentDotPlot(enrich, 
+enrichmentDotPlot(na.omit(enrich), 
                   top = 20,
                   main = paste("Significance, top 20 categories"),
                   sigType = "q",
@@ -1203,8 +1292,10 @@ enrichmentDotPlot(enrich,
                   inches = 1 / 4,
                   xlab    = "Mapped peaks ratio")
 
+
+
 # Display a negative control dot plot.
-enrichmentDotPlot(enrichNeg, 
+enrichmentDotPlot(na.omit(enrichNeg), 
                   top = 20,
                   main = paste("Negative control"),
                   sigType = "q",
@@ -1230,7 +1321,7 @@ varscan.with.peaks <- merge(
   varScanJasparTF, 
   remap.intersect.SOIs, 
   by.x = c("var_id", "name"),
-  by.y = c("rsid", "id"))
+  by.y = c("rsID", "id"))
 
 #View(varscan.with.peaks)
 
@@ -1428,6 +1519,7 @@ ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
 
 ```{r session_info}
 session_info()
+
 ```
 
 
