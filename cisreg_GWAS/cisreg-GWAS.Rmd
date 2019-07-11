@@ -72,6 +72,13 @@ csl:
 ---
 
 
+```{r start_time}
+## Start time 
+#start.time <- Sys.time()
+
+ptm <- proc.time()
+```
+
 
 ```{r setup, include=FALSE, size="huge"}
 message("Loading knitr library")
@@ -104,11 +111,10 @@ source("R/bed_to_granges.R")
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  #query =  "EFO_0001068", # malaria
+  query =  "EFO_0001068", # malaria
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
-  query = "EFO_0001359", # type ii diabetes mellitus
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -120,7 +126,7 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rest/",
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
   #RsatRestUrl = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
@@ -163,6 +169,7 @@ cran.libraries.to.install <-
   c("dplyr",   
     "devtools",
     "ggplot2", 
+    "gridExtra",
     "tidyr",
     "VSE",
     "DiagrammeR",
@@ -419,7 +426,7 @@ tagSNPsInfo <- getBM(attributes = c('chr_name',
 tagSNPsInfo <- tagSNPsInfo[!duplicated(tagSNPsInfo$refsnp_id),]
 
 # Replace the missing data by the NAs
-tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "Intergenic"
+tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "intergenic"
 
 # Run the pie chart
 table <- table(tagSNPsInfo$consequence_type_tv)
@@ -537,8 +544,7 @@ snpInfo <- getBM(attributes = c('refsnp_source',
                  values = rsIDs, # (DArsIDs + LDsnpIDs)
                  mart = snpmart)
 
-
-
+# Removing the duplicated information
 snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #View(snpInfo)
 # Get gene features
@@ -551,23 +557,6 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #dim(snpInfo)
 
 kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end" ,          "refsnp_id", "allele" , "consequence_type_tv")]), caption = "LD SNPs informations")
-
-
-
-
-SOIsConsequenceTable <- table(snpInfo$consequence_type_tv)
-pct <- round(SOIsConsequenceTable/sum(SOIsConsequenceTable)*100)
-lbls <- names(SOIsConsequenceTable)
-lbls <- paste(lbls, pct) # add percents to labels
-lbls <- paste(lbls, "%", sep = "") # ad % to labels
-#lbls <- sub(pattern = "_variant", replacement = "", lbls)
-pie(SOIsConsequenceTable,
-    main  = "SNPs of interest (SOIs)\nGenomic context",
-    labels = lbls,
-    cex = 0.5,
-    col = rainbow(length(names(SOIsConsequenceTable)))
-    #main="Pie Chart of SNP regions"
-)
 ```
 
 
@@ -583,12 +572,13 @@ We gathering the informations about LD SNPs from Ensembl using `biomaRt package`
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
 
-#SOIs <- subset(snpInfo, cds_start == "NA")
+#SOIs <- subset(snpInfo, cds_start = "NA")
 
+snpInfo$cds_start <- is.na(snpInfo$cds_start)
+SOIs <- subset(snpInfo, cds_start == TRUE)
 #View(SOIs)
-
-SOIs <- snpInfo
-SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "Intergenic"
+#dim(SOIs)
+SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "intergenic"
 
 # dim(SOIs)
 message("\tSelected ", nrow(SOIs), " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
@@ -671,7 +661,24 @@ pie(SOIsConsequenceTable,
     col = rainbow(length(names(SOIsConsequenceTable)))
     #main="Pie Chart of SNP regions"
 )
+
+
+
+gene <- factor(SOIs$consequence_type_tv)
+geneData <- as.data.frame(table(gene))
+
+ggplot(geneData, aes(reorder(gene, Freq), Freq, fill = gene)) +
+  geom_bar(stat = "identity", position = position_stack(), color = "black") +
+  theme_classic() +
+  #coord_flip() +
+  #ggtitle("Genes and SNPs from HaploReg") +
+  xlab("Contexte génomique") +
+  ylab("SNPs") +
+  guides(fill = FALSE) +
+  coord_flip()
+
 ```
+
 
 
 
@@ -709,6 +716,7 @@ haplotype.block.gr <- with(haplotype.block,
 GRanges( seqnames = Rle(chrom),
 ranges   = IRanges(start = regionStart, end = regionEnd),
 strand   = Rle("*"), rsID = variation1))
+
 ```
 
 
@@ -803,99 +811,104 @@ bp <- xEnrichBarplot(
   signature = TRUE)
 print(bp)
 
+
+
 ```
 
 
 
 
-## RSAT Vartools
+## RSAT Var-tools
 
 In this section, we using the SNPs of interest results from variation-scan, a subset tools in RSAT suite [@turatsinze_using_2008; @nguyen_rsat_2018] to scans variant sequences with PSSM and report variations that affect the binding score, in order to predict regulatory variants.
 
 
 ```{r rsat_rest_api_R}
 
-# Create the vector of SOIs
-input <- paste(collapse = ",", SOIs$refsnp_id)
-
-## Build the API request for variation-info and submit it
-message("\tRetrieving information on variants from RSAT REST Web services")
-
-varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
-            body = list(i_string = input, 
-                        i_string_type = 'text'))
-
-## Parse the content returned from the server
-varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-# class(varInfo.content)
-
-## Parse the JSON content 
-varinfo.fromJSON <- fromJSON(varInfo.content)
-# class(varinfo.fromJSON)
-# names(varinfo.fromJSON)
-varInfo.URL <- varinfo.fromJSON$result_url
-varInfo.server.path <- varinfo.fromJSON$result_path
-
-## Download variation info result and store it to a local file
-varInfo.file <- file.path(
-  result.dir.path["RSAT"], 
-  paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
-download.file(url = varInfo.URL, destfile = varInfo.file)
-#system(paste("open", result.dir.path["RSAT"]))
-
-
-
-## Build the API request for retrieve-variation-seq and submit it
-message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
-varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
-               body = list(i_string = varInfo.server.path,
-                           i_string_type = 'piping'))
-
-## Parse the content returned from the server
-varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
-
-## Parse the JSON content 
-varSeq.fromJSON <- fromJSON(varSeq.content)
-varSeq.server.path <- varSeq.fromJSON$result_path
-varSeq.URL <- varSeq.fromJSON$result_url
-
-## Download variation info result and store it to a local file
-varSeq.file <- file.path(
-  result.dir.path["RSAT"], 
-  paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
-download.file(url = varSeq.URL, destfile = varSeq.file)
-#system(paste("open", result.dir.path["RSAT"]))
-
-## Build the API request for Variation-scan and submit it
-message("Scanning variant alleles with motifs via RSAT REST services")
-varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
-                body = list(
-                  i_string = varSeq.server.path,
-                  i_string_type = 'piping',
-                  m_string = parameters$motifDB.URL,
-                  m_string_type = "url",
-                  m_format =  "transfac"),
-                  add_headers("Accept" = "application/json"))
-#                add_headers("Accept" = "text/plain"))
-
-# var <- content(varscan, "text", encoding = "UTF-8")
-# var <- fromJSON(var)
-
-
-## Parse the content returned from the server
-varScan.content <- httr::content(varScan, "text", encoding = "UTF-8")
-
-## Parse the JSON content 
-varScan.fromJSON <- fromJSON(varScan.content)
-varScan.server.path <- varScan.fromJSON$result_path
-varScan.URL <- varScan.fromJSON$result_url
-
-## Download variation info result and store it to a local file
-varScan.file <- file.path(
-  result.dir.path["RSAT"], 
-  paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
-download.file(url = varScan.URL, destfile = varScan.file)
-#system(paste("open", result.dir.path["RSAT"]))
+# # Create the vector of SOIs
+# input <- paste(collapse = ",", SOIs$refsnp_id)
+# 
+# ## Build the API request for variation-info and submit it
+# message("\tRetrieving information on variants from RSAT REST Web services")
+# 
+# varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
+#             body = list(i_string = input,
+#                         i_string_type = 'text'))
+# 
+# ## Parse the content returned from the server
+# varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
+# # class(varInfo.content)
+# 
+# ## Parse the JSON content
+# varinfo.fromJSON <- fromJSON(varInfo.content)
+# # class(varinfo.fromJSON)
+# # names(varinfo.fromJSON)
+# varInfo.URL <- varinfo.fromJSON$result_url
+# varInfo.server.path <- varinfo.fromJSON$result_path
+# 
+# ## Download variation info result and store it to a local file
+# varInfo.file <- file.path(
+#   result.dir.path["RSAT"],
+#   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
+# download.file(url = varInfo.URL, destfile = varInfo.file)
+# #system(paste("open", result.dir.path["RSAT"]))
+# 
+# 
+# 
+# ## Build the API request for retrieve-variation-seq and submit it
+# message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
+# varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+#                body = list(i_string = varInfo.server.path,
+#                            i_string_type = 'piping'))
+# 
+# ## Parse the content returned from the server
+# varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
+# 
+# ## Parse the JSON content
+# varSeq.fromJSON <- fromJSON(varSeq.content)
+# varSeq.server.path <- varSeq.fromJSON$result_path
+# varSeq.URL <- varSeq.fromJSON$result_url
+# 
+# ## Download variation info result and store it to a local file
+# varSeq.file <- file.path(
+#   result.dir.path["RSAT"],
+#   paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
+# download.file(url = varSeq.URL, destfile = varSeq.file)
+# #system(paste("open", result.dir.path["RSAT"]))
+# 
+# ## Build the API request for Variation-scan and submit it
+# message("Scanning variant alleles with motifs via RSAT REST services")
+# varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
+#                 body = list(
+#                   i_string = varSeq.server.path,
+#                   i_string_type = 'piping',
+#                   m_string = parameters$motifDB.URL,
+#                   m_string_type = "url",
+#                   m_format =  "transfac"),
+#                   top = 2,
+#                   #uth_pval = 0.004,
+#                   #lth_pval_ratio = 100,
+#                   add_headers("Accept" = "application/json"))
+# #                add_headers("Accept" = "text/plain"))
+# 
+# # var <- content(varscan, "text", encoding = "UTF-8")
+# # var <- fromJSON(var)
+# 
+# 
+# ## Parse the content returned from the server
+# varScan.content <- httr::content(varScan, "text", encoding = "UTF-8")
+# 
+# ## Parse the JSON content
+# varScan.fromJSON <- fromJSON(varScan.content)
+# varScan.server.path <- varScan.fromJSON$result_path
+# varScan.URL <- varScan.fromJSON$result_url
+# 
+# ## Download variation info result and store it to a local file
+# varScan.file <- file.path(
+#   result.dir.path["RSAT"],
+#   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
+# download.file(url = varScan.URL, destfile = varScan.file)
+# system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
@@ -905,7 +918,7 @@ download.file(url = varScan.URL, destfile = varScan.file)
 
 
 # Importing variation-scan result
-variationScan <- read.delim(file = varScan.file ,
+variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0001068/RSAT/EFO_0001068_varscan_web.txt" ,
                             header = TRUE,
                             sep = "\t",
                             comment.char = ";")
@@ -927,6 +940,13 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 #View(varScanJaspar)
 
+
+# Filter variation-scan result by pval = 1e-04 and pval_ratio = 100
+
+#varScanJaspar <- subset(varScanJaspar,
+              #best_pval <=  1e-03)
+
+#View(var)
 ```
 
 
@@ -994,9 +1014,6 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
-# Transform TF names to uppercase
-
-varScanJasparTF$name <- paste(toupper(varScanJasparTF$name))
 
 #View(varScanJasparTF)
 
@@ -1016,82 +1033,6 @@ write.table(x = varScanJasparTF,
 ```
 
 
-### Distribution of variation-scan score
-
-```{r varscan_score_distributions, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** **A.** P-value ratio. **B.** best and worst p-value. **C.** emphazise the differences between  best and worst weight ")}
-
-par(mfrow = c(2,2))
-varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
-varScanJasparTF$worst_pval <- as.numeric(varScanJasparTF$worst_pval)
-
-best.pval <- -log10(varScanJasparTF$best_pval)
-worst.pval <- -log10(varScanJasparTF$worst_pval)
-
-pval.range <- range(c(best.pval, worst.pval))
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(best.pval), f, type = "l", col = "blue", 
-     xlim = pval.range,
-     main = "A. P-value distributions",
-     xlab = "-log10(P-value)",
-     ylab = "Frequency")
-lines(sort(worst.pval), f, type = "l", col = "red")
-legend(1, 95, legend=c("Best P-value", "Worst P-value"),
-       col=c("blue", "red"), lty=1:2, cex=0.8)
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-###################################################
-## Plotting P-value ratio
-
-
-pvalRatioPos <- log10(varScanJasparTF$pval_ratio)
-
-
-#pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
-     #xlim = pvalRatio,
-     main = "B. P-value ratio distributions",
-     xlab = "-log10(P-value ratio)",
-     ylab = "Frequency")
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-## Weight
-varScanJasparTF$best_w <- as.numeric(varScanJasparTF$best_w)
-varScanJasparTF$worst_w <- as.numeric(varScanJasparTF$worst_w)
-
-best.weight <- varScanJasparTF$best_w
-worst.weight <- varScanJasparTF$worst_w
-
-weight.range <- range(c(best.weight, worst.weight))
-
-
-n <- nrow(varScanJasparTF)
-f <- 1:n / n
-plot(sort(best.weight), f, type = "l", col = "blue",
-     xlim = weight.range,
-     main = "C. Weight distributions",
-     xlab = "Weight",
-     ylab = "Frequency")
-
-lines(sort(worst.weight), f, type = "l", col = "red")
-
-legend(2000,9.5, # places a legend at the appropriate place 
-      c("best.weight", "worst.weight"))
-
-grid(col = "#DDDDDD", lty = "solid")
-
-par(mfrow = c(1,1))
-
-```
-
 
 
 
@@ -1103,8 +1044,8 @@ barplot(sort(table(varScanJasparTF$name), decreasing = TRUE),
         main  = "Distribution of TFBS \n potentially affected by each SOI",
         xlab = "Ranked SNPs",
         ylab = "TFs",
-        las = 1, border = "blue",
-        col = "blue"
+        las = 1, border = "#37A3F3",
+        col = "#37A3F3"
 )
 ```
 
@@ -1195,7 +1136,8 @@ IntersectBed <- function(a, b) {
 ## Intersection between remap catalog and haplor data
 #remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 
-remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, haplotype.block.gr))
+#remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, haplotype.block.gr))
+remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 
 ## Export SOIs file in tsv format
 remap.file <- file.path(
@@ -1215,113 +1157,17 @@ write.table(x = remap.intersect.SOIs,
 
 
 ```{r remapTF, "ReMap peaks overlapping \n SNPS of interest", fig.width=7, fig.height=5, out.width="90%"}
-# Histogramme of TFs
-hist(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
+# Barplot of TFs
+barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
         names.arg = "",
         main  = "ReMap peaks overlapping \n SNPS of interest",
         xlab = "Ranked SNPs",
         ylab = "Overlapping peaks",
-        las = 1, border = "violet",
-        col = "blue"
+        las = 1, border = "#454545",
+        col = "#454545"
 )
 
 ```
-
-
-
-
-```{r remapenrichment}
-# Enrichment of TFs
-enrich <- enrichment(haplotype.block.gr, remapCatalog,  byChrom = TRUE)  
-#enrich <- enrichment(haplotype.block.gr, remapCatalog) 
-#enrich <- enrichment(haplotype.block.gr, remapCatalog, byChrom = TRUE)
-head(enrich)
-
-
-
-
-
-enrichment <- file.path(
-  result.dir.path["ReMap"], 
-  paste(sep = "", parameters$query, "_ReMap_enrichment", ".tsv"))
-
-write.table(x = enrich,
-              file = enrichment,
-              quote = FALSE,
-              sep = "\t",
-              row.names = FALSE,
-              col.names = TRUE)
-
-
-# Negative control
-shufflesRegion <- shuffle(haplotype.block.gr,  byChrom = TRUE)
-#df <- data.frame(shufflesRegion)
-
-#enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
-enrichNeg <- enrichment(shufflesRegion, remapCatalog, fractionQuery = 0, fractionCatalog = 0)
-#enrichNeg  <- enrichment(shufflesRegion, remapCatalog, byChrom = TRUE)
-
-
-enrichmentNeg <- file.path(
-  result.dir.path["ReMap"], 
-  paste(sep = "", parameters$query, "_ReMap_enrichment_neg_control", ".tsv"))
-
-write.table(x = enrichNeg,
-              file = enrichmentNeg,
-              quote = FALSE,
-              sep = "\t",
-              row.names = FALSE,
-              col.names = TRUE)
-```
-
-
-```{r barplot}
-par(mfrow = c(1, 2))
-# Display a bar plot
-enrichmentBarPlot(enrich, 
-                  #sigDisplayQuantile = 0.5, 
-                  top = 20, 
-                  aRisk = 0.00001)
-
-
-# Display a bar plot
-enrichmentBarPlot(enrichNeg, 
-                  #sigDisplayQuantile = 0.5, 
-                  main = paste("Negative control"),
-                  top = 20, 
-                  aRisk = 0.00001)
-
-par(mfrow=c(1, 2))
-```
-
-
-```{r dotplot}
-#par(mfrow = c(1, 2))
-# Display a dot plot.
-enrichmentDotPlot(na.omit(enrich), 
-                  top = 20,
-                  main = paste("Significance, top 20 categories"),
-                  sigType = "q",
-                  col = c("#6699ff", "#ff5050"),
-                  minCircleSize = 0.5,
-                  inches = 1 / 4,
-                  xlab    = "Mapped peaks ratio")
-
-
-
-# Display a negative control dot plot.
-enrichmentDotPlot(na.omit(enrichNeg), 
-                  top = 20,
-                  main = paste("Negative control"),
-                  sigType = "q",
-                  col = c("#6699ff", "#ff5050"),
-                  minCircleSize = 0.5,
-                  inches = 1 / 4,
-                  xlab    = "Mapped peaks ratio")
-#par(mfrow=c(1, 2))
-
-```
-
 
 
 
@@ -1336,10 +1182,9 @@ varscan.with.peaks <- merge(
   varScanJasparTF, 
   remap.intersect.SOIs, 
   by.x = c("var_id", "name"),
-  by.y = c("rsID", "id"))
+  by.y = c("rsid", "id"))
 
-#View(varscan.with.peaks)
-
+#iew(varscan.with.peaks)
 
 kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "pos_End", "var_id", "matrix_id", "name", "best_pval","worst_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
@@ -1358,8 +1203,142 @@ write.table(x = varscan.with.peaks,
               col.names = TRUE)
 #system(paste("open", result.dir.path["rSNPs"]))
 
+
+hist(sort(table(varscan.with.peaks$name), decreasing = TRUE), 
+        names.arg = "",
+        main  = "ReMap peaks overlapping \n SNPS of interest",
+        xlab = "Ranked SNPs",
+        ylab = "Overlapping peaks",
+        las = 1,
+        col = "blue"
+)
+
 ```
 
+
+## Regulatory SNPs features
+
+In this section, we presente the features of the potential regulatory SNPs.
+
+```{r gene_info}
+# Get Ensembl gene features
+
+#snpInfo$ensembl_gene_stable_id
+
+ensembl = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") # BioMart database and dataset to use.
+geneInfo <- getBM(attributes = c('chromosome_name', 
+                                    'start_position',
+                                    'end_position',
+                                    'ensembl_gene_id',
+                                    'hgnc_symbol',
+                                    'entrezgene_accession',
+                                    'go_id',
+                                    'description'
+                                    ), 
+                     filters =  "ensembl_gene_id", 
+                     values = snpInfo$ensembl_gene_stable_id, 
+                     mart = ensembl)
+#View(geneInfo)
+
+# Remove duplicated gene
+geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
+
+#View(geneInfo.uniq)
+
+# Merging snpInfo and geneInfo data tables
+
+snpInfo.vs.geneInfo <- merge(geneInfo,
+                             snpInfo,
+                             by.x = "ensembl_gene_id",
+                             by.y = "ensembl_gene_stable_id")
+#View(snpInfo.vs.geneInfo)
+
+# Merging gene and SNPs informations with the rSNP table
+
+rSNPs.genes.info <- merge(varscan.with.peaks,
+                          snpInfo.vs.geneInfo,
+                          by.x = "var_id",
+                          by.y = "refsnp_id",
+                          all.x = TRUE,
+                          all.y = FALSE)
+#View(rSNPs.genes.info)
+
+rSNPs.data <- rSNPs.genes.info[!duplicated(rSNPs.genes.info$var_id),]
+#View(rSNPs.data)
+```
+
+
+```{r features}
+
+
+## Genee
+gene <- factor(rSNPs.data$hgnc_symbol)
+gene.df <- as.data.frame(table(gene))
+
+A <- ggplot(gene.df, aes(reorder(gene, Freq), Freq)) +
+  geom_bar(stat = "identity", position = position_stack(), color = "black") +
+  theme_classic() +
+  #coord_flip() +
+  #ggtitle("Genes and SNPs from HaploReg") +
+  xlab("Genes") +
+  ylab("SNPs") +
+  guides(fill = FALSE) +
+  coord_flip()
+
+
+## Transcription factor
+
+TF <- factor(rSNPs.data$name)
+TF.df <- as.data.frame(table(TF))
+
+B <- ggplot(TF.df, aes(reorder(TF, Freq), Freq)) +
+  geom_bar(stat = "identity", position = position_stack(), color = "black") +
+  theme_classic() +
+  #coord_flip() +
+  #ggtitle("Genes and SNPs from HaploReg") +
+  xlab("Transcription factors") +
+  ylab("SNPs") +
+  guides(fill = FALSE) +
+  coord_flip()
+
+
+## Alleles
+
+# Merging the best_variant and wort_variant columns
+rSNPs.data.mod <- rSNPs.data
+rSNPs.data.mod$allele <- paste(rSNPs.data.mod$best_variant, 
+                               rSNPs.data.mod$worst_variant, sep = "/")
+
+allele <- factor(rSNPs.data.mod$allele)
+allele.df <- as.data.frame(table(allele))
+
+C <- ggplot(allele.df, aes(reorder(allele, Freq), Freq)) +
+  geom_bar(stat = "identity", position = position_stack(), color = "black") +
+  theme_classic() +
+  #coord_flip() +
+  #ggtitle("Genes and SNPs from HaploReg") +
+  xlab("Alleles") +
+  ylab("SNPs") +
+  guides(fill = FALSE) +
+  coord_flip()
+
+
+context <- factor(rSNPs.data$consequence_type_tv)
+context.df <- as.data.frame(table(context))
+
+D <- ggplot(context.df, aes(reorder(context, Freq), Freq)) +
+  geom_bar(stat = "identity", position = position_stack(), color = "black") +
+  theme_classic() +
+  #coord_flip() +
+  #ggtitle("Genes and SNPs from HaploReg") +
+  xlab("Genomic context") +
+  ylab("SNPs") +
+  guides(fill = FALSE) +
+  coord_flip()
+
+grid.arrange(A, B, C, D, ncol=2, nrow = 2)
+
+```
 
 
 
@@ -1369,6 +1348,20 @@ write.table(x = varscan.with.peaks,
 session_info()
 
 ```
+
+
+
+```{r end_time}
+# End time
+# end.time <- Sys.time()
+# time100.2 <- round(end.time - start.time,2)
+# print(round(end.time - start.time,2))
+
+proc.time() - ptm
+```
+
+
+
 
 
 
