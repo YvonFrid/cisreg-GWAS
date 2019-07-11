@@ -105,9 +105,10 @@ parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   #query =  "EFO_0001068", # malaria
-  query = "HP_0100806", # sepsis
+  #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
+  query = "EFO_0001359", # type ii diabetes mellitus
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -119,7 +120,7 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rest/",
   #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
   #RsatRestUrl = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
@@ -418,7 +419,7 @@ tagSNPsInfo <- getBM(attributes = c('chr_name',
 tagSNPsInfo <- tagSNPsInfo[!duplicated(tagSNPsInfo$refsnp_id),]
 
 # Replace the missing data by the NAs
-tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "Undefined"
+tagSNPsInfo$consequence_type_tv[tagSNPsInfo$consequence_type_tv == ""] <- "Intergenic"
 
 # Run the pie chart
 table <- table(tagSNPsInfo$consequence_type_tv)
@@ -538,8 +539,6 @@ snpInfo <- getBM(attributes = c('refsnp_source',
 
 
 
-## TO DO: UNDERSTAND WHY THERE ARE MULTIPLE ROWS FOR THE SAME SNP !!!
-## CHECK IF THIS IS DUE TO THE POPULATIONS FOR EXAMPLE
 snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #View(snpInfo)
 # Get gene features
@@ -552,6 +551,23 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #dim(snpInfo)
 
 kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end" ,          "refsnp_id", "allele" , "consequence_type_tv")]), caption = "LD SNPs informations")
+
+
+
+
+SOIsConsequenceTable <- table(snpInfo$consequence_type_tv)
+pct <- round(SOIsConsequenceTable/sum(SOIsConsequenceTable)*100)
+lbls <- names(SOIsConsequenceTable)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls, "%", sep = "") # ad % to labels
+#lbls <- sub(pattern = "_variant", replacement = "", lbls)
+pie(SOIsConsequenceTable,
+    main  = "SNPs of interest (SOIs)\nGenomic context",
+    labels = lbls,
+    cex = 0.5,
+    col = rainbow(length(names(SOIsConsequenceTable)))
+    #main="Pie Chart of SNP regions"
+)
 ```
 
 
@@ -566,8 +582,13 @@ We gathering the informations about LD SNPs from Ensembl using `biomaRt package`
 
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
-SOIs <- subset(snpInfo, cds_start = "NA")
-SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "Undefined"
+
+#SOIs <- subset(snpInfo, cds_start == "NA")
+
+#View(SOIs)
+
+SOIs <- snpInfo
+SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "Intergenic"
 
 # dim(SOIs)
 message("\tSelected ", nrow(SOIs), " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
@@ -787,7 +808,7 @@ print(bp)
 
 
 
-## RSAT variation-scan analysis
+## RSAT Vartools
 
 In this section, we using the SNPs of interest results from variation-scan, a subset tools in RSAT suite [@turatsinze_using_2008; @nguyen_rsat_2018] to scans variant sequences with PSSM and report variations that affect the binding score, in order to predict regulatory variants.
 
@@ -854,11 +875,9 @@ varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapien
                   m_string = parameters$motifDB.URL,
                   m_string_type = "url",
                   m_format =  "transfac"),
-                  #uth_pval = 0.004,
-                  #lth_pval_ratio = 100,
                   add_headers("Accept" = "application/json"))
 #                add_headers("Accept" = "text/plain"))
-                
+
 # var <- content(varscan, "text", encoding = "UTF-8")
 # var <- fromJSON(var)
 
@@ -876,7 +895,7 @@ varScan.file <- file.path(
   result.dir.path["RSAT"], 
   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
 download.file(url = varScan.URL, destfile = varScan.file)
-system(paste("open", result.dir.path["RSAT"]))
+#system(paste("open", result.dir.path["RSAT"]))
 
 ```
 
@@ -908,13 +927,6 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 #View(varScanJaspar)
 
-
-# Filter variation-scan result by pval = 1e-04 and pval_ratio = 100
-
-#varScanJaspar <- subset(varScanJaspar,
-              #best_pval <=  1e-03)
-
-#View(var)
 ```
 
 
@@ -982,6 +994,9 @@ varScanJasparTF <- merge(x = jaspar_results,
                          by.y = "X.ac_motif"
 )
 
+# Transform TF names to uppercase
+
+varScanJasparTF$name <- paste(toupper(varScanJasparTF$name))
 
 #View(varScanJasparTF)
 
@@ -1200,8 +1215,8 @@ write.table(x = remap.intersect.SOIs,
 
 
 ```{r remapTF, "ReMap peaks overlapping \n SNPS of interest", fig.width=7, fig.height=5, out.width="90%"}
-# Barplot of TFs
-barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
+# Histogramme of TFs
+hist(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
         names.arg = "",
         main  = "ReMap peaks overlapping \n SNPS of interest",
         xlab = "Ranked SNPs",
@@ -1325,6 +1340,7 @@ varscan.with.peaks <- merge(
 
 #View(varscan.with.peaks)
 
+
 kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "pos_End", "var_id", "matrix_id", "name", "best_pval","worst_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
 
@@ -1344,174 +1360,6 @@ write.table(x = varscan.with.peaks,
 
 ```
 
-
-## Regulation of gene expression
-
-In this section, we analyse the potentially reguled genes by the SOIs.
-
-```{r}
-# Get Ensembl gene features
-
-#snpInfo$ensembl_gene_stable_id
-
-ensembl = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") # BioMart database and dataset to use.
-geneInfo <- getBM(attributes = c('chromosome_name', 
-                                    'start_position',
-                                    'end_position',
-                                    'ensembl_gene_id',
-                                    'ensembl_gene_id_version',
-                                    'hgnc_symbol',
-                                    'entrezgene',
-                                    'go_id',
-                                    'description'
-                                    ), 
-                     filters =  "ensembl_gene_id", 
-                     values = snpInfo$ensembl_gene_stable_id, 
-                     mart = ensembl)
-#View(geneInfo)
-
-# Remove duplicated gene
-geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
-
-#View(geneInfo.uniq)
-```
-
-
-### Enrichment analysis of genes
-
-We used the `xEnricherGenes` function to conduct enrichment analysis given a list of genes and the ontology in query. `xEnricherGenes` is supposed to conduct enrichment analysis given the input data and the ontology in query. It returns an object of class "eTerm". Enrichment analysis is based on either Fisher's exact test or Hypergeometric test. The test can respect the hierarchy of the ontology. Now it supports enrichment analysis using a wide variety of ontologies such as Gene Ontology and Phenotype Ontologies [@fang_xgr_2016].
-
-
-```{r xEnricherGenes}
-RData.location <- "http://galahad.well.ox.ac.uk/bigdata/"
-
-# Gene-based enrichment analysis using REACTOME pathways
-# a) provide the input Genes of interest (eg 500 randomly chosen human genes)
-## load human genes
-# org.Hs.eg <- xRDataLoader(RData='org.Hs.eg',
-# RData.location=RData.location)
-# set.seed(825)
-# data <- as.character(sample(org.Hs.eg$gene_info$Symbol, 500))
-
-data <- unique(na.omit(geneInfo.uniq$hgnc_symbol))
-
-# optionally, provide the test background (if not provided, all human genes)
-#background <- as.character(org.Hs.eg$gene_info$Symbol)
-
-# b) perform enrichment analysis
-eTerm <- xEnricherGenes(data=data, ontology="MsigdbC2REACTOME",
-RData.location=RData.location)
-
-# c) view enrichment results for the top significant terms
-xEnrichViewer(eTerm)
-
-# d) save enrichment results to the file called 'REACTOME_enrichments.txt'
-# res <- xEnrichViewer(eTerm, top_num=length(eTerm$adjp), sortBy="adjp",
-# details=TRUE)
-# output <- data.frame(term=rownames(res), res)
-# utils::write.table(output, file="REACTOME_enrichments.txt", sep="\t",
-# row.names=FALSE)
-
-# e) barplot of significant enrichment results
-gp <- xEnrichBarplot(eTerm, top_num="auto", displayBy="adjp")
-print(gp)
-
-# # f) visualise the top 10 significant terms in the ontology hierarchy
-# # color-code terms according to the adjust p-values (taking the form of 10-based negative logarithm)
-# xEnrichDAGplot(eTerm, top_num=10, displayBy="adjp",
-# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
-# # color-code terms according to the z-scores
-# xEnrichDAGplot(eTerm, top_num=10, displayBy="zscore",
-# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
-
-# g) visualise the significant terms in the ontology hierarchy 
-# restricted to Immune System ('R-HSA-168256') or Signal Transduction ('R-HSA-162582')
-# g <- xRDataLoader(RData.customised='ig.REACTOME',
-# RData.location=RData.location)
-# neighs.out <- igraph::neighborhood(g, order=vcount(g),
-# nodes=c("R-HSA-162582","R-HSA-168256"), mode="out")
-# nodeInduced <- V(g)[unique(unlist(neighs.out))]$name
-# ig <- igraph::induced.subgraph(g, vids=nodeInduced)
-# xEnrichDAGplot(eTerm, top_num="auto", ig=ig, displayBy="adjp",
-# node.info=c("full_term_name"), graph.node.attrs=list(fontsize=25))
-
-```
-
-
-### Exploring tissue-specific gene enrichment
-
-In this section, we calculate the enrichment of tissue-specific genes in an input the candidate gene set corresponding to the potential regulatory SNPs using the `TissueEnrich package` [@jain_tissueenrich:_2018].
-
-
-```{r tissueEnrich, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values and the y-axis shows each of the tissues.")}
-
-inputGenes <- unique(na.omit(geneInfo.uniq$hgnc_symbol))
-
-gs<-GeneSet(geneIds=inputGenes,organism="Homo Sapiens",geneIdType=SymbolIdentifier())
-output<-teEnrichment(inputGenes = gs)
-
-seEnrichmentOutput<-output[[1]]
-enrichmentOutput<-setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-enrichmentOutput$Tissue<-row.names(enrichmentOutput)
-
-
-# ggplot
-ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label = Tissue.Specific.Genes,fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = '-LOG10(P-Adjusted)')+
-      theme_bw()+
-      #coord_flip() +
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank()) +
-      ggtitle("A. Tissue-specific gene enrichment (−log10(p-value))")
-
-
-
-
-ggplot(enrichmentOutput,aes(x=reorder(Tissue,-fold.change),y=fold.change,label = Tissue.Specific.Genes,fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = 'Fold change')+
-      theme_bw()+
-      #coord_flip() +
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank()) +
-      ggtitle("B. Tissue-specific gene enrichment (fold change)")
-
-#multiplot(A, B, layout = matrix(c(1, 2), nrow  = 2))
-
-```
-
-
-
-
-### Heatmap to show expression profiles of tissue-specific genes
-
-The heatmap showing the expression of the significant tissues specific genes across all the tissues.
-
-```{r heatmap, fig.width=8, fig.height=6, out.width="95%", fig.cap = paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression profiles of tissue-specific genes.** The tissue enriched have genes with an expression level greater than or equal to 1. Gene expression values are presented either as TPM (transcript per million) that also have at least five-fold higher expression levels in a particular tissue compared to all other tissues.")}
-seExp<-output[[2]][["Urinary Bladder"]]
-exp<-setNames(data.frame(assay(seExp), row.names = rowData(seExp)[,1]), colData(seExp)[,1])
-exp$Gene<-row.names(exp)
-exp<-exp %>% gather(Tissue=1:(ncol(exp)-1))
-
-ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
-     colour = "white") + scale_fill_gradient(low = "white",
-     high = "steelblue")+
-     labs(x='', y = '')+
-      theme_bw()+
-      guides(fill = guide_legend(title = "Log2(TPM)"))+
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-```
 
 
 

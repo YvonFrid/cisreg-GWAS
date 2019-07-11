@@ -4,18 +4,21 @@ digraph {
 		 color="#0066BB";
 	 	 label="";
 	 	 
-	graph [fontname="ArialBlack",fontsize="20", label="" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2", rankdir=TB];
-	edge [fontname="ArialMT",fontsize="20",labelfontname="ArialMT",labelfontsize="20", arrowsize="0.5", color="#666666"];
-	node [fontname="ArialMT",fontsize="20",shape=record,height="0.2", color="#666666"];
+	graph [fontname="ArialBlack",fontsize="70", label="cisreg-GWAS analysis pipeline" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2", rankdir=TB];
+	edge [fontname="ArialMT",fontsize="40",labelfontname="ArialMT",labelfontsize="40", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="40",shape=record,height="0.2", color="#666666"];
 
+
+		
 	gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#D6EEFA", label = "GWAS catalog \n REST API", URL = "http://www.ebi.ac.uk/gwas/"];
-			
+
+
 	gwas_catalog -> download
 
 #F8EE2B
 
 
-		 download [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated genes \n and variants features | tab-delimited}"]
+		 download [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated  variants features | tab-delimited}"]
 
 		 download -> preformating1
 
@@ -25,7 +28,7 @@ digraph {
      
 		 tagsnp  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated SNPs (Tag SNPs) | tab-delimited}"]
 
-		 tagsnp -> haplor1
+		 tagsnp -> ensembl
 
 		subgraph cluster_4 {
 		color = "#0066BB";
@@ -34,13 +37,13 @@ digraph {
 		style = "rounded";
 
 
-	haplor1[shape = "record", 
+	ensembl[shape = "record", 
 			style = "rounded,filled", 
 			fillcolor = "#EEFFDD", 
 			label = "{REST API| Getting LD SNPs}"];
 }
 
-haplor1 -> snp1
+ensembl -> snp1
  snp1  [shape = "record", 
 			style = "filled", 
 			fillcolor = "#FFEEDD", 
@@ -50,11 +53,11 @@ snp1 -> preformating2
 
 preformating2  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{biomaRt (R package) | Preformating \n and complete missing data}"]
 
-		preformating2 -> haplor2
-		preformating2 -> haplor3
+		preformating2 -> SOI
+		preformating2 -> coding
 			#preformating2 -> haplor4
 		
-	haplor2 [shape = "record", 
+	SOI [shape = "record", 
 			style = "filled", 
 			fillcolor = "#FFEEDD", 
 			label = "{SNPs Of Interest (SOIs) | LD SNPs in non-coding regions | tab-delimited}"];
@@ -65,29 +68,36 @@ preformating2  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", lab
 		#	fillcolor = "#FFEEDD", 
 		#	label = "{Epigenomic marks | tab-delimited}"];
 			
-	 haplor3 [shape="record", 
+	 coding [shape="record", 
 	 style="filled", 
 	 fillcolor="#FFEEDD",
 	 label="{LD SNPs \n in coding regions}"]
 		
 
-haplor2 -> rsid
-#rsid -> remap
+SOI -> SOIsGRange
+SOI -> rsid
 
 
 rsid [shape = "", 
 				style = "filled", 
 				fillcolor = "#FFEEDD", 
-				label = "rsID bed file", 
+				label = "rsID", 
 				fontcolor = "#0D73A7"];
 				
 	rsid -> variation_info
+	#rsid -> SOIsGRange
+	
+	SOIsGRange [shape="", 
+	 style="filled", 
+	 fillcolor="#FFEEDD",
+	 fontcolor = "#0D73A7"
+	 label="SOIs \n GRanges object"]
 				
   ## RSAT
 	subgraph cluster_5 {
 		color = "#0066BB";
 		bgcolor = "#C0C0C0";
-		label  =  "RSAT";
+		label  =  "RSAT vartools";
 		style = "rounded";
 	
 	## variation-info
@@ -154,9 +164,10 @@ variation_scan -> rsat2
 		 
 		  rsat2 [shape="record", style="filled", fillcolor="#FFEEDD", label="{Predicted rSNPs | tab-delimited}"]
 		  
-	rsid -> remapenrich
-	rsid -> remap
+#	rsid -> remapenrich
+	SOIsGRange -> intersectbed
 		  
+	intersectbed
 		  	## REMAP
 subgraph cluster_3 {
 		color = "#0066BB";
@@ -165,16 +176,16 @@ subgraph cluster_3 {
 		style = "rounded";
 				
 				
-		remapenrich [shape = "record", 
-				style = "rounded,filled", 
-				fillcolor = "#EEFFDD", 
-				label = "{ReMapEnrich \n R package}", 
-				fontcolor = "#0D73A7"];
+		#remapenrich [shape = "record", 
+		#		style = "rounded,filled", 
+		#		fillcolor = "#EEFFDD", 
+		#		label = "{ReMapEnrich \n R package}", 
+		#		fontcolor = "#0D73A7"];
 	
-	remap [shape = "record", 
+	intersectbed [shape = "record", 
 				style = "rounded,filled", 
 				fillcolor = "#EEFFDD", 
-				label = "{ReMap \n No REST API}", 
+				label = "{intersectBed}", 
 				fontcolor = "#0D73A7"];
 				
 		remapcatalogue [shape = "cylinder", 
@@ -183,27 +194,28 @@ subgraph cluster_3 {
 						label = "ReMap catalogue \n ftp download", 
 						URL = "http://tagc.univ-mrs.fr/remap/index.php?page = download/", 
 						fontcolor = "#0D73A7"];
-	remapcatalogue -> remapenrich 
+	#remapcatalogue -> remapenrich 
 	remapcatalogue -> remap
 
 		}
 	 
-	 remapenrich -> tfenrichissment
+	 #remapenrich -> tfenrichissment
 	 
-	 	tfenrichissment [shape = "record", 
-					style = "filled", 
-					fillcolor = "#FFEEDD", 
-					label = "{TF enrichissments | tab-delimited}"];
+	 	#tfenrichissment [shape = "record", 
+		#			style = "filled", 
+		#			fillcolor = "#FFEEDD", 
+		#			label = "{TF enrichissments | tab-delimited}"];
 					
 	 
-		 #remap1  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{ReMap | ReMapEnrich}"]
-		 remap -> remap2
-		  remap2 [shape="record", style="filled", fillcolor="#FFEEDD", label="{TF binding peaks \n overlapping SNPs | Intersect bed}"]
+		 remap [shape="record", style="filled", fillcolor="#FFEEDD", label="{GRange object}"]
+		 remap -> intersectbed
+		 intersectbed -> tfbs
+		  tfbs [shape="record", style="filled", fillcolor="#FFEEDD", label="{TF binding peaks \n overlapping SNPs }"]
 		  
 	
 	
 		 rsat2 -> join
-		 remap2 -> join
+		 tfbs -> join
 		 #haplor4 -> join
 		 
     join  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{GenomicRanges| Merge datasets}"]
@@ -225,10 +237,10 @@ subgraph cluster_3 {
 		jaspar_res -> join
 
 		 annot_table  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Annotation tab-delimited}"]
-    annot_table -> stat
- stat  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{Statistical analysis}"]
-    stat -> rsnp
-    rsnp  [shape="record", style="filled", fillcolor="#FFEEDD", label="{Regulatory SNPs | tab-delimited}"]
+    annot_table -> rsnp
+ #stat  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", label="{Statistical analysis}"]
+    #stat -> rsnp
+    rsnp  [shape="record", style="rounded,filled", fillcolor="#F2DB9E", label="{Regulatory SNPs | tab-delimited}"]
 	}
 
 	
