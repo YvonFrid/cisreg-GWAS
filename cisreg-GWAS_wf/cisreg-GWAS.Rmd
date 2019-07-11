@@ -970,7 +970,7 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 
 
 ```{r get_JASPAR_annotation}
-## Created on January 11, 2018
+ ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 #set path to store results
