@@ -5,14 +5,17 @@
 
 - [Yvon Mbouamboua](https://github.com/yvonfrid), Aix-Marseille Université (AMU), France
 - [Jacques van Helden](https://github.com/jvanheld), Institut Français de Bioinformatique + Aix-Marseille Université
-## Expected participants
 
-- Jacques van Helden
+
+## Participants
+
 - Benoît Ballester
 - Aziz Kahn
 - Thomas Rosnet
 - Thuy Nga Thi Nguyen
-- ... additional participants will register during the hackathon
+- Andrew Parton
+- Ferran Moratalla Navarro
+
 
 ## Motivation
 
