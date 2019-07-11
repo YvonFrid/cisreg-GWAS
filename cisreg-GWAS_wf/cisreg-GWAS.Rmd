@@ -158,6 +158,9 @@ knitr::opts_chunk$set(fig.path = paste(
   sep = "", parameters$figure.dir, parameters$query, "_"))
 
 
+## Initialise a vector to summarize the results
+workflowSummary <- vector()
+
 
 ```
 
@@ -314,14 +317,15 @@ To select all disease trait-associated variants, we downloaded the publicly avai
 
 ## Retrieval of disease-associated variants
 
-We define as **tag SNPs** all SNPs (coding and non-coding) associated to the disease. 
+We define as **Disease-Associated SNPs SNPs** or **DA SNPs** the SNPs (coding and non-coding) associated to the query disease. 
+
+
 It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
 
-We select the **Tag SNPs** by  filtering out:
-  
-- all missing variants by keeping all with rs ID variant.
-- some redundant disease-SNPs associations  resulting from different studies.
+DA SNPs are retrieved fom the [GWAS catalog](https://www.ebi.ac.uk/gwas/). 
+We only keep the SNPs having an "rs" identifier.
 
+Note that the query disease may be treated in zero, one or several GWAS, so that the same SNP may be retrieved multiple times in the initial collection obtained from Ensembl. We this remove the redundant disease-SNP associations to obtain a list of unique SNPs. 
 
 
 ```{r downloag_gwas_data}
@@ -391,6 +395,7 @@ gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 
 ## Check SNP IDs
 DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
 
 nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
 message("SNPs with rs identifier: ", length(DArsIDs))
@@ -404,14 +409,17 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 ```
 
 
-In total, we found `r length(DArsIDs)` **TagSNPs** from GWAS catalog.
+In total, we found `r length(DArsIDs)` **disease-associated (DA) SNPs** from GWAS catalog.
 
 
-### Proportion of genomic context of the disease-associated variants
+### Proportion of genomic context of the disease-associated SNPs
+
+The piechart shows the genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
 
 ```{r fig.cap = paste("Genomic context of disease-associated variants from GWAS catalog"), out.width = "100%", eval=FALSE, echo=FALSE}
 
 # Find the genomic tag SNPs informations
+message("Retrieving genomic information about ", length(DArsIDs), " disease-associated SNPs from dbSNP. ")
 
 snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # BioMart database and dataset to use.
 tagSNPsInfo <- getBM(attributes = c('chr_name', 
@@ -451,12 +459,12 @@ pie(table,
 
 In order to get causal SNPs, we collect from each tag SNP all the other SNPs in linkage desiquilibrium. 
 
-We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_get) which allows to recover SNPs in high LD (with the **r^2^ = 0.8**) by specifying the population. The *Ensembl endpoint* computes and returns LD values between the given variant set and all other variants in a window centered around the given variant set. We used the window size of set to 200 kb.
+We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_get) which allows to recover SNPs in high LD (with the $r^2 = `r parameters[["r2"]]`$) by specifying the population. The *Ensembl endpoint* computes and returns LD values between the given variant set and all other variants in a window centered around the given variant set. We used the window size of set to 200 kb.
 
 
 ```{r linkage_desiquilibrium}
 
-message("Getting LD SNPs from Ensembl")
+message("Getting LD SNPs from Ensembl for ", length(DArsIDs), " disease-associated SNPs. ")
 
 LDsnpIDs <- vector()
 i <- 0
@@ -508,26 +516,30 @@ for (rsID in DArsIDs) {
 }
 LDsnpIDs <- unique(LDsnpIDs)
 nbLDSNPs <- length(LDsnpIDs)
+workflowSummary["LD: SNPs in Linkage Disequilibrium with DA SNPs"] <- nbLDSNPs
+
 message("\tTotal number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
 ## Merge DA-SNPs and LD-SNPs
 rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
-message("\tTotal number of DA-SNPs and LD SNPs: ", nbSNPs)
+workflowSummary["DA and LD SNPs"] <- nbSNPs
+
+message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
 # Kable
 kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
 ```
 
 
-## Genomic features of SNPs (associated + LD)
+## Genomic features of SNPs (DA and LD SNPs)
 
-In this section, we gathering the informations about the SNPs (disease-associated + LD) from Ensembl using the R `biomaRt` package.
+In this section, we gathering the informations about the DA and LD SNPs from Ensembl using the R `biomaRt` package.
 
 ```{r LD_biomart_annotation}
 ## biomaRt annotation
-message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs")
+message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs (DA and LD)")
 snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # BioMart database and dataset to use.
 snpInfo <- getBM(attributes = c('refsnp_source',
                                 'chr_name',
@@ -563,9 +575,7 @@ kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end"
 
 ## SNPs Of Interest (SOIs)
 
-We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, and in LD with these associated SNPs. 
-
-We gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
+We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, and in LD with these associated SNPs. We gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
 
 ```{r snps_of_interest}
 
@@ -581,7 +591,9 @@ SOIs <- subset(snpInfo, cds_start == TRUE)
 SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "intergenic"
 
 # dim(SOIs)
-message("\tSelected ", nrow(SOIs), " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
+nbSOIs <- nrow(SOIs)
+workflowSummary["SOis: SNPs of interest"] <- nbSOIs
+message("\tSelected ", nbSOIs, " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
 
 # Make a non-coding variant bed file
 SOIsBed <- data.frame(chrom = SOIs$chr_name,
@@ -643,7 +655,7 @@ write.table(x = SOIs,
 
 
 
-```{r  fig.cap = "Genomic context of SNPs of interest", out.width = "100%"}
+```{r  fig.cap = "Genomic context of SNPs of interest", out.width = "80%", fig.width=8, fig.height=4.5}
 #SOI$consequence_type_tv <- sub(pattern = " ", "intergenic", 
 #                                       SOI$consequence_type_tv)
 
@@ -684,7 +696,12 @@ ggplot(geneData, aes(reorder(gene, Freq), Freq, fill = gene)) +
 
 ## Enrichment of associated variant set (AVS)
 
+We identify the haplotype of a given SNP based on the pairs of LD SNPs previously retrieved from Ensembl as the limits of the region encompassing the SNPs in LD with this SNP.
+
+
 ```{r haplotype_block}
+message("Identifying haplotype blocks")
+
 
 haplotype <- merge(x = SOIsBed,
                    y = LdSNPs,
@@ -759,7 +776,7 @@ par(par.ori)
 
 ## Enrichment of SOIs set for diseases
 
-We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct enrichment analysis given a list of SNPs and the ontology (Experimental Factor Ontology used to annotate GWAS Catalog SNPs). in query and return an object of class "eTerm". The enrichment analysis is based on either "Fisher's" exact test or Hypergeometric test.
+We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct in diseases ou traits enrichment analysis given a list of **SOIs**.
 
 
 ```{r xgr_disease_enrichment, fig.width=6, fig.height=4, out.width="90%", fig.cap = "Enrichment of the set of SOIs for diseases, analysed with the XGR package."}
@@ -940,13 +957,8 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 #View(varScanJaspar)
 
-
-# Filter variation-scan result by pval = 1e-04 and pval_ratio = 100
-
-#varScanJaspar <- subset(varScanJaspar,
-              #best_pval <=  1e-03)
-
-#View(var)
+nbvarScanJaspar <- nrow(varScanJaspar)
+workflowSummary["variation-scan: potential rSNPs"] <- nbvarScanJaspar
 ```
 
 
@@ -1060,71 +1072,56 @@ The principle of the test is to measure the significance of the intersection bet
 
 
 ```{r download_remap_data}
+message("Downloading the ReMap catalog")
 
-# Specify the directory results
-remapRes <-  paste(sep = "", parameters$data.dir, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
-
-# Downloading the ReMap peak data 
-#download.file(parameters$remapUrl, destfile = remapRes, method = "libcurl")
-
-if (!file.exists(remapRes)) {
-  message ("Downloading")
-  download.file(parameters$remapUrl, dest = remapRes, method = "libcurl")
-} else {
-  message ("remap2018_all_macs2_hg38_v1_2.bed.gz ", "already exists, skipping download. ")
-}
-
-
-
-# Read the remapRes
-
-if (!exists("remap.data")) {
-  message ("Reading")
-  remap.data <- fread(file = remapRes)
-} else {
-  message ("remap.data", "already read, skipping reading. ")
-}
-
-#head(remap.data)
-
-# make a grange object of remap data
-#remapCatalog <- ReMapEnrich::bedToGranges(remap.data)
-
-if (!exists("remapCatalog.gr")) {
-  message ("Make grange object")
-  remapCatalog.gr <- with(remap.data,
-                   GRanges( seqnames = Rle(V1),
-                            ranges   = IRanges(start = V2, end = V3),
-                            strand   = Rle("*"), name = V4))
-} else {
-  message ("remapCatalog.gr", "already exists, skipping make grange object. ")
-}
-
-#bedToGranges(remap.data)
-
+## Specify the files containing bed peak catalogue in two formats`
+## - bed: downloaded from ReMap
+## - Rdata: exported with this script after the first loading, in order to accelerate subsequent loadins
+remapBedFile <-  paste(sep = "", parameters$data.dir, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
 
 # Define the path to saving .Rda file
-rda.file <- file.path(parameters$data.dir,
-                      paste(sep = "", "remap2018_all_macs2_hg38_v1_2", ".Rda"))
+remapRdataFile <- file.path(parameters$data.dir,
+                      paste(sep = "", "remap2018_all_macs2_hg38_v1_2", ".Rdata"))
 
-# Save the remap data Grange format in Rda format
-if (!file.exists(rda.file)) {
-  message ("Saving ReMap file in Rda format")
-  save(remapCatalog, file = rda.file)
+
+## Load ReMap peaks from Rdata file if it is there (faster loading)
+if (file.exists(remapRdataFile)) {
+  message ("Loading ReMap peaks from Rdata file")
+  # Load the ReMap Rdata file
+  system.time({ load(remapRdataFile) })
 } else {
-  message ("remap2018_all_macs2_hg38_v1_2.Rda ", " already exists, skipping saving. ")
+
+  # Downloading the ReMap peak data 
+  #download.file(parameters$remapUrl, destfile = remapBedFile, method = "libcurl")
+  if (file.exists(remapBedFile)) {
+    message("Remap bed file already exists, skipping download. ")
+    message("\t", remapBedFile)
+  } else {
+    message ("Downloading the ReMap catalog")
+    system.time({ download.file(parameters$remapUrl, dest = remapBedFile, method = "libcurl") })
+  }
+
+  ## Load the bed files
+  message ("Loading ReMap peaks from bed file")
+  system.time({ remap.data <- fread(file = remapBedFile) })
+  
+  ## Convert the bed peaks into a grange object
+  message ("Converting ReMap peaks into grange objects")
+  system.time({ 
+    remapCatalog.gr <- with(remap.data,
+                            GRanges( seqnames = Rle(V1),
+                                     ranges   = IRanges(start = V2, end = V3),
+                                     strand   = Rle("*"), name = V4))
+  })
+  
+  # Save the remap data Grange format in Rda format
+  message ("Saving ReMap file in Rda format")
+  system.time({  save(remapCatalog.gr, file = remapRdataFile) })
 }
 
-# Load the ReMap Rda file
-load(rda.file)
 
-
-# Create a BED file of snpInfo data
-# SOIsBed <- snpInfo[, c("chr_name", "chrom_start", "chrom_end", "refsnp_id")]
-# SOIsBed$chr_name <- paste("chr", SOIsBed$chr_name, sep = "")
-
-
-# Intersect function
+# Compute overlaps between ReMap peaks and SNPs of interest
+message("Computing intersection between ReMap peaks and SOIs")
 IntersectBed <- function(a, b) {
   #library(GenomicRanges)
   my.hits <- findOverlaps(a, b, type = "any")
@@ -1134,18 +1131,31 @@ IntersectBed <- function(a, b) {
 }
 
 ## Intersection between remap catalog and haplor data
-#remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
+#remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 
-#remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, haplotype.block.gr))
-remap.intersect.SOIs <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
+#remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog, haplotype.block.gr))
+remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, SOIsBed.gr))
+nbremap.SOI.overlaps <- nrow(remap.SOI.overlaps)
+message("Number of overlaps between SOIs and ReMap peaks: ", nbremap.SOI.overlaps)
+workflowSummary["remap.SOI.overlaps: overlaps between SOIs and ReMap peaks"] <- nbremap.SOI.overlaps
+
+
+## Split the ReMap peakset ID in order to obtain separate columns with the
+## 1. GEO series
+## 2. Transcription factor name
+## 3. Tissue / condition
+
+remap.SOI.overlaps <- separate(data = remap.SOI.overlaps, col = "name", into = c("GSE", "TF", "Tissue"), sep = "\\.", remove = FALSE)
+
+# head(remap.SOI.overlaps)
 
 ## Export SOIs file in tsv format
-remap.file <- file.path(
+remap.SOI.overlap.file <- file.path(
   result.dir.path["ReMap"], 
-  paste(sep = "", parameters$query, "_SOIs_inter_ReMap", ".tsv"))
+  paste(sep = "", parameters$query, "_SOIs_ReMap_overlaps", ".tsv"))
 
-write.table(x = remap.intersect.SOIs,
-              file = remap.file,
+write.table(x = remap.SOI.overlaps,
+              file = remap.SOI.overlap.file,
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
@@ -1158,7 +1168,7 @@ write.table(x = remap.intersect.SOIs,
 
 ```{r remapTF, "ReMap peaks overlapping \n SNPS of interest", fig.width=7, fig.height=5, out.width="90%"}
 # Barplot of TFs
-barplot(sort(table(remap.intersect.SOIs$id), decreasing = TRUE), 
+barplot(sort(table(remap.SOI.overlaps$name), decreasing = TRUE), 
         names.arg = "",
         main  = "ReMap peaks overlapping \n SNPS of interest",
         xlab = "Ranked SNPs",
@@ -1180,7 +1190,7 @@ In this section, we predict the regulatory SNPs, TFs and  the TFBS potentially a
 
 varscan.with.peaks <- merge(
   varScanJasparTF, 
-  remap.intersect.SOIs, 
+  remap.SOI.overlaps, 
   by.x = c("var_id", "name"),
   by.y = c("rsid", "id"))
 
@@ -1337,6 +1347,15 @@ D <- ggplot(context.df, aes(reorder(context, Freq), Freq)) +
   coord_flip()
 
 grid.arrange(A, B, C, D, ncol=2, nrow = 2)
+
+```
+
+## Workflow summary
+
+```{r workflow_summary}
+
+kable(as.data.frame(workflowSummary))
+
 
 ```
 
