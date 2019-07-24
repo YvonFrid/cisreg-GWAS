@@ -641,13 +641,12 @@ snpInfo <- getBM(attributes = c('refsnp_source',
                  filters =  "snp_filter", 
                  values = rsIDs, # (DArsIDs + LDsnpIDs)
                  mart = snpmart)
+# dim(snpInfo)
 
 # Removing the duplicated information
 snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
-
-
-
-#View(snpInfo)
+# dim(snpInfo)
+# View(snpInfo)
 # Get gene features
 
 # geneInfo <- getBM(attributes = c('chromosome_name', 'hgnc_symbol', 'start_position', 'end_position', 'ensembl_gene_id', 'entrezgene', 'go_id'),
@@ -708,18 +707,26 @@ We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are ei
 # Select the non-coding variant by discarding the variants with an annotated CDS start
 message("Selecting SNPs of Interest (in non-coding regions) from Ensembl")
 
-#SOIs <- subset(snpInfo, cds_start = "NA")
+#SOIs <- subset(c, cds_start = "NA")
 
-snpInfo$cds_start <- is.na(snpInfo$cds_start)
-SOIs <- subset(snpInfo, cds_start == TRUE)
-#View(SOIs)
-#dim(SOIs)
+snpInfo$noncoding <- is.na(snpInfo$cds_start)
+# table(snpInfo$noncoding)
+SOIs <- subset(snpInfo, noncoding == TRUE)
+# View(SOIs)
+# dim(snpInfo)
+# dim(SOIs)
+
+##  assign all the SNPs without documented consequence type to the "intergenic" class
 SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "intergenic"
 
 # dim(SOIs)
 nbSOIs <- nrow(SOIs)
 workflowSummary["SOis: SNPs of interest"] <- nbSOIs
-message("\tSelected ", nbSOIs, " SNPs of Interest (non-coding SNPs from GWAS or in LD)\t")
+message("\tSelected ", 
+        nbSOIs, " SNPs of Interest (non-coding) among ", 
+        nrow(snpInfo), " SNPs from GWAS or in LD. ")
+
+
 
 # Make a non-coding variant bed file
 SOIsBed <- data.frame(chrom = SOIs$chr_name,
@@ -791,12 +798,14 @@ snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
 #         las=2, cex.names = 0.7, col = "#207DC2", xlab="", ylab="Number of SNPs",)
 # Create a data frame
 Context <- snpInfo$consequence_type_tv
-DA.df <- data.frame(sort(table(Context), decreasing = T))
+DA.df <- as.data.frame.table(sort(table(Context), decreasing = T))
 ## Make the frequencies numbers (rather than factors)
-DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
-#Barplot of genomic context of DA-SNPs
-A <- ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat="identity", fill="#207DC2", color="black")+
+## JvH (2019-07-25): this is not necessary with as.data.frame.table() above
+# DA.df$Freq <- unlist(DA.df$Freq)
+
+# Barplot of genomic context of DA-SNPs
+A <- ggplot(data = DA.df, aes(x = Context, y=Freq)) +
+  geom_bar(stat = "identity", fill="#207DC2", color="black")+
   geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
   xlab("Genomic context")+
   ylab("Frequency")+
@@ -1119,16 +1128,24 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 
 # Importing variation-scan result
-variationScan <- read.delim(file = "~/cisreg-GWAS_results/EFO_0001360/RSAT/EFO_0001360_varscan_web.txt" ,
+varscanFile <- file.path(
+  parameters$result.dir,
+  result.dirs["RSAT"],  
+  paste0(parameters$query, "_varscan_web.txt"))
+
+## Load variation-scan results
+## Note: this is a temporary solution, since variation-scan should be invoked via REST Web services 
+variationScan <- read.delim(file =  varscanFile,
                             header = TRUE,
                             sep = "\t",
                             comment.char = ";")
 
 # Split var_coord column
-varScanJaspar <- separate(data = variationScan,
-                          col = "var_coord",
-                          into = c("chrom", "pos_Start", "pos_End", "strand"),
-                          sep = "[\\:\\-_]", remove = F)
+varScanJaspar <- separate(
+  data = variationScan,
+  col = "var_coord",
+  into = c("chrom", "pos_Start", "pos_End", "strand"),
+  sep = "[\\:\\-_]", remove = F)
 
 
 # Rename the motif ID
@@ -1143,9 +1160,9 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 
 
-nbMotis <- length(varScanJaspar$X.ac_motif)
-message("Number of ref TFBM with at least one prediction in the SNPs: ", nbMotis)
-workflowSummary["Motifs: Number of TFBM altered by the SOIs"] <- nbMotis
+nbMotifs <- length(varScanJaspar$X.ac_motif)
+message("Number of ref TFBM with at least one prediction in the SNPs: ", nbMotifs)
+workflowSummary["Motifs: Number of TFBM altered by the SOIs"] <- nbMotifs
 
 
 varscan.unique <- varScanJaspar[!duplicated(varScanJaspar$var_id),]
@@ -1164,6 +1181,8 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 ```{r get_JASPAR_annotation}
  ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
+
+message("Getting Jaspar annotations")
 
 #set path to store results
 results_path = path <- file.path(result.dir.path["JASPAR"])
@@ -1291,9 +1310,9 @@ remapRdataFile <- file.path(parameters$data.dir,
 
 ## Load ReMap peaks from Rdata file if it is there (faster loading)
 if (file.exists(remapRdataFile)) {
-  message ("Loading ReMap peaks from Rdata file..")
+  message("Loading ReMap peaks from Rdata file..")
   # Load the ReMap Rdata file
-  system.time({ load(remapRdataFile) })
+  system.time({load(remapRdataFile)})
 } else {
 
   # Downloading the ReMap peak data 
@@ -1303,7 +1322,8 @@ if (file.exists(remapRdataFile)) {
     message("\t", remapBedFile)
   } else {
     message ("Downloading the ReMap catalog")
-    system.time({ download.file(parameters$remapUrl, dest = remapBedFile, method = "libcurl") })
+    system.time({download.file(parameters$remapUrl, 
+                               dest = remapBedFile, method = "libcurl") })
   }
 
   ## Load the bed files
@@ -1394,8 +1414,13 @@ We calculed the profile ChIP-seq binding to TSS regions overlapped with the hapl
 # Create TxDb object contained transcript-related features of a particular hg38 human genome
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
-message("Prepare the TSS regions, which are defined as the flanking sequence of the TSS sites..")
-promoter <- getPromoters(TxDb=txdb, upstream=3000, downstream=3000)
+
+## JvH (2019-07)25) : YVON, POURQUOI 3000 bp ? C'EST ENORME DU COTE DOWNSTREAM
+message("Preparing the TSS regions, defined as flanking sequence of the TSS sites.")
+promoter <- getPromoters(
+  TxDb=txdb, 
+  upstream = 3000, 
+  downstream = 3000)
 
 
 # BED file of SOI overlapped with the ReMap catalog
