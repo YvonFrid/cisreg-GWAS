@@ -3,15 +3,11 @@ title: "Detection of  regulatory SNPs in GWAS studies"
 author: "Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
-  html_document:
-    code_folding: hide
-    self_contained: no
+  pdf_document:
     fig_caption: yes
     highlight: zenburn
-    theme: cerulean
     toc: yes
     toc_depth: 3
-    toc_float: yes
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -25,11 +21,15 @@ output:
     theme: cerulean
     toc: yes
     widescreen: yes
-  pdf_document:
+  html_document:
+    code_folding: hide
+    self_contained: no
     fig_caption: yes
     highlight: zenburn
+    theme: cerulean
     toc: yes
     toc_depth: 3
+    toc_float: yes
   slidy_presentation:
     self_contained: no
     fig_caption: yes
@@ -82,7 +82,12 @@ ptm <- proc.time()
 
 ```{r setup, include=FALSE, size="huge"}
 message("Loading knitr library")
-library(knitr)
+if (!require("knitr", quietly = TRUE)) {
+  message("Installing knitr library")
+  install.packages("knitr", dependencies = TRUE)
+}
+require(knitr)
+
 ## Default parameters for displaying the slides
 knitr::opts_chunk$set(
   echo = TRUE, 
@@ -226,12 +231,12 @@ for (lib in bioconductor.libraries.to.install) {
       install.packages("BiocManager")
     } 
     
-    BiocManager::install(lib, dependencies = TRUE)
+        BiocManager::install(lib, dependencies = TRUE, ask = FALSE)
     if (!require(lib, character.only = TRUE, quietly = TRUE)) {
       stop("Could not install and load package ", lib)
     }
   }
-  require(lib, character.only = TRUE, quietly = TRUE)
+#   require(lib, character.only = TRUE, quietly = TRUE)
 }
 
 ## For github libraries we need to know the account for each package -> we encode this as a named vector
@@ -486,39 +491,46 @@ ggplot(data=DA.df, aes(x=Context, y=Freq)) +
   theme_test()+
   coord_flip()
 
-redundancy.snps <- 
-  gwasResults %>% 
-  dplyr::select(PUBMEDID, SNPS) %>% 
-  dplyr::group_by(SNPS, PUBMEDID) %>%
-  dplyr::summarise(N = n())
 
-DAsnpsSummary <- vector()
+## JvH:Yvon, je pense que ceci pose problème car si tu as des valeurs uniques de PUBMEDID même si un SNP est caractérisé par plusieurs études. Il n'y a pas de raison d'inclure le PUBMEDID dans ce tableau-ci, je propose donc de simplifier en exportant un tableau avec 1 colonne pour le SNP ID et 1 colonne pour le nombre d'études d'association. 
+# studiesPerSNP <- 
+#   gwasResults %>% 
+#   dplyr::select(PUBMEDID, SNPS) %>% 
+#   dplyr::group_by(SNPS, PUBMEDID) %>%
+#   dplyr::summarise(N = n())
 
-DAsnpsSummary["GWAS studies"] <- nbStudies
+## Total number of associations (all studies)
+nbAss <- nrow(gwasResults) 
 
-nbAss <- sum(redundancy.snps$N)
-DAsnpsSummary["Association"] <- nbAss
+## Number of studies per SNP
+studiesPerSNP <- as.data.frame.table(sort(table(gwasResults$SNPS), decreasing = TRUE))
+names(studiesPerSNP) <- c("SNP", "N")
 
-redundancySNPs <- nrow(subset(redundancy.snps,
-       N >= 2))
-
-nrSNPs <- subset(redundancy.snps,
-       N == 1)
-nr.nbSNPs <- nrow(nrSNPs)
-
-rsID <- as.vector(grep(pattern = '^rs\\d+', redundancy.snps$SNPS, perl = TRUE, value = TRUE))
-
-nr.rsID <- intersect.Vector(rsID, nrSNPs$SNPS)
-nr.rsID <- length(unique(nr.rsID))
-
-DAsnpsSummary["SNPs redundant"] <- redundancySNPs
-DAsnpsSummary["SNPs non-redundant"] <- nr.nbSNPs
-DAsnpsSummary["SNPs non-redundant with rsID"] <- nr.rsID
+## Select the SNPs with an "rs" IDs
+rsID <- as.vector(
+  grep(pattern = '^rs\\d+',
+       studiesPerSNP$SNP, 
+       perl = TRUE, value = TRUE))
+nb.rsID <- length(unique(rsID))
 
 
-kable(as.data.frame(DAsnpsSummary), caption = "Disease-associated SNPs")
+## Summarize the results obtained so far
+DAsnpsSummary <- c(
+  "GWAS studies"  = nbStudies,
+  "Associations" =  nbAss,
+  "Non-redundant SNPs" = nrow(studiesPerSNP),
+  "SNPs demonstrated by >1 studies" = nrow(subset(studiesPerSNP, N > 1)),
+  "SNPs demonstrated by 1 study" = nrow(subset(studiesPerSNP, N == 1)),
+  "SNPs with rsID" = nb.rsID
+)
 
-#View(redundancy.snps)
+
+## Print the summmary
+kable(as.data.frame(DAsnpsSummary), 
+      col.names = "Number of results", 
+      caption = "Disease-associated SNPs")
+
+#View(studiesPerSNP)
 
 ```
 
@@ -535,12 +547,15 @@ We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_
 
 message("Getting LD SNPs from Ensembl for ", length(DArsIDs), " disease-associated SNPs. ")
 
-LDsnpIDs <- vector()
-i <- 0
-nbrsIDs <- length(DArsIDs)
+## Instantiate the data frame for LD SNPs and a vector of IDs
 LdSNPs <- data.frame()
+LDsnpIDs <- vector()
+
+i <- 0 ## Instantiate counter
 for (rsID in DArsIDs) {
   i <- i + 1
+  
+  ## Generate the URL to address a query to ENSEMBL via their REST interface
   ldURL <- paste(sep = "", 
                  "http://rest.ensembl.org/ld/human/", rsID, "/",
                  parameters$ld.pop.prefix, parameters$population,
@@ -583,8 +598,10 @@ for (rsID in DArsIDs) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
 }
+
+## Filter out redundancy between LD SNPs
 LDsnpIDs <- unique(LDsnpIDs)
-nbLDSNPs <- length(LDsnpIDs)
+nbLDSNPs <- length(LDsnpIDs) ## Total number of LD SNPs for all the DA-SNPs
 workflowSummary["LD: SNPs in Linkage Disequilibrium with DA SNPs"] <- nbLDSNPs
 
 message("\tTotal number of LD SNPs: ", nbLDSNPs)
@@ -598,7 +615,8 @@ workflowSummary["DA and LD SNPs"] <- nbSNPs
 message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
 # Kable
-kable(head(LdSNPs), caption = "Variant in Linkage disequilibrium with Tag SNPs within the window size of set to 200 kb")
+kable(head(LdSNPs), caption = "Top of the table describing the variants in Linkage disequilibrium (LD) with disease-associated SNPs within the window size of set to ", parameters$ld.distance, "kb")
+
 ```
 
 
@@ -639,7 +657,14 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #                   )
 #dim(snpInfo)
 
-kable(head(snpInfo[, c("refsnp_source", "chr_name" , "chrom_start" , "chrom_end" ,          "refsnp_id", "allele" , "consequence_type_tv")]), caption = "LD SNPs informations")
+kable(head(snpInfo[, c("refsnp_source", 
+                       "chr_name" , 
+                       "chrom_start" , 
+                       "chrom_end" ,
+                       "refsnp_id", 
+                       "allele", 
+                       "consequence_type_tv")]), 
+      caption = "LD SNPs features (top of the table)")
 ```
 
 
@@ -661,12 +686,12 @@ DA.df <- data.frame(sort(table(Context), decreasing = T))
 DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
 
 #Barplot of genomic context of DA-SNPs
-ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat="identity", fill="#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_test()+
+ggplot(data = DA.df, aes(x = Context, y = Freq)) +
+  geom_bar(stat = "identity", fill = "#207DC2", color = "black") +
+  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 3.5) +
+  xlab("Genomic context") +
+  ylab("Frequency") +
+  theme_test() +
   coord_flip()
 
 ```
@@ -1528,7 +1553,7 @@ kable(rSNPs.data.display, caption = "Predicted regulatory SNPs")
 
 ### Peak annotation 
 
-We using `ChIPseeker` R package to annotate the ChIP-seq peak co-localised with the rSNPs. 
+We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. 
 
 ```{r peak_annotation_rSNPs}
 
