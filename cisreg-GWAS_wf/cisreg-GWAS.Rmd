@@ -617,7 +617,7 @@ workflowSummary["DA and LD SNPs"] <- nbSNPs
 message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
 # Kable
-kable(head(LdSNPs), caption = "Top of the table describing the variants in Linkage disequilibrium (LD) with disease-associated SNPs within the window size of set to ", parameters$ld.distance, "kb")
+kable(head(LdSNPs), caption = paste0("Top of the table describing the variants in Linkage disequilibrium (LD) with disease-associated SNPs within the window size of set to ", parameters$ld.distance, " kb"))
 
 ```
 
