@@ -405,8 +405,14 @@ gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 # }
 ## Check SNP IDs
 DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
-workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
+#workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
 nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
+
+workflowSummary <- append(workflowSummary, c(
+  "Disease-Associated SNPs (unique IDs)" = length(DAsnpIDs),
+  "SNPs with rs identifier" = length(DArsIDs),
+  "SNPs with non-rs identifier" = length(nonrsIDs)))
+
 message("SNPs with rs identifier: ", length(DArsIDs))
 message("SNPs with non-rs identifier: ", length(nonrsIDs))
 # for (i in 1:ncol(snpTable)) {
@@ -418,13 +424,17 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
 ```{r Downloading_complementary_informations_DAsnps}
 
+message("Retrieving info about associated SNPs from the GWAS catalog")
+
 ## URL to the primary GWAS page for the query disease
-gwascatalog.disease.url <- paste(
-  sep="", 
+gwascatalog.disease.url <- paste0(
   "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
 message("GWAS catalog link\t", gwascatalog.disease.url)
 
-gwascatalog.table.url <- paste(sep="", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+gwascatalog.table.url <- paste0(
+  "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
+  parameters$query, 
+  "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 message("GWAS TSV table\t", gwascatalog.table.url)
 
 
@@ -517,15 +527,14 @@ nb.rsID <- length(unique(rsID))
 
 
 ## Summarize the results obtained so far
-workflowSummary <- c(
+workflowSummary <- append(workflowSummary, c(
   "GWAS studies"  = nbStudies,
   "Associations" =  nbAss,
   "Non-redundant SNPs" = nrow(studiesPerSNP),
   "SNPs demonstrated by >1 studies" = nrow(subset(studiesPerSNP, N > 1)),
   "SNPs demonstrated by 1 study" = nrow(subset(studiesPerSNP, N == 1)),
-  "SNPs with rsID" = nb.rsID
+  "SNPs with rsID" = nb.rsID)
 )
-
 
 ## Print the summmary
 kable(as.data.frame(workflowSummary), 
