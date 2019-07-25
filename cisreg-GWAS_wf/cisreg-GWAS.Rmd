@@ -3,11 +3,15 @@ title: "Detection of  regulatory SNPs in GWAS studies"
 author: "Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
-  pdf_document:
+  html_document:
+    code_folding: hide
+    self_contained: no
     fig_caption: yes
     highlight: zenburn
+    theme: cerulean
     toc: yes
     toc_depth: 3
+    toc_float: yes
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -21,15 +25,11 @@ output:
     theme: cerulean
     toc: yes
     widescreen: yes
-  html_document:
-    code_folding: hide
-    self_contained: no
+  pdf_document:
     fig_caption: yes
     highlight: zenburn
-    theme: cerulean
     toc: yes
     toc_depth: 3
-    toc_float: yes
   slidy_presentation:
     self_contained: no
     fig_caption: yes
@@ -348,9 +348,11 @@ We only keep the SNPs having an "rs" identifier.
 Note that the query disease may be treated in zero, one or several GWAS, so that the same SNP may be retrieved multiple times in the initial collection obtained from Ensembl. We this remove the redundant disease-SNP associations to obtain a list of unique SNPs. 
 
 
-```{r downloag_gwas_data}
-## Downloading GWAS data
+```{r retrieve_associations}
+
+## Retrieving the trait-variant associations from GWAS catalog
 message("Retrieving information from GWAS catalog via REST interface")
+
 ## URL to the GWAS REST API query for the disease
 gwascatalog.studies.urlrest <- paste(
   sep = "", 
@@ -477,15 +479,15 @@ tagSNPsInfo <- snpTable[, c("rsId", "functionalClass")]
 
 # Create a data frame
 Context <- tagSNPsInfo$functionalClass
-DA.df <- data.frame(sort(table(Context), decreasing = T))
+DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
 
 ## Make the frequencies numbers (rather than factors)
 DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
 
 #Barplot of genomic context of DA-SNPs
 ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat="identity", fill="#D4AC0D", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
+  geom_bar(stat = "identity", fill = "#D4AC0D", color="black")+
+  geom_text(aes(label=Freq), vjust=-0.1, hjust = -0.5, size = 4)+
   xlab("Genomic context")+
   ylab("Frequency")+
   theme_test()+
@@ -515,7 +517,7 @@ nb.rsID <- length(unique(rsID))
 
 
 ## Summarize the results obtained so far
-DAsnpsSummary <- c(
+workflowSummary <- c(
   "GWAS studies"  = nbStudies,
   "Associations" =  nbAss,
   "Non-redundant SNPs" = nrow(studiesPerSNP),
@@ -526,7 +528,7 @@ DAsnpsSummary <- c(
 
 
 ## Print the summmary
-kable(as.data.frame(DAsnpsSummary), 
+kable(as.data.frame(workflowSummary), 
       col.names = "Number of results", 
       caption = "Disease-associated SNPs")
 
@@ -679,7 +681,7 @@ snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
 
 # Create a data frame
 Context <- snpInfo$consequence_type_tv
-DA.df <- data.frame(sort(table(Context), decreasing = T))
+DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
 
 ## Make the frequencies numbers (rather than factors)
 DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
@@ -687,7 +689,7 @@ DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
 #Barplot of genomic context of DA-SNPs
 ggplot(data = DA.df, aes(x = Context, y = Freq)) +
   geom_bar(stat = "identity", fill = "#207DC2", color = "black") +
-  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 3.5) +
+  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 4) +
   xlab("Genomic context") +
   ylab("Frequency") +
   theme_test() +
@@ -943,7 +945,7 @@ par(par.ori)
 #   ylab("Disease-associated SNPs") +
 #   labs(fill = "LD SNPs") +
 #   theme(axis.text.x = element_text( 
-#     size = 6, hjust = 1))
+#     size = 19, hjust = 1))
 
 ```
 
