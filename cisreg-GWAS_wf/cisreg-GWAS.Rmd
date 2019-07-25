@@ -1,13 +1,24 @@
 ---
 title: "Detection of  regulatory SNPs in GWAS studies"
-author: "Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
-date: '`r Sys.Date()`'
+author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan
+  & Jacques van Helden '
+date: "`r Sys.Date()`"
+always_allow_html: yes
 output:
   pdf_document:
     fig_caption: yes
     highlight: zenburn
     toc: yes
     toc_depth: 3
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: zenburn
+    self_contained: no
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -21,23 +32,17 @@ output:
     theme: cerulean
     toc: yes
     widescreen: yes
-  html_document:
-    code_folding: hide
-    self_contained: no
-    fig_caption: yes
-    highlight: zenburn
-    theme: cerulean
+  word_document:
     toc: yes
     toc_depth: 3
-    toc_float: yes
   slidy_presentation:
-    self_contained: no
     fig_caption: yes
     fig_height: 6
     fig_width: 7
     highlight: tango
     incremental: no
     keep_md: no
+    self_contained: no
     smaller: yes
     theme: cerulean
     toc: yes
@@ -55,20 +60,15 @@ output:
     slide_level: 2
     theme: Montpellier
     toc: yes
-  word_document:
-    toc: yes
-    toc_depth: 3
-font-import: http://fonts.googleapis.com/css ?family=Risque
+bibliography: bibliography.bib
+editor_options:
+  chunk_output_type: console
 font-family: Garamond
-subtitle: Disease 
+font-import: http://fonts.googleapis.com/css ?family=Risque
+csl: biomed-central.csl
+subtitle: Disease
 address: TAGC lab, Aix-Marseille Université, France
 transition: linear
-editor_options: 
-  chunk_output_type: console
-bibliography: 
-    bibliography.bib
-csl:
-    biomed-central.csl
 ---
 
 
@@ -116,8 +116,8 @@ knitr::opts_chunk$set(
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068", # malaria
-  # query = "EFO_0001360", # type ii diabetes mellitus
+  # query =  "EFO_0001068", # malaria
+  query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -1838,15 +1838,23 @@ download.file(logo_url, destfile = logo_file, method = "libcurl")
 ```
 
 
-We used the `grImport2` package for R imports the TFBSM SVG images directly into R.
 
 ```{r grImport2_import_svg, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Logos for TFBSM affected by the rSNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+## We used the `grImport2` package for R imports the TFBSM SVG images directly into R.
 
-simple <- readPicture("~/cisreg-GWAS_results/EFO_0001068/JASPARlogo/MA0507.1.svg")
-grid.picture(simple)
+logoDir <- paste0("~/cisreg-GWAS_results/", parameters$query, "/JASPARlogo/")
 
-
-img.list <- list.files(path="~/cisreg-GWAS_results/EFO_0001068/JASPARlogo/", pattern=".svg", all.files = T, full.names = F, no.. = T) 
+logoList <- list.files(path = logoDir, 
+                       pattern = ".svg", 
+                       all.files = T, 
+                       full.names = F, 
+                       no.. = T) 
+if (length(logoList) == 0) {
+  message("No logo in the logo dir: ", logoDir)
+} else {
+  firstLogo <- readPicture(file.path(logoDir, logoList[1]))
+  grid.picture(firstLogo)
+}
 
 ```
 
