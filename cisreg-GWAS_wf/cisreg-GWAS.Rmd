@@ -3,15 +3,11 @@ title: "Detection of  regulatory SNPs in GWAS studies"
 author: "Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden "
 date: '`r Sys.Date()`'
 output:
-  html_document:
-    code_folding: hide
-    self_contained: no
+  pdf_document:
     fig_caption: yes
     highlight: zenburn
-    theme: cerulean
     toc: yes
     toc_depth: 3
-    toc_float: yes
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -25,11 +21,15 @@ output:
     theme: cerulean
     toc: yes
     widescreen: yes
-  pdf_document:
+  html_document:
+    code_folding: hide
+    self_contained: no
     fig_caption: yes
     highlight: zenburn
+    theme: cerulean
     toc: yes
     toc_depth: 3
+    toc_float: yes
   slidy_presentation:
     self_contained: no
     fig_caption: yes
@@ -612,7 +612,7 @@ message("\tTotal number of LD SNPs: ", nbLDSNPs)
 ## Merge DA-SNPs and LD-SNPs
 rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
-workflowSummary["DA and LD SNPs"] <- nbSNPs
+workflowSummary["Union of DA and LD SNPs"] <- nbSNPs
 
 message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
@@ -625,7 +625,7 @@ kable(head(LdSNPs), caption = paste0("Top of the table describing the variants i
 
 In this section, we gathering the informations about the DA and LD SNPs from Ensembl using the R `biomaRt` package.
 
-```{r LD_biomart_annotation}
+```{r biomart_SNP_annotation}
 ## biomaRt annotation
 message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs (DA and LD)")
 snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # BioMart database and dataset to use.
@@ -671,7 +671,7 @@ kable(head(snpInfo[, c("refsnp_source",
 
 ```{r DA_LD_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated (DA) SNPs and LD SNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
-#Barplot of genomic context of DA and LD SNPs
+# Barplot of genomic context of DA and LD SNPs
 
 snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
 
@@ -1153,8 +1153,31 @@ varScanJaspar <- separate(
 # Rename the motif ID
 varScanJaspar$X.ac_motif <- gsub(pattern = "_", ".", varScanJaspar$X.ac_motif)
 
-
-varscanColumns <- c("X.ac_motif", "var_id", "var_class", "chrom", "pos_Start", "pos_End", "strand", "best_w", "worst_w", "w_diff", "best_pval", "worst_pval", "pval_ratio", "best_variant", "worst_variant", "best_offset", "worst_offset", "min_offset_diff", "best_strand", "worst_strand", "str_change", "best_seq", "worst_seq", "minor_allele_freq")
+## Define the column names for the varscan output
+varscanColumns <- c("X.ac_motif", 
+                    "var_id", 
+                    "var_class", 
+                    "chrom", 
+                    "pos_Start", 
+                    "pos_End", 
+                    "strand", 
+                    "best_w", 
+                    "worst_w", 
+                    "w_diff", 
+                    "best_pval", 
+                    "worst_pval", 
+                    "pval_ratio", 
+                    "best_variant", 
+                    "worst_variant", 
+                    "best_offset", 
+                    "worst_offset", 
+                    "min_offset_diff", 
+                    "best_strand",
+                    "worst_strand", 
+                    "str_change", 
+                    "best_seq", 
+                    "worst_seq", 
+                    "minor_allele_freq")
 
 varScanJaspar <- varScanJaspar[, varscanColumns]
 
@@ -1184,7 +1207,7 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
  ## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
 
-message("Getting Jaspar annotations")
+message("Getting annotations for Jaspar matrices")
 
 #set path to store results
 results_path = path <- file.path(result.dir.path["JASPAR"])
@@ -1193,11 +1216,13 @@ dir.create(paste0(results_path,'pssm'), showWarnings = FALSE, recursive = TRUE)
 api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
 #api_root = "http://127.0.0.1:8000/api/v1/" ##Local server
 
-#get human profiles
-url <- paste0(api_root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=1000&format=json")
+# Get information about JASPAR matrices, restricted to the core vertebrate collection 
+url <- paste0(api_root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=10000&format=json")
 result <- fromJSON(url)
+print(result$count)
+# View(result)
 
-jaspar2018_pubmedid = "29140473"
+jaspar2018_pubmedid <- "29140473"
 
 # Initialize a vector
 results_matrix = c()
