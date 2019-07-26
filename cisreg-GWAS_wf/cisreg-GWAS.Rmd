@@ -117,11 +117,8 @@ parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   query =  "EFO_0001068", # malaria
-<<<<<<< HEAD
   #query = "EFO_0001360", # type ii diabetes mellitus
-=======
   # query = "EFO_0001360", # type ii diabetes mellitus
->>>>>>> 2b1ae5e51a24d4119b08b43bc56f176d645c353c
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -332,7 +329,7 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 
 
 ```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Annotation pipeline of genetic variants.** "), out.width = "100%", fig.width=12}
-DiagrammeR::grViz("cisreg-GWAS_wf/flowchart/cisreg-GWAS.dot")
+DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
 ## Retrieval of disease-associated variants
