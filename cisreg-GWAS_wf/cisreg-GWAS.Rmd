@@ -1380,11 +1380,14 @@ write.table(x = remap.SOI.overlaps,
 
 
 
-```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". TFs whose TFBS are modified by the SOI.** "), out.width = "80%", fig.width=12, fig.height=6}
+```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Transcription factors (TFs) enriched in ChIP-seq regions overlapping with the haplotype blocks of SNPs of interest (SOIs).** "), out.width = "80%", fig.width=12, fig.height=6}
 
 barplot(sort(table(remap.SOI.overlaps$TF), decreasing = FALSE),
         #main = "TFs whose TFBS \n are modified by the SOI",
-        las = 2, cex.names = 0.7, col = "#37A3F3", border = "#05245F",
+        las = 2, 
+        cex.names = 0.7, 
+        col = "#37A3F3", 
+        border = "#05245F",
         horiz = TRUE,
         main = "ReMap"
         )

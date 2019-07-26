@@ -111,7 +111,7 @@ CollectJasparAnnotations <- function(outdir,
         species = paste(jaspar.matrix.result$species, collapse = ","), 
         uniprot.ids = paste(jaspar.matrix.result$uniprot_ids, collapse = ","), 
         pubmed.ids = paste(jaspar.matrix.result$pubmed_ids, collapse = ","), 
-        source = paste(jaspar.matrix.result$pubmed_ids, collapse = ","), , 
+        source = paste(jaspar.matrix.result$pubmed_ids, collapse = ","),
         type = paste(collapse=",", jaspar.matrix.result$type))
 
     ## Save matrix counts in jaspar format  
@@ -149,3 +149,4 @@ CollectJasparAnnotations <- function(outdir,
           jaspar.annotation.file)
   #system(paste("open", result.dir.path["RSAT"]))
 }
+
