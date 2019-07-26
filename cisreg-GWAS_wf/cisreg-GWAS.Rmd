@@ -987,12 +987,12 @@ par(par.ori)
 
 
 
-## Enrichment of SOIs set for diseases
+## Enrichment of SOIs set for Experimental Factor Ontology (EFO)
 
-We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct in diseases ou traits enrichment analysis given a list of **SOIs**.
+We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) for the enrichment analysis for SNPs using GWAS Catalog traits mapped to EFO.
 
 
-```{r xgr_disease_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for diseases, analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5 }
+```{r SNPs_EFO_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for the Experiment Factor Ontology (EFO), analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5 }
 
 
 message("Running enrichment analysis (xEnricherSNPs) for diseasess")
@@ -1050,11 +1050,11 @@ print(bp)
 
 
 
-## RSAT Var-tools
+## RSAT variation-tools
 
-Var-tools is the subset tools of RSAT [@turatsinze_using_2008; @nguyen_rsat_2018] that perform the identification of genetic variants putatively affecting TF binding. The programm performs the scanning of alleles (variant sequences containning the SOIs) with a PSSM and compares the scores and p-values between alleles to assess the putative effect on TF binding site (TFBS), in order to predict regulatory variants.
+variation-tools is the subset tools of RSAT [@turatsinze_using_2008; @nguyen_rsat_2018] that perform the identification of genetic variants putatively affecting TF binding. The programm performs the scanning of alleles (variant sequences containning the SOIs) with a PSSM and compares the scores and p-values between alleles to assess the putative effect on TF binding site (TFBS), in order to predict regulatory variants.
 
-The input data of Var-tools is a list of the SOIs. The prediction of regulatory variant by Var-tools is will done by the following steps:
+The input data of variation-tools is a list of the SOIs. The prediction of regulatory variant by variation-tools is will done by the following steps:
 
 1) *variation-info*: relies on the Ensembl genetic variation information (i.e. Human variants installed in the Metazoa server). This tool will retrieve the information of the variants matching the rsIDs or the information of the variants located in the genomic loci. The output  is provided in a format named varBed file, with each row giving Ensembl genetic variation information for each SOI.
 
