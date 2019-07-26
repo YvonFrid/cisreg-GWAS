@@ -989,7 +989,7 @@ par(par.ori)
 
 ## Enrichment of SOIs set for Experimental Factor Ontology (EFO)
 
-We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) for the enrichment analysis for SNPs using GWAS Catalog traits mapped to EFO.
+We used the `xEnricherSNPs()` function (`XGR package`, [@fang_xgr_2016]) to analyse the enrichment of SNPs for all the traits mapped to EFO in the GWAS catalogues.
 
 
 ```{r SNPs_EFO_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for the Experiment Factor Ontology (EFO), analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5 }
@@ -1238,14 +1238,25 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 
 
 ```{r get_JASPAR_annotation}
-## Collect annotations for all motifs of the JASPAR collection
-jaspar.annotation.table <- CollectJasparAnnotations(
-  outdir = result.dir.path["JASPAR"], 
-  # tax.group = "vertebrates",
-  collection = "CORE",
-  save.pssm = TRUE,
-  save.logos = FALSE,
-  overwrite = FALSE)
+## Define the path of the JASPAR annotation file
+jaspar.annotation.file <- file.path(
+  result.dir.path["JASPAR"],
+  paste0("jaspar_", "CORE", "_", "vertebrates", "_matrix_annotations.tsv"))
+
+if (file.exists(jaspar.annotation.file)) {
+  ## Load Jaspar annotation table from file if it exists
+  jaspar.annotation.table <- read.delim(jaspar.annotation.file, header = TRUE, sep = "\t")
+} else {
+  
+  ## Collect annotations for all motifs of the JASPAR collection
+  jaspar.annotation.table <- CollectJasparAnnotations(
+    outdir = result.dir.path["JASPAR"], 
+    # tax.group = "vertebrates",
+    collection = "CORE",
+    save.pssm = TRUE,
+    save.logos = FALSE,
+    overwrite = FALSE)
+}
 
 ```
 
