@@ -5,11 +5,6 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -19,6 +14,11 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -116,8 +116,8 @@ knitr::opts_chunk$set(
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  # query =  "EFO_0001068", # malaria
-  query = "EFO_0001360", # type ii diabetes mellitus
+  query =  "EFO_0001068", # malaria
+  # query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -260,18 +260,21 @@ for (lib in names(github.libraries.to.install)) {
 
 
 ```{r output_directories}
-message("Creating output directories")
+
+message("Creating output sub-directories for disease\t", parameters$query)
 
 # Result directory (export result tables)
-result.dirs <- c(TagSNPs = "TagSNPs",
+result.subdir <- c(TagSNPs = "TagSNPs",
                  Ensembl = "Ensembl",
                  SOIs = "SOIs",
                  ReMap = "ReMap",
                  RSAT = "RSAT",
-                 JASPAR = "JASPAR",
+#                 JASPAR = "JASPAR",
                  rSNPs = "rSNPs")
-result.dir.path <- file.path(parameters$result.dir, result.dirs)
-names(result.dir.path) <- names(result.dirs) ## entry names were lost with the file.paths
+result.dir.path <- file.path(parameters$result.dir, result.subdir)
+names(result.dir.path) <- names(result.subdir) ## entry names were lost with the file.paths
+
+result.dir.path["JASPAR"] <- file.path(parameters$data.dir, "JASPAR")
 
 for (dir in c(parameters$result.dir, result.dir.path)) {
   message("\t", dir)
@@ -283,7 +286,7 @@ outfiles <- data.frame()
 
 ```
 
-
+## Parameters
 
 ```{r disease_of_interest}
 ## Identify the disease based on the EFO ID
@@ -312,12 +315,13 @@ kable(t(as.data.frame(parameters))[,1],
 
 This report summarises the results of **cisreg-GWAS**, an automatic workflow to predict the impact of genetic variations on cis-regulation, based on the integration of complementary data types. 
 
-The **cisreg-GWAS** makes multi analyses automatic by first constructing a HTTP POST request according to user's input and retrieving results from the web server afterwards, in order:
+1. **Genome-Wise Association Studies** (**GWAS**), obtained from [**GWAS catalog**](https://www.ebi.ac.uk/gwas/).
 
-1. Genome-Wise Association Studies (GWAS), obtained from [**GWAS catalog**](https://www.ebi.ac.uk/gwas/)
-2. Linkage desequilibrium data, from [**Ensembl**](https://www.ensembl.org/Homo_sapiens/Tools/LD)
-3. Analysis of transcription factor binding motifs, with the [**Regulatory Sequence Analysis Tools (RSAT)**](http://rsat.eu/)
-4. ChIP-seq data for transcription factor binding, from the [**Remap**](http://pedagogix-tagc.univ-mrs.fr/remap/) database
+2. **Linkage desequilibrium** (**LD**) data, from [**Ensembl**](https://www.ensembl.org/Homo_sapiens/Tools/LD).
+
+3. Analysis of **transcription factor binding motifs**, with the variation tools ot the [**Regulatory Sequence Analysis Tools (RSAT)**](http://rsat.eu/), and motif collections from **(JASPAR)**[JvH_signature_300dpi_blue.jpg].
+
+4. ChIP-seq data for transcription factor binding, from the [**Remap**](http://pedagogix-tagc.univ-mrs.fr/remap/) database.
 
 
 ## Flow chart of the workflow
@@ -327,25 +331,22 @@ The **cisreg-GWAS** makes multi analyses automatic by first constructing a HTTP 
 DiagrammeR::grViz("cisreg-GWAS_wf/flowchart/cisreg-GWAS.dot")
 ```
 
+## Retrieval of disease-associated variants
 
 To select all disease trait-associated variants, we downloaded the publicly available GWAS data from the [GWAS catalog](https://www.ebi.ac.uk/gwas) website [@macarthur_new_2017].
 
-**Note:**
-  
-  - The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
+We define as **Disease-Associated SNPs SNPs** or **DA SNPs** the SNPs (coding or not) associated to the query disease. 
 
+**Notes**
 
-## Retrieval of disease-associated variants
+1. DA SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
 
-We define as **Disease-Associated SNPs SNPs** or **DA SNPs** the SNPs (coding and non-coding) associated to the query disease. 
+2. DA SNPs are retrieved fom the [GWAS catalog](https://www.ebi.ac.uk/gwas/). The description of column headings for downloadable [GWAS catalog](https://www.ebi.ac.uk/gwas) file is  [here](https://www.ebi.ac.uk/gwas/docs/fileheaders).
 
+3. We only keep the SNPs having an "rs" identifier, for the sake of inter-operability with other databases further used in this workflow.
 
-It has to be noted that these SNPs are not always causal, but are likely to be included in an haplotype containng a causal SNP. 
+4. A given query disease may be treated in zero, one or several GWAS, so that the same SNP may be retrieved multiple times in the initial collection obtained from Ensembl. We thus remove the redundant disease-SNP associations to obtain a list of unique SNPs. 
 
-DA SNPs are retrieved fom the [GWAS catalog](https://www.ebi.ac.uk/gwas/). 
-We only keep the SNPs having an "rs" identifier.
-
-Note that the query disease may be treated in zero, one or several GWAS, so that the same SNP may be retrieved multiple times in the initial collection obtained from Ensembl. We this remove the redundant disease-SNP associations to obtain a list of unique SNPs. 
 
 
 ```{r retrieve_associations}
@@ -373,11 +374,17 @@ GWASstudiesRestOutput <- fromJSON(
 names(GWASstudiesRestOutput)
 # View(GWASstudiesRestOutput)
 # View(GWASstudiesRestOutput[["_embedded"]])
-SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
-nbStudies <- length(SNPstudyLinks)
+
+## Count the number of studies
+nbStudies <- nrow(GWASstudiesRestOutput[["_embedded"]]$studies)
 message("\tGWAS catalog contains ", 
         nbStudies, 
         " studies for trait ", parameters$trait)
+
+## Get the URLs of the studies
+SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
+
+## Collect the disease-associated SNPs (DA SNPs) in the GWAS catalog
 DAsnpIDs <- vector()
 i <- 0
 snpTable <- data.frame()
@@ -388,12 +395,17 @@ for (studyURL in SNPstudyLinks) {
                               simplifyDataFrame = TRUE)
   # We have to discard the _links column because it contains lists
   newSnpTable <- as.data.frame(studyRESToutput[["_embedded"]][["singleNucleotidePolymorphisms"]])[,1:6]
-  
+  message("\tadding ", nrow(newSnpTable), " SNPs")
   snpTable <- rbind(snpTable, newSnpTable)
 }
+
+## Count the number of associations
+nbAssoc <- nrow(snpTable)
+
+## Collect unique SNP IDs
 DAsnpIDs <- unique(snpTable$rsId)
 nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
-message("Number of disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
+message("Unique disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
 gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
 # if (parameters$force.download || !file.exists(gwas.file)) {
 #   message("Downloading disease-associated SNPs and Genes from GWAS catalog")
@@ -409,15 +421,17 @@ DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
 nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
 
 workflowSummary <- append(workflowSummary, c(
-  "Disease-Associated SNPs (unique IDs)" = length(DAsnpIDs),
+  "Association Studies for the disease" = nbStudies,
+  "Disease SNP associations" = nbAssoc,
+  "Disease-Associated SNPs (unique IDs)" = nbDiseaseAssociatedSNPs,
   "SNPs with rs identifier" = length(DArsIDs),
   "SNPs with non-rs identifier" = length(nonrsIDs)))
 
+message("Studies: ", nbStudies)
+message("Associations: ", nbAssoc)
+message("Unique SNP IDs: ", nbDiseaseAssociatedSNPs)
 message("SNPs with rs identifier: ", length(DArsIDs))
 message("SNPs with non-rs identifier: ", length(nonrsIDs))
-# for (i in 1:ncol(snpTable)) {
-#   snpTable[i, ] <- as.vector(snpTable[i,])
-# }
 
 ```
 
@@ -600,7 +614,6 @@ for (rsID in DArsIDs) {
    
   # View(ldSNPs)
   nbNewSNPIDs <- length(newLdSNpIDs)
-  message("\tCollected ", nbNewSNPIDs, " SNPs in LD with ", rsID)
   if (nbNewSNPIDs > parameters$max.ld.per.snp) {
     message("\t\tWarning: number of LD for tag SNP ", rsID, " (", nbNewSNPIDs,
             ") exceeds limit (", parameters$max.ld.per.snp, "). ",
@@ -608,6 +621,10 @@ for (rsID in DArsIDs) {
   } else if (length(newLdSNpIDs) > 0) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
+  message("\tDA SNP ",  rsID, 
+          "\t", i, "/", nbDiseaseAssociatedSNPs,
+          "\t", nbNewSNPIDs, " LD SNPs",
+          "\tCurrent total: ", length(LDsnpIDs))
 }
 
 ## Filter out redundancy between LD SNPs
@@ -1140,8 +1157,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 # Importing variation-scan result
 varscanFile <- file.path(
-  parameters$result.dir,
-  result.dirs["RSAT"],  
+  result.dir.path["RSAT"],  
   paste0(parameters$query, "_varscan_web.txt"))
 
 ## Load variation-scan results
@@ -1213,14 +1229,13 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 
 
 ```{r get_JASPAR_annotation}
- ## Created on January 11, 2018
+## Created on January 11, 2018
 ## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 message("Getting annotations for Jaspar matrices")
 
 #set path to store results
-results_path = path <- file.path(result.dir.path["JASPAR"])
-dir.create(paste0(results_path,'pssm'), showWarnings = FALSE, recursive = TRUE)
+dir.create(paste0(result.dir.path["JASPAR"],'pssm'), showWarnings = FALSE, recursive = TRUE)
 
 api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
 #api_root = "http://127.0.0.1:8000/api/v1/" ##Local server
@@ -1242,39 +1257,60 @@ varscanMatrix <- varScanJaspar$X.ac_motif
 
 inter.matrix_ids <- intersect.Vector(varscanMatrix, matrix_ids)
 
-for (matrix_id in inter.matrix_ids)
-{
-  matrix_url <- paste0(api_root,"matrix/", matrix_id,".json")
-  matrix_result <- fromJSON(matrix_url)
-  message(paste0("Added...", matrix_id))
+i <- 0
+nbMatrices <- length(inter.matrix_ids)
+message("Getting ", nbMatrices, " matrices from JASPAR REST web services")
+for (matrix_id in inter.matrix_ids) {
+  i <- i + 1
+  ## Define the path of the local file  
+  pssm_file <- file.path(result.dir.path["JASPAR"], paste0(matrix_id, ".txt"))
   
-  source <- matrix_result$source;
-  if(is.null(source)){
-    source = 'NA';
+  if (file.exists(pssm_file)) {
+    message("\tmatrix ", i, "/", nbMatrices, "\t", matrix_id, "\tfile exists\t", pssm_file)
+  } else {
+    ## Define the URL of JASPAR REST service to get the matrix
+    matrix_url <- paste0(api_root,"matrix/", matrix_id,".json")
+    matrix_result <- fromJSON(matrix_url)
+    message("\tmatrix\t", i, "/", nbMatrices, "\t", matrix_id, "\tdonwloaded from ", matrix_url)
+    source <- matrix_result$source;
+    if (is.null(source)) {i
+      source = 'NA';
+    }
+    results_matrix = rbind(
+      results_matrix, 
+      c(matrix_id, 
+        matrix_result$name, 
+        paste(matrix_result$uniprot_ids, collapse = ","), 
+        jaspar2018_pubmedid, paste(matrix_result$pubmed_ids, collapse = ","), 
+        source, 
+        matrix_result$type))
+    
+    #Save raw  
+    #pssm_file = paste0(result.dir.path["JASPAR"],'pssm/',matrix_result$matrix_id,".txt")
+    
+    ## JvH 2019-07-26: YVON, CECI ME SEMBLE INCORRECT, LES MATRICES QUE TU EXPORTES SONT TRANSPOSEES PAR RAPPORT AU FORMAT JASPAR. 
+    ### LES UTILISES-TU VRAIMENT ? SINON IL FAUDRAIT SUPPRIMER CETTE SECTION QUI PREND UN TEMPS ENORME POUR RIEN
+    cat(paste0(">",matrix_id, " ", matrix_result$name,"\n"), file = pssm_file)
+    write.table(t(as.data.frame.list(matrix_result$pfm[c("A", "C", "G","T")])), 
+                pssm_file, sep = "\t", 
+                col.names = FALSE, 
+                row.names = FALSE, 
+                append = TRUE)
+    message("\tmatrix ", i, "/", nbMatrices, "\t", matrix_id, "\tsaved to file\t", pssm_file)
   }
-  results_matrix = rbind(results_matrix, c(matrix_id, matrix_result$name, paste(matrix_result$uniprot_ids, collapse=","), jaspar2018_pubmedid, paste(matrix_result$pubmed_ids, collapse=","), source, matrix_result$type))
-  #Save raw  
-   #pssm_file = paste0(results_path,'pssm/',matrix_result$matrix_id,".txt")
-   pssm_file <- file.path(result.dir.path["JASPAR"],
-paste(sep = "", parameters$query, "_" ,matrix_result$matrix_id,".txt"))
-cat(paste0(">",matrix_id, " ", matrix_result$name,"\n"), file=pssm_file)
-write.table(matrix_result$pfm[c("A", "C", "G","T")], pssm_file, sep="\t", col.names = FALSE, row.names = FALSE, append=TRUE)
 }
-
 
 #convert the results to dataframe and save as tsv file
 jaspar_results = as.data.frame(results_matrix)
 colnames(jaspar_results) = c("matrix_id", "name", "uniprot_ids", "jaspar2018_pubmedid","validation_pubmed_ids", "data_source","data_type")
-write.table(jaspar_results, paste0(results_path,"jaspar2018_annotations.tsv"), sep="\t", col.names = TRUE, row.names = FALSE, quote = FALSE)
+write.table(jaspar_results, paste0(result.dir.path["JASPAR"],"jaspar2018_annotations.tsv"), sep="\t", col.names = TRUE, row.names = FALSE, quote = FALSE)
 
 
 # Assignation of TF names corresponding the matrice name
-
 varScanJasparTF <- merge(x = jaspar_results,
                          y = varScanJaspar, 
                          by.x = "matrix_id",
-                         by.y = "X.ac_motif"
-)
+                         by.y = "X.ac_motif")
 
 
 #View(varScanJasparTF)
@@ -1805,8 +1841,7 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 ## Adapted from: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 #set path to store results
-results_path = path <- file.path(result.dir.path["JASPAR"])
-dir.create(paste0(results_path,'logo'), showWarnings = FALSE, recursive = TRUE)
+dir.create(paste0(result.dir.path["JASPAR"],'logo'), showWarnings = FALSE, recursive = TRUE)
 
 api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
 #api_root = "http://127.0.0.1:8000/api/v1/" ##Local server
@@ -1839,7 +1874,7 @@ for (matrix_id in inter.matrix_ids)
 
 # Downloag and save logo
 logo_url <- matrix_result$sequence_logo
-logo_file = paste0(results_path, 'logo/', matrix_result$matrix_id, ".svg")
+logo_file = paste0(result.dir.path["JASPAR"], 'logo/', matrix_result$matrix_id, ".svg")
 
 download.file(logo_url, destfile = logo_file, method = "libcurl")
 }
