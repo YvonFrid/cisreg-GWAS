@@ -1238,11 +1238,14 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 
 
 ```{r get_JASPAR_annotation}
-CollectJasparAnnotations(outdir = result.dir.path["JASPAR"], 
-                         tax.group = "vertebrates",
-                         collection = "CORE",
-                         save.pssm = TRUE,
-                         save.logos = FALSE)
+## Collect annotations for all motifs of the JASPAR collection
+jaspar.annotation.table <- CollectJasparAnnotations(
+  outdir = result.dir.path["JASPAR"], 
+  # tax.group = "vertebrates",
+  collection = "CORE",
+  save.pssm = TRUE,
+  save.logos = FALSE,
+  overwrite = FALSE)
 
 ```
 
@@ -1254,7 +1257,7 @@ CollectJasparAnnotations(outdir = result.dir.path["JASPAR"],
 
 #par(mfrow=c(2,2))  
 # Barplot of motif
-barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE),
+barplot(sort(table(jaspar.annotation.table$matrix.id), decreasing = TRUE),
         #main = "TFBSM affected by the SOIs ",
         xlab = "Motifs",
         ylab = "Frequency",
