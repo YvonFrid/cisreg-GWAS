@@ -51,7 +51,7 @@ CollectJasparAnnotations <- function(outdir,
   ## Export JASPAR annotations in a tab-separated values (tsv) file
   jaspar.collection.file <- file.path(
     outdir,
-    paste0("jaspar_",collection, "_", tax.group, "_info.tsv"))
+    paste0("jaspar_", collection, "_", tax.group, "_info.tsv"))
   write.table(jaspar.collection.table,
               jaspar.collection.file, 
               sep = "\t", 
@@ -78,14 +78,14 @@ CollectJasparAnnotations <- function(outdir,
   }
   
   
-  jaspar.annotation.table <- data.frame()
   
   # # Create the vector of matrix.id from variation-scan
   # varscanMatrix <- varScanJaspar$X.ac_motif
   # inter.matrix.ids <- intersect.Vector(varscanMatrix, matrix.ids)
   
-  i <- 0
+  i <- 490 ## DEBUGs
   # matrix.id <- matrix.ids[1]
+  jaspar.annotation.table <- data.frame()
   message("\tDownloading ", nbMatrices, " individual matrices from JASPAR REST web services")
   for (matrix.id in matrix.ids) {
     i <- i + 1
@@ -94,19 +94,25 @@ CollectJasparAnnotations <- function(outdir,
     jaspar.matrix.url <- paste0(parameters$jaspar.rest.root, "matrix/", matrix.id,".json")
     jaspar.matrix.result <- fromJSON(jaspar.matrix.url)
     message("\tmatrix\t", i, "/", nbMatrices, "\t", matrix.id, "\tdonwloaded from ", jaspar.matrix.url)
-    source <- jaspar.matrix.result$source;
-    if (is.null(source)) {i
-      source = NA
-    }
+    
+    ## Add a row with the annotations of the  current matrix
+    ## to the matrix annotation table 
     jaspar.annotation.table = rbind(
       jaspar.annotation.table, 
-      c(matrix_id, 
-        jaspar.matrix.result$name, 
-        paste(jaspar.matrix.result$uniprot_ids, collapse = ","), 
-#        jaspar2018_pubmedid, 
-        paste(jaspar.matrix.result$pubmed_ids, collapse = ","), 
-        source, 
-        jaspar.matrix.result$type))
+      data.frame(
+        matrix.id = jaspar.matrix.result$matrix_id, 
+        base.id = jaspar.matrix.result$base_id,
+        version = jaspar.matrix.result$version,
+        symbol = paste(collapse = ",", jaspar.matrix.result$symbol), 
+        name = paste(collapse = ",", jaspar.matrix.result$name)),
+        alias = paste(jaspar.matrix.result$alias, collapse = ","), 
+        remap.tf.name = paste(collapse = ",", jaspar.matrix.result$remap_tf_name),
+        class = paste(jaspar.matrix.result$class, collapse = ","), 
+        species = paste(jaspar.matrix.result$species, collapse = ","), 
+        uniprot.ids = paste(jaspar.matrix.result$uniprot_ids, collapse = ","), 
+        pubmed.ids = paste(jaspar.matrix.result$pubmed_ids, collapse = ","), 
+        source = paste(jaspar.matrix.result$pubmed_ids, collapse = ","), , 
+        type = paste(collapse=",", jaspar.matrix.result$type))
 
     ## Save matrix counts in jaspar format  
     if (save.pssm) {
@@ -122,27 +128,24 @@ CollectJasparAnnotations <- function(outdir,
     }
   }
   
+  # View(jaspar.annotation.table)
+  
 
-  # Assignation of TF names corresponding the matrice name
-  varScanJasparTF <- merge(x = jaspar_results,
-                           y = varScanJaspar, 
-                           by.x = "matrix_id",
-                           by.y = "X.ac_motif")
-  
-  
   #View(varScanJasparTF)
   
   
   ## Export variation-scan file in tsv format
-  varScan.file <- file.path(
-    result.dir.path["RSAT"], 
-    paste(sep = "", parameters$query, "_SOIs_varTF", ".tsv"))
-  
-  write.table(x = varScanJasparTF,
-              file = varScan.file,
+  jaspar.annotation.file <- file.path(
+    outdir,
+    paste0("jaspar_", collection, "_", tax.group, "_matrix_annotations.tsv"))
+
+  write.table(x = jaspar.annotation.table,
+              file = jaspar.annotation.file,
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
               col.names = TRUE)
+  message("Exported matrix annotations to file\n\t\t", 
+          jaspar.annotation.file)
   #system(paste("open", result.dir.path["RSAT"]))
 }
