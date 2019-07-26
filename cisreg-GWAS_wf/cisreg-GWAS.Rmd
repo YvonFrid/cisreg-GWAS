@@ -103,8 +103,10 @@ knitr::opts_chunk$set(
   comment = "")
 
 ## Load custom functions
-#source("R/bed_to_granges.R")
-
+R.files <- list.files(path = "R/",pattern = "*.R", full.names = TRUE)
+for (file in R.files) {
+  source(file)
+}
 
 ```
 
@@ -133,9 +135,10 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
-  #RsatRestUrl = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
-  #RsatRestUrl = "http://134.158.247.7/rsat/rest/",
+  RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
+  #RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
+  #RSAT.rest.root = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
   remapUrl=  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
 )
@@ -622,8 +625,9 @@ for (rsID in DArsIDs) {
   } else if (length(newLdSNpIDs) > 0) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
-  message("\tDA SNP ",  rsID, 
+  message("\tDA SNP", 
           "\t", i, "/", nbDiseaseAssociatedSNPs,
+           "\t", rsID, 
           "\t", nbNewSNPIDs, " LD SNPs",
           "\tCurrent total: ", length(LDsnpIDs))
 }
@@ -653,9 +657,13 @@ kable(head(LdSNPs), caption = paste0("Top of the table describing the variants i
 In this section, we gathering the informations about the DA and LD SNPs from Ensembl using the R `biomaRt` package.
 
 ```{r biomart_SNP_annotation}
-## biomaRt annotation
+## Get SNP annotations from  biomaRt
 message("Gathering information from Ensembl BioMart for ", nbSNPs," SNPs (DA and LD)")
-snpmart = useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # BioMart database and dataset to use.
+
+## Define thje BioMart database and dataset to use.
+snpmart <- useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") 
+
+## Get information from BioMart
 snpInfo <- getBM(attributes = c('refsnp_source',
                                 'chr_name',
                                 'chrom_start',
@@ -693,13 +701,13 @@ kable(head(snpInfo[, c("refsnp_source",
                        "allele", 
                        "consequence_type_tv")]), 
       caption = "LD SNPs features (top of the table)")
+
 ```
 
 
 ```{r DA_LD_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated (DA) SNPs and LD SNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Barplot of genomic context of DA and LD SNPs
-
 snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
 
 # barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
@@ -987,7 +995,7 @@ We used the `xEnricherSNPs` function (`XGR package` [@fang_xgr_2016]) to conduct
 ```{r xgr_disease_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for diseases, analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5 }
 
 
-message("Running enrichment analysis for diseases")
+message("Running enrichment analysis (xEnricherSNPs) for diseasess")
 snpList <- SOIs$refsnp_id
 
 # Run xEnricherSNPs
@@ -1070,7 +1078,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 # ## Build the API request for variation-info and submit it
 # message("\tRetrieving information on variants from RSAT REST Web services")
 # 
-# varInfo <- POST(file.path(parameters$RsatRestUrl, "variation-info", "Homo_sapiens", "GRCh38"),
+# varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
 #             body = list(i_string = input,
 #                         i_string_type = 'text'))
 # 
@@ -1096,7 +1104,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 # 
 # ## Build the API request for retrieve-variation-seq and submit it
 # message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
-# varSeq <- POST(file.path(parameters$RsatRestUrl, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+# varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
 #                body = list(i_string = varInfo.server.path,
 #                            i_string_type = 'piping'))
 # 
@@ -1117,7 +1125,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 # ## Build the API request for Variation-scan and submit it
 # message("Scanning variant alleles with motifs via RSAT REST services")
-# varScan <- POST(file.path(parameters$RsatRestUrl, "variation-scan", "Homo_sapiens", "GRCh38"),
+# varScan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
 #                 body = list(
 #                   i_string = varSeq.server.path,
 #                   i_string_type = 'piping',
@@ -1155,8 +1163,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 ```{r importing_variascan_results}
 
-
-# Importing variation-scan result
+## Importing variation-scan result
 varscanFile <- file.path(
   result.dir.path["RSAT"],  
   paste0(parameters$query, "_varscan_web.txt"))
@@ -1209,11 +1216,12 @@ varScanJaspar <- varScanJaspar[, varscanColumns]
 
 #View(varScanJaspar)
 
+nbVarscanResults <- nrow(varScanJaspar)
+workflowSummary["variation-scan: SNP-motif pairs returned by variation-scan"] <- nbVarscanResults
 
-
-nbMotifs <- length(varScanJaspar$X.ac_motif)
+nbMotifs <- length(unique(varScanJaspar$X.ac_motif))
 message("Number of ref TFBM with at least one prediction in the SNPs: ", nbMotifs)
-workflowSummary["Motifs: Number of TFBM altered by the SOIs"] <- nbMotifs
+workflowSummary["variation-scan: Number of TFBM altered by the SOIs"] <- nbMotifs
 
 
 varscan.unique <- varScanJaspar[!duplicated(varScanJaspar$var_id),]
@@ -1230,105 +1238,12 @@ In this section, we download the Jaspar motifs identifier and  corresponding tra
 
 
 ```{r get_JASPAR_annotation}
-## Created on January 11, 2018
-## Author: <Aziz Khan>aziz.khan@ncmm.uio.no
+CollectJasparAnnotations(outdir = result.dir.path["JASPAR"], 
+                         tax.group = "vertebrates",
+                         collection = "CORE",
+                         save.pssm = TRUE,
+                         save.logos = FALSE)
 
-message("Getting annotations for Jaspar matrices")
-
-#set path to store results
-dir.create(paste0(result.dir.path["JASPAR"],'pssm'), showWarnings = FALSE, recursive = TRUE)
-
-api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
-#api_root = "http://127.0.0.1:8000/api/v1/" ##Local server
-
-# Get information about JASPAR matrices, restricted to the core vertebrate collection 
-url <- paste0(api_root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=10000&format=json")
-result <- fromJSON(url)
-print(result$count)
-# View(result)
-
-jaspar2018_pubmedid <- "29140473"
-
-# Initialize a vector
-results_matrix = c()
-matrix_ids = result$results$matrix_id
-
-# Create the vector of matrix_id from variation-scan
-varscanMatrix <- varScanJaspar$X.ac_motif
-
-inter.matrix_ids <- intersect.Vector(varscanMatrix, matrix_ids)
-
-i <- 0
-nbMatrices <- length(inter.matrix_ids)
-message("Getting ", nbMatrices, " matrices from JASPAR REST web services")
-for (matrix_id in inter.matrix_ids) {
-  i <- i + 1
-  ## Define the path of the local file  
-  pssm_file <- file.path(result.dir.path["JASPAR"], paste0(matrix_id, ".txt"))
-  
-  if (file.exists(pssm_file)) {
-    message("\tmatrix ", i, "/", nbMatrices, "\t", matrix_id, "\tfile exists\t", pssm_file)
-  } else {
-    ## Define the URL of JASPAR REST service to get the matrix
-    matrix_url <- paste0(api_root,"matrix/", matrix_id,".json")
-    matrix_result <- fromJSON(matrix_url)
-    message("\tmatrix\t", i, "/", nbMatrices, "\t", matrix_id, "\tdonwloaded from ", matrix_url)
-    source <- matrix_result$source;
-    if (is.null(source)) {i
-      source = 'NA';
-    }
-    results_matrix = rbind(
-      results_matrix, 
-      c(matrix_id, 
-        matrix_result$name, 
-        paste(matrix_result$uniprot_ids, collapse = ","), 
-        jaspar2018_pubmedid, paste(matrix_result$pubmed_ids, collapse = ","), 
-        source, 
-        matrix_result$type))
-    
-    #Save raw  
-    #pssm_file = paste0(result.dir.path["JASPAR"],'pssm/',matrix_result$matrix_id,".txt")
-    
-    ## JvH 2019-07-26: YVON, CECI ME SEMBLE INCORRECT, LES MATRICES QUE TU EXPORTES SONT TRANSPOSEES PAR RAPPORT AU FORMAT JASPAR. 
-    ### LES UTILISES-TU VRAIMENT ? SINON IL FAUDRAIT SUPPRIMER CETTE SECTION QUI PREND UN TEMPS ENORME POUR RIEN
-    cat(paste0(">",matrix_id, " ", matrix_result$name,"\n"), file = pssm_file)
-    write.table(t(as.data.frame.list(matrix_result$pfm[c("A", "C", "G","T")])), 
-                pssm_file, sep = "\t", 
-                col.names = FALSE, 
-                row.names = FALSE, 
-                append = TRUE)
-    message("\tmatrix ", i, "/", nbMatrices, "\t", matrix_id, "\tsaved to file\t", pssm_file)
-  }
-}
-
-#convert the results to dataframe and save as tsv file
-jaspar_results = as.data.frame(results_matrix)
-colnames(jaspar_results) = c("matrix_id", "name", "uniprot_ids", "jaspar2018_pubmedid","validation_pubmed_ids", "data_source","data_type")
-write.table(jaspar_results, paste0(result.dir.path["JASPAR"],"jaspar2018_annotations.tsv"), sep="\t", col.names = TRUE, row.names = FALSE, quote = FALSE)
-
-
-# Assignation of TF names corresponding the matrice name
-varScanJasparTF <- merge(x = jaspar_results,
-                         y = varScanJaspar, 
-                         by.x = "matrix_id",
-                         by.y = "X.ac_motif")
-
-
-#View(varScanJasparTF)
-
-
-## Export variation-scan file in tsv format
-varScan.file <- file.path(
-  result.dir.path["RSAT"], 
-  paste(sep = "", parameters$query, "_SOIs_varTF", ".tsv"))
-
-write.table(x = varScanJasparTF,
-              file = varScan.file,
-              quote = FALSE,
-              sep = "\t",
-              row.names = FALSE,
-              col.names = TRUE)
-#system(paste("open", result.dir.path["RSAT"]))
 ```
 
 
@@ -1465,14 +1380,14 @@ write.table(x = remap.SOI.overlaps,
 
 
 
-```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". TFs whose TFBS \n are modified by the SOI.** "), out.width = "80%", fig.width=12, fig.height=6}
+```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". TFs whose TFBS are modified by the SOI.** "), out.width = "80%", fig.width=12, fig.height=6}
 
-barplot(sort(table(remap.SOI.overlaps$TF), decreasing = TRUE),
+barplot(sort(table(remap.SOI.overlaps$TF), decreasing = FALSE),
         #main = "TFs whose TFBS \n are modified by the SOI",
-        las=2, cex.names = 0.7, col = "#37A3F3", border = "#05245F",
-        horiz = TRUE
+        las = 2, cex.names = 0.7, col = "#37A3F3", border = "#05245F",
+        horiz = TRUE,
+        main = "ReMap"
         )
-
 
 ```
 
@@ -1516,7 +1431,7 @@ tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows=promoter)
 ```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". # Heatmap of ChIP binding to TSS regions** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
-tagHeatmap(tagMatrix, xlim=c(-3000, 3000), color="blue")
+tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = "blue")
 
 # It's possible to create a heatmap of ChIP-seq binding to TSS regions using a ChIP-seq peak data in GRange format.
 #peakHeatmap(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000, color="blue")
@@ -1534,9 +1449,9 @@ tagHeatmap(tagMatrix, xlim=c(-3000, 3000), color="blue")
 #is also supported for characterizing ChIP binding profiles.
 
 
-plotAvgProf(tagMatrix, xlim=c(-3000, 3000),
+plotAvgProf(tagMatrix, xlim = c(-3000, 3000),
              conf = 0.95, resample = 1000,
-            xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
+            xlab = "Genomic Region (5'->3')", ylab = "Read Count Frequency")
 
 # plotAvgProf2(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000,
 #              xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
@@ -1667,8 +1582,8 @@ rSNPs.bed <- rSNPs.data[, c("seqnames", "start", "end")]
  
  message("Performing a peak annotation..")
  
- peakAnno <- annotatePeak(rSNPs.gr, tssRegion=c(-3000, 3000),
-                         TxDb=txdb, annoDb="org.Hs.eg.db")
+ peakAnno <- annotatePeak(rSNPs.gr, tssRegion = c(-3000, 3000),
+                         TxDb = txdb, annoDb = "org.Hs.eg.db")
  
  print(peakAnno)
  
@@ -1682,7 +1597,7 @@ Location of the peaks in terms of genomic features.
 
 ```{r genomic_annotation, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic annotation of the ChIP-seq paeks co-localised with the rSNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
-par(mfrow=c(2,2)) 
+par(mfrow = c(2,2)) 
 
 upsetplot(peakAnno)
 
@@ -1692,7 +1607,7 @@ plotAnnoPie(peakAnno,
             ndigit = 0.5, 
             cex = 0.1,
             col = NA,
-            pie3D=FALSE)
+            pie3D = FALSE)
  
 #vennpie(peakAnno1, r = 0.2)
 
@@ -1837,18 +1752,15 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 
 ### Visualization of TFBS in logos
 
-```{r download_logo_from_jaspar}
+```{r download_logos_from_jaspar}
 
 ## Adapted from: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 #set path to store results
 dir.create(paste0(result.dir.path["JASPAR"],'logo'), showWarnings = FALSE, recursive = TRUE)
 
-api_root = "http://jaspar.genereg.net/api/v1/" ##Production server
-#api_root = "http://127.0.0.1:8000/api/v1/" ##Local server
-
 #get human profiles
-url <- paste0(api_root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=1000&format=json")
+url <- paste0(parameters$jaspar.rest.root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=1000&format=json")
 result <- fromJSON(url)
 
 #jaspar2018_pubmedid = "29140473"
@@ -1864,7 +1776,7 @@ inter.matrix_ids <- intersect.Vector(rSNPsMatrix, matrix_ids)
 
 for (matrix_id in inter.matrix_ids)
 {
-  matrix_url <- paste0(api_root,"matrix/", matrix_id,".json")
+  matrix_url <- paste0(parameters$jaspar.rest.root,"matrix/", matrix_id,".json")
   matrix_result <- fromJSON(matrix_url)
   message(paste0("Downloading...", matrix_result$sequence_logo))
   
@@ -2120,13 +2032,14 @@ The below bar charts shown the tissue-specific gene enrichment.
 
 
 # Select the associated genes with the rSNPs
-inputGenes<- unique(na.omit(rSNPs.data$hgnc_symbol))
-gs<-GeneSet(geneIds=inputGenes,organism="Homo Sapiens",geneIdType=SymbolIdentifier())
-output<-teEnrichment(inputGenes = gs)
+inputGenes <- unique(na.omit(rSNPs.data$hgnc_symbol))
+gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
+              geneIdType=SymbolIdentifier())
+output <- teEnrichment(inputGenes = gs)
 
-seEnrichmentOutput<-output[[1]]
-enrichmentOutput<-setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-enrichmentOutput$Tissue<-row.names(enrichmentOutput)
+seEnrichmentOutput <- output[[1]]
+enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+enrichmentOutput$Tissue <- row.names(enrichmentOutput)
 
 
 s <- ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label = Tissue.Specific.Genes,fill = Tissue))+
