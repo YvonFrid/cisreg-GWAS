@@ -1257,11 +1257,12 @@ jaspar.annotation.table <- CollectJasparAnnotations(
 
 #par(mfrow=c(2,2))  
 # Barplot of motif
-barplot(sort(table(jaspar.annotation.table$matrix.id), decreasing = TRUE),
+# barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE),
+barplot(sort(table(variationScan$X.ac_motif), decreasing = TRUE),
         #main = "TFBSM affected by the SOIs ",
         xlab = "Motifs",
         ylab = "Frequency",
-        las=2, cex.names = 0.5, col = "#37A3F3", border = "#05245F",
+        las = 2, cex.names = 0.5, col = "#37A3F3", border = "#05245F",
         horiz = F
         )
 
