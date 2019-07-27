@@ -1271,26 +1271,7 @@ if (file.exists(jaspar.annotation.file)) {
 
 ```{r merge_varscan_jaspar}
 
-#### Merge annotation table from Jaspar with the variation-scan result table ####
-
-## We merge the variations-can result table with Jaspar annotations in order 
-## to get the information 
-
-# names(variationScan)
-# names(jaspar.annotation.table)
-varScanJasparTF <- merge(
-  x = variationScan, 
-  y = jaspar.annotation.table, 
-  by.x = "X.ac_motif",
-  by.y = "matrix.id",
-  all.x = TRUE, sort = FALSE)
-# dim(varScanJaspar)
-# dim(variationScan)
-# dim(jaspar.annotation.table)
-
-```
-
-#### Merge annotation table from Jaspar with the variation-scan result table ####
+s#### Merge annotation table from Jaspar with the variation-scan result table ####
 
 ## We merge the variations-can result table with Jaspar annotations in order 
 ## to get the information 
@@ -1339,7 +1320,7 @@ barplot(SNPs.per.motif[1:30],
         col = "#37A3F3", border = "#05245F",
         horiz = FALSE)
 par(mar = c(5.1, 5/1, 4.1, 2.1))
-
+par(mfrow=c(1,1))
 ```
 
 
@@ -1449,16 +1430,15 @@ write.table(x = remap.SOI.overlaps,
 
 
 
-```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Transcription factors (TFs) enriched in ChIP-seq regions overlapping with the haplotype blocks of SNPs of interest (SOIs).** "), out.width = "80%", fig.width=12, fig.height=6}
+```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Transcription factors (TFs) enriched in ChIP-seq regions overlapping with the haplotype blocks of SNPs of interest (SOIs).** "), out.width = "80%", fig.width=8, fig.height=6}
 
 barplot(sort(table(remap.SOI.overlaps$TF), decreasing = FALSE),
-        #main = "TFs whose TFBS \n are modified by the SOI",
+        main = "ReMap peaks / rSNP overlaps per factor",
         las = 2, 
         cex.names = 0.7, 
         col = "#37A3F3", 
         border = "#05245F",
-        horiz = TRUE,
-        main = "ReMap"
+        horiz = TRUE
         )
 
 ```
@@ -1466,7 +1446,7 @@ barplot(sort(table(remap.SOI.overlaps$TF), decreasing = FALSE),
 
 ### Profile of ChIP-seq peaks binding to TSS regions.
 
-We calculed the profile ChIP-seq binding to TSS regions overlapped with the haplotype blocks of the SOIs. We are defined the flanking sequences around (by default) -3kb to +3kb . Then align the peaks that are mapping to these regions, we can to generate the tagMatrix.
+We compute the profile ChIP-seq binding to TSS regions overlapped with the haplotype blocks of the SOIs. We are defined the flanking sequences around (by default) -3kb to +3kb . Then align the peaks that are mapping to these regions, we can to generate the tagMatrix.
 
 
 ```{r chip-seq_peak_annotation}
@@ -1478,7 +1458,7 @@ txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 ## JvH (2019-07)25) : YVON, POURQUOI 3000 bp ? C'EST ENORME DU COTE DOWNSTREAM
 message("Preparing the TSS regions, defined as flanking sequence of the TSS sites.")
 promoter <- getPromoters(
-  TxDb=txdb, 
+  TxDb = txdb, 
   upstream = 3000, 
   downstream = 3000)
 
@@ -1492,8 +1472,8 @@ remap.SOI.bed.peak <- remap.SOI.overlaps[, c("seqnames", "start", "end")]
                             ranges   = IRanges(start =  start, end =  end),
                             strand   = Rle("*")))
  
-message("Create a remap.SOI.peak matrix data..")
-tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows=promoter)
+message("Creating a remap.SOI.peak matrix data..")
+tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 
 ```
 
@@ -1586,50 +1566,49 @@ write.table(x = varscan.with.peaks,
 
 
 ```{r gene_info}
-# Get Ensembl gene features
 
+## Get gene features from Ensembl
 #snpInfo$ensembl_gene_stable_id
-
 ensembl = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") # BioMart database and dataset to use.
 geneInfo <- getBM(attributes = c('chromosome_name', 
-                                    'start_position',
-                                    'end_position',
-                                    'ensembl_gene_id',
-                                    'hgnc_symbol',
-                                    'entrezgene_id',
-                                    'go_id',
-                                    'description'
-                                    ), 
-                     filters =  "ensembl_gene_id", 
-                     values = snpInfo$ensembl_gene_stable_id, 
-                     mart = ensembl)
-#View(geneInfo)
+                                 'start_position',
+                                 'end_position',
+                                 'ensembl_gene_id',
+                                 'hgnc_symbol',
+                                 'entrezgene_id',
+                                 'go_id',
+                                 'description'), 
+                  filters =  "ensembl_gene_id", 
+                  values = snpInfo$ensembl_gene_stable_id, 
+                  mart = ensembl)
+# View(geneInfo)
+# names(geneInfo)
 
 # Remove duplicated gene
-geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
+# JvH 2019-07-27. YVON, je remplace ci-dessous start_position par entrezgene_id, car a priori on pourrait imaginer que 2 gènes différents aient des positions de départ identiques (par exemple s'ils sont codés dans des sens inverses). Je ne suis pas sûr qu'il y ait des exemples dans le génome humain mais dans des génomes viraux ça ne m'étonnerait pas qu'on en trouve. 
+# geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
+geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
 
 #View(geneInfo.uniq)
 
 # Merging snpInfo and geneInfo data tables
-
 snpInfo.vs.geneInfo <- merge(geneInfo,
                              snpInfo,
                              by.x = "ensembl_gene_id",
                              by.y = "ensembl_gene_stable_id")
-#View(snpInfo.vs.geneInfo)
+# View(snpInfo.vs.geneInfo)
 
 # Merging gene and SNPs informations with the rSNP table
-
 rSNPs.genes.info <- merge(varscan.with.peaks,
                           snpInfo.vs.geneInfo,
                           by.x = "var_id",
                           by.y = "refsnp_id",
                           all.x = TRUE,
                           all.y = FALSE)
-#View(rSNPs.genes.info)
+# View(rSNPs.genes.info)
 
 rSNPs.data <- rSNPs.genes.info[!duplicated(rSNPs.genes.info$var_id),]
-#View(rSNPs.data)
+# View(rSNPs.data)
 
 
 rSNPs.data.display <- rSNPs.data[, c("seqnames", "hgnc_symbol",  "var_id", "start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "matrix_id", "name",  "consequence_type_tv")]
