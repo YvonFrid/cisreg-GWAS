@@ -1275,6 +1275,25 @@ if (file.exists(jaspar.annotation.file)) {
 
 ## We merge the variations-can result table with Jaspar annotations in order 
 ## to get the information 
+
+# names(variationScan)
+# names(jaspar.annotation.table)
+varScanJasparTF <- merge(
+  x = variationScan, 
+  y = jaspar.annotation.table, 
+  by.x = "X.ac_motif",
+  by.y = "matrix.id",
+  all.x = TRUE, sort = FALSE)
+# dim(varScanJaspar)
+# dim(variationScan)
+# dim(jaspar.annotation.table)
+
+```
+
+#### Merge annotation table from Jaspar with the variation-scan result table ####
+
+## We merge the variations-can result table with Jaspar annotations in order 
+## to get the information 
 varscan.jaspar.merged <- merge(
   x = varscan, 
   y = jaspar.annotation.table, 
