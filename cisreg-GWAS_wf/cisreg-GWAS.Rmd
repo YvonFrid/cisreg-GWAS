@@ -1261,6 +1261,26 @@ if (file.exists(jaspar.annotation.file)) {
 ```
 
 
+```{r merge_varscan_jaspar}
+
+#### Merge annotation table from Jaspar with the variation-scan result table ####
+
+## We merge the variations-can result table with Jaspar annotations in order 
+## to get the information 
+
+# names(variationScan)
+# names(jaspar.annotation.table)
+varScanJasparTF <- merge(
+  x = variationScan, 
+  y = jaspar.annotation.table, 
+  by.x = "X.ac_motif",
+  by.y = "matrix.id",
+  all.x = TRUE, sort = FALSE)
+# dim(varScanJaspar)
+# dim(variationScan)
+# dim(jaspar.annotation.table)
+
+```
 
 
 
@@ -1488,7 +1508,9 @@ The interactions between TFs and target sites are the main edges of gene regulat
 The rSNPs alter the affinity of several TFs binding sites (TFBS). A SNP's effect on TF binding is estimated based on a position weight matrix (PWM) model for the binding specificity of the corresponding factor. 
 
 
-In this section, we presente the regulatory SNPs, TFs and  TFBS potentially affected by the candidate rSNPs (SOI). To predict the rSNPs, the workflow combine the *ReMap* and *variation-scan* results tables by the `merge` R function according to the common correspondant SNPs and TFs from the merged data.
+In this section, we predict the regulatory SNPs rSNPS) among the SOIs, as well as the TFs and  TFBS potentially affected by the variations of these rSNPs. 
+
+To achieve this, the workflow merges the *ReMap* and *variation-scan* result tables based on  correspondences of the SNP IDS and TF names.
 
 
 ```{r rSNPs, out.width = "80%", fig.width=8, fig.height=4.5}
