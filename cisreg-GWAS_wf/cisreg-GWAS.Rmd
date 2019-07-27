@@ -1125,7 +1125,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 # ## Build the API request for Variation-scan and submit it
 # message("Scanning variant alleles with motifs via RSAT REST services")
-# varScan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
+# varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
 #                 body = list(
 #                   i_string = varSeq.server.path,
 #                   i_string_type = 'piping',
@@ -1143,18 +1143,18 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 # 
 # 
 # ## Parse the content returned from the server
-# varScan.content <- httr::content(varScan, "text", encoding = "UTF-8")
+# varscan.content <- httr::content(varscan, "text", encoding = "UTF-8")
 # 
 # ## Parse the JSON content
-# varScan.fromJSON <- fromJSON(varScan.content)
-# varScan.server.path <- varScan.fromJSON$result_path
-# varScan.URL <- varScan.fromJSON$result_url
+# varscan.fromJSON <- fromJSON(varscan.content)
+# varscan.server.path <- varscan.fromJSON$result_path
+# varscan.URL <- varscan.fromJSON$result_url
 # 
 # ## Download variation info result and store it to a local file
-# varScan.file <- file.path(
+# varscan.file <- file.path(
 #   result.dir.path["RSAT"],
 #   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
-# download.file(url = varScan.URL, destfile = varScan.file)
+# download.file(url = varscan.URL, destfile = varscan.file)
 # system(paste("open", result.dir.path["RSAT"]))
 
 ```
@@ -1170,64 +1170,72 @@ varscanFile <- file.path(
 
 ## Load variation-scan results
 ## Note: this is a temporary solution, since variation-scan should be invoked via REST Web services 
-variationScan <- read.delim(file =  varscanFile,
+variationScan.ori <- read.delim(file =  varscanFile,
                             header = TRUE,
                             sep = "\t",
                             comment.char = ";")
+# head(variationScan.ori)
 
 # Split var_coord column
-varScanJaspar <- separate(
+varscan <- separate(
   data = variationScan,
   col = "var_coord",
   into = c("chrom", "pos_Start", "pos_End", "strand"),
   sep = "[\\:\\-_]", remove = F)
 
 
-# Rename the motif ID
-varScanJaspar$X.ac_motif <- gsub(pattern = "_", ".", varScanJaspar$X.ac_motif)
+# Rename the motif ID to make it compatible with Jaspar motif IDs. 
+# For some reason, in RSAT collecitons the JASPAR IDs replace the "." by "_". 
+# 
+# This shold actually be fixed in RSAT collections rto ensure intertoperability, 
+# but in the meantime we use this substitution as a patch
+varscan$X.ac_motif <- gsub(pattern = "_", ".", varscan$X.ac_motif)
 
-## Define the column names for the varscan output
-varscanColumns <- c("X.ac_motif", 
-                    "var_id", 
-                    "var_class", 
-                    "chrom", 
-                    "pos_Start", 
-                    "pos_End", 
-                    "strand", 
-                    "best_w", 
-                    "worst_w", 
-                    "w_diff", 
-                    "best_pval", 
-                    "worst_pval", 
-                    "pval_ratio", 
-                    "best_variant", 
-                    "worst_variant", 
-                    "best_offset", 
-                    "worst_offset", 
-                    "min_offset_diff", 
-                    "best_strand",
-                    "worst_strand", 
-                    "str_change", 
-                    "best_seq", 
-                    "worst_seq", 
-                    "minor_allele_freq")
+# names(varscan)
 
-varScanJaspar <- varScanJaspar[, varscanColumns]
+# ## Define the column names for the varscan output
+# varscanColumns <- c("X.ac_motif", 
+#                     "var_id", 
+#                     "var_class", 
+#                     "chrom", 
+#                     "pos_Start", 
+#                     "pos_End", 
+#                     "strand", 
+#                     "best_w", 
+#                     "worst_w", 
+#                     "w_diff", 
+#                     "best_pval", 
+#                     "worst_pval", 
+#                     "pval_ratio", 
+#                     "best_variant", 
+#                     "worst_variant", 
+#                     "best_offset", 
+#                     "worst_offset", 
+#                     "min_offset_diff", 
+#                     "best_strand",
+#                     "worst_strand", 
+#                     "str_change", 
+#                     "best_seq", 
+#                     "worst_seq", 
+#                     "minor_allele_freq")
+# 
+# varscan <- varscan[, varscanColumns]
 
-#View(varScanJaspar)
+#View(varscan)
 
-nbVarscanResults <- nrow(varScanJaspar)
+## Count the number of results (SNP - motif pairs) reported by variation-scan
+nbVarscanResults <- nrow(varscan)
 workflowSummary["variation-scan: SNP-motif pairs returned by variation-scan"] <- nbVarscanResults
 
-nbMotifs <- length(unique(varScanJaspar$X.ac_motif))
-message("Number of ref TFBM with at least one prediction in the SNPs: ", nbMotifs)
-workflowSummary["variation-scan: Number of TFBM altered by the SOIs"] <- nbMotifs
+## Count the number of distinct motifs from Jaspar reported by variation-scan
+varscan.nb.motifs <- length(unique(varscan$X.ac_motif))
+message("Number of ref TFBM with at least one prediction in the SNPs: ", varscan.nb.motifs)
+workflowSummary["variation-scan: Number of TFBM altered by the SOIs"] <- varscan.nb.motifs
 
-
-varscan.unique <- varScanJaspar[!duplicated(varScanJaspar$var_id),]
-nbvarScanJaspar <- length(varscan.unique$var_id)
-message("Number of SNPs detected by variation-scan: ", nbvarScanJaspar)
-workflowSummary["variation-scan: predicted rSNPs"] <- nbvarScanJaspar
+## Count the number of distinct variants (SNPs) reported by variation-scan
+varscan.nb.snps <- length(unique(varscan$var_id))
+message("Number of SNPs detected by variation-scan: ", varscan.nb.snps)
+workflowSummary["variation-scan: predicted rSNPs"] <- varscan.nb.snps
 ```
 
 
@@ -1267,46 +1275,52 @@ if (file.exists(jaspar.annotation.file)) {
 
 ## We merge the variations-can result table with Jaspar annotations in order 
 ## to get the information 
-
-# names(variationScan)
-# names(jaspar.annotation.table)
-varScanJasparTF <- merge(
-  x = variationScan, 
+varscan.jaspar.merged <- merge(
+  x = varscan, 
   y = jaspar.annotation.table, 
   by.x = "X.ac_motif",
   by.y = "matrix.id",
-  all.x = TRUE, sort = FALSE)
-# dim(variationScan)
+  sort = FALSE)
+# dim(varscan)
 # dim(jaspar.annotation.table)
-# dim(varScanJaspar)
-# names(varScanJaspar)
+# dim(varscan.jaspar.merged)
+# names(varscan)
+# names(jaspar.annotation.table)
+# names(varscan.jaspar.merged)
+
+# setdiff(names(variationScan), names(varscan))
+
+varscan.jaspar.merged$label <- paste(varscan.jaspar.merged$X.ac_motif, varscan.jaspar.merged$name)
 
 ```
 
 
 
-```{r matrices_tfs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distribution of TFBS potentially affected by each SOI from variation-scan results.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r varscan_snps_per_motif, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distribution of TFBS potentially affected by each SOI from variation-scan results.** "), out.width = "10s0%", fig.width=10, fig.height=4.5}
 
-#par(mfrow=c(2,2))  
-# Barplot of motif
-# barplot(sort(table(varScanJasparTF$matrix_id), decreasing = TRUE),
-barplot(sort(table(variationScan$X.ac_motif), decreasing = TRUE),
-        #main = "TFBSM affected by the SOIs ",
-        xlab = "Motifs",
-        ylab = "Frequency",
-        las = 2, cex.names = 0.5, col = "#37A3F3", border = "#05245F",
-        horiz = F
-        )
+# Barplot of the number of SNPs affected per motif
+# barplot(sort(table(varscan.jaspar.merged$matrix_id), decreasing = TRUE),
+SNPs.per.motif <- sort(table(varscan.jaspar.merged$label), decreasing = TRUE)
 
-# Barplot of predicted rSNPs
-# barplot(sort(table(varScanJasparTF$var_id), decreasing = TRUE),
-#         main = "Predicted rSNPs",
-#         xlab = "",
-#         ylab = "Frequency",
-#         las=2, cex.names = 0.5, col = "#37A3F3", border = "#05245F",
-#         horiz = F
-#         )
-# par(mfrow=c(1,2))
+par(mfrow = c(1,2))  
+par(mar = c(9.1, 5.1, 4.1, 2.1))
+barplot(SNPs.per.motif,
+        main = "variation-scan\nSNPs per motif",
+        xlab = "Number of predicted rSNPs",
+        ylab = "Motif rank",
+        las = 2, names = 1:length(SNPs.per.motif),
+        col = "#37A3F3", border = "#37A3F3",
+        horiz = FALSE)
+
+barplot(SNPs.per.motif[1:30],
+        main = "variation-scan\nTop-ranking motifs",
+        ylab = "Number of predicted rSNPs",
+        xlab = NA,
+        las = 2, cex.names = 0.8, 
+        col = "#37A3F3", border = "#05245F",
+        horiz = FALSE)
+par(mar = c(5.1, 5/1, 4.1, 2.1))
+
 ```
 
 
@@ -1320,7 +1334,7 @@ The principle of the test is to measure the significance of the intersection bet
 
 
 ```{r download_remap_data}
-message("Downloading the ReMap catalog..")
+message("Downloading the ReMap catalog.")
 
 ## Specify the files containing bed peak catalogue in two formats`
 ## - bed: downloaded from ReMap
@@ -1334,7 +1348,7 @@ remapRdataFile <- file.path(parameters$data.dir,
 
 ## Load ReMap peaks from Rdata file if it is there (faster loading)
 if (file.exists(remapRdataFile)) {
-  message("Loading ReMap peaks from Rdata file..")
+  message("Loading ReMap peaks from Rdata file.")
   # Load the ReMap Rdata file
   system.time({load(remapRdataFile)})
 } else {
@@ -1517,7 +1531,7 @@ To achieve this, the workflow merges the *ReMap* and *variation-scan* result tab
 ```{r rSNPs, out.width = "80%", fig.width=8, fig.height=4.5}
 
 varscan.with.peaks <- merge(
-  varScanJasparTF, 
+  varscan.jaspar.merged, 
   remap.SOI.overlaps, 
   by.x = c("var_id", "name"),
   by.y = c("rsid", "TF"))
@@ -1678,15 +1692,15 @@ plotDistToTSS(peakAnno)
 
 
 par(mfrow = c(2,2))
-varScanJasparTF$best_pval <- as.numeric(varScanJasparTF$best_pval)
-varScanJasparTF$worst_pval <- as.numeric(varScanJasparTF$worst_pval)
+varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
+varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
 
-best.pval <- -log10(varScanJasparTF$best_pval)
-worst.pval <- -log10(varScanJasparTF$worst_pval)
+best.pval <- -log10(varscan.jaspar.merged$best_pval)
+worst.pval <- -log10(varscan.jaspar.merged$worst_pval)
 
 pval.range <- range(c(best.pval, worst.pval))
 
-n <- nrow(varScanJasparTF)
+n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
 plot(sort(best.pval), f, type = "l", col = "blue", 
      xlim = pval.range,
@@ -1704,12 +1718,12 @@ grid(col = "#DDDDDD", lty = "solid")
 ## Plotting P-value ratio
 
 
-pvalRatioPos <- log10(varScanJasparTF$pval_ratio)
+pvalRatioPos <- log10(varscan.jaspar.merged$pval_ratio)
 
 
 #pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
 
-n <- nrow(varScanJasparTF)
+n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
 plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
      #xlim = pvalRatio,
@@ -1721,16 +1735,16 @@ plot(sort(pvalRatioPos), f, type = "l", col = "blue",
 grid(col = "#DDDDDD", lty = "solid")
 
 ## Weight
-varScanJasparTF$best_w <- as.numeric(varScanJasparTF$best_w)
-varScanJasparTF$worst_w <- as.numeric(varScanJasparTF$worst_w)
+varscan.jaspar.merged$best_w <- as.numeric(varscan.jaspar.merged$best_w)
+varscan.jaspar.merged$worst_w <- as.numeric(varscan.jaspar.merged$worst_w)
 
-best.weight <- varScanJasparTF$best_w
-worst.weight <- varScanJasparTF$worst_w
+best.weight <- varscan.jaspar.merged$best_w
+worst.weight <- varscan.jaspar.merged$worst_w
 
 weight.range <- range(c(best.weight, worst.weight))
 
 
-n <- nrow(varScanJasparTF)
+n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
 plot(sort(best.weight), f, type = "l", col = "blue",
      xlim = weight.range,
