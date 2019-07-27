@@ -879,13 +879,14 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 message("Identifying haplotype blocks")
 
 
-haplotype <- merge(x = SOIsBed,
+haplotype <- as.data.frame(merge(x = SOIsBed,
                    y = LdSNPs,
                    by.x = "snp",
                    by.y = "variation2",
                    all.x = TRUE,
-                   all.y = FALSE)
+                   all.y = FALSE))
 
+# Remove lines contain NAs
 haplotype <- na.omit(haplotype)
 
 # Make 
@@ -894,20 +895,10 @@ haplotype.block <- haplotype %>%
   dplyr::group_by(variation1) %>% 
   dplyr::mutate(regionStart = min(chromStart),
             regionEnd = max(chromEnd),
-            Nb_SNPs = n())
-
-# Remove lines contain NAs
-haplotype.block <- na.omit(haplotype.block)
-
-# Remove duplicated SNPs
-haplotype.block <- haplotype.block[!duplicated(haplotype.block$regionStart),]
-
+            Nb_SNPs = n()) 
 
 workflowSummary["Haplotype block: group of SNPs in LD"] <- nrow(haplotype.block)
 
-
-
-#View(haplotype.block)
 
 # Make a grange object
 haplotype.block.gr <- with(haplotype.block,
@@ -920,34 +911,24 @@ strand   = Rle("*"), rsID = variation1))
 We identify `r nrow(haplotype.block)` haplotype blocks of a given SNP based on the pairs of LD SNPs previously retrieved from Ensembl as the limits of the region encompassing the SNPs in LD with this SNP.
 
 
+
 ```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
+## Vector of the DA SNPs
+var <- haplotype$variation1
 
-LD <- haplotype[, c( "chrom","chromStart", "chromEnd", "snp",  "variation1")]
-LD <- na.omit(LD)
-LD <- LD[!duplicated(LD$snp),]
-LD$chrom_start <- as.numeric(LD$chromStart)
+## Count the number of LD SNPs per DA SNP
+ld.block <- sort(table(var), decreasing = TRUE)
 
-LDgr <- with(LD,
-             GRanges(seqnames = Rle(chrom),
-                     ranges   = IRanges(start = chromStart, end = chromEnd),
-                     strand   = Rle("*"), idLd = snp, idTag = variation1))
-
-# Check the size of each LD block
-bca.avs <- makeAVS(LDgr)
-tata <- data.frame(bca.avs)
-avs.size <- avsSize(bca.avs)
-
-avs.sizes.sorted <- avs.size$Size
-names(avs.sizes.sorted) <- avs.size$tagID
-avs.sizes.sorted <- sort(avs.sizes.sorted, decreasing = TRUE)
-if (length(avs.sizes.sorted) > 30) {
-  avs.sizes.sorted <- avs.sizes.sorted[1:30]
+## Display the top 30 haplotype blocks
+if (length(ld.block) > 30) {
+  df.sorted <- df.sorted[1:30]
 }
 
+## Barplot of haplotype blocks
 par.ori <- par(no.readonly = TRUE)
 par(mar = c(4,6,1,1))
-barplot(avs.sizes.sorted, 
+barplot(ld.block, 
         horiz = TRUE, 
         las = 1, 
         cex.names = 1,
@@ -958,17 +939,15 @@ barplot(avs.sizes.sorted,
         cex.axis = 1,
         cex.lab = 1)
 par(par.ori)
-
 ```
-
 
 
 ```{r heatmap_DA-LD-SNPs}
 # ## SNPs in
-# LD.block <- haplotype.block %>% 
-#   dplyr::select(chrom, variation1, Nb_SNPs) %>% 
-#   dplyr::group_by(chrom, variation1, Nb_SNPs) %>% 
-#   dplyr::summarise(N = n()) 
+# LD.block <- haplotype.block %>%
+#   dplyr::select(chrom, variation1, Nb_SNPs) %>%
+#   dplyr::group_by(chrom, variation1, Nb_SNPs) %>%
+#   dplyr::summarise(N = n())
 # 
 # LD.block %>%
 #   ggplot(aes(chrom, variation1)) +
@@ -979,8 +958,8 @@ par(par.ori)
 #   xlab("Chromosomes") +
 #   ylab("Disease-associated SNPs") +
 #   labs(fill = "LD SNPs") +
-#   theme(axis.text.x = element_text( 
-#     size = 19, hjust = 1))
+#   theme(axis.text.x = element_text(
+#     size = 10, hjust = 1, angle = 90))
 
 ```
 
