@@ -1513,7 +1513,7 @@ varscan.with.peaks <- merge(
 
 #View(varscan.with.peaks)
 
-kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "var_id", "matrix_id", "name", "best_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
+kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "var_id", "X.ac_motif", "name", "best_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
 nbrSNPs <- length(unique(varscan.with.peaks$var_id))
 message("Number of rSNPs: ", nbrSNPs)
