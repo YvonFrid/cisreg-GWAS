@@ -875,7 +875,8 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 ## Haplotype block
 
 
-```{r haplotype}
+```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+
 message("Identifying haplotype blocks")
 
 
@@ -889,7 +890,7 @@ haplotype <- as.data.frame(merge(x = SOIsBed,
 # Remove lines contain NAs
 haplotype <- na.omit(haplotype)
 
-# Make 
+# Number of LD SNPs per DA-SNP
 haplotype.block <- haplotype %>% 
   dplyr::select("chrom", "chromStart", "chromEnd", "variation1") %>% 
   dplyr::group_by(variation1) %>% 
@@ -906,13 +907,7 @@ GRanges( seqnames = Rle(chrom),
 ranges   = IRanges(start = regionStart, end = regionEnd),
 strand   = Rle("*"), rsID = variation1))
 
-```
 
-We identify `r nrow(haplotype.block)` haplotype blocks of a given SNP based on the pairs of LD SNPs previously retrieved from Ensembl as the limits of the region encompassing the SNPs in LD with this SNP.
-
-
-
-```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 ## Vector of the DA SNPs
 var <- haplotype$variation1
@@ -940,6 +935,8 @@ barplot(ld.block,
         cex.lab = 1)
 par(par.ori)
 ```
+
+We identify `r nrow(haplotype.block)` haplotype blocks of a given SNP based on the pairs of LD SNPs previously retrieved from Ensembl as the limits of the region encompassing the SNPs in LD with this SNP.
 
 
 ```{r heatmap_DA-LD-SNPs}
@@ -1157,7 +1154,7 @@ variationScan.ori <- read.delim(file =  varscanFile,
 
 # Split var_coord column
 varscan <- separate(
-  data = variationScan,
+  data = variationScan.ori,
   col = "var_coord",
   into = c("chrom", "pos_Start", "pos_End", "strand"),
   sep = "[\\:\\-_]", remove = F)
@@ -1250,7 +1247,7 @@ if (file.exists(jaspar.annotation.file)) {
 
 ```{r merge_varscan_jaspar}
 
-s#### Merge annotation table from Jaspar with the variation-scan result table ####
+#### Merge annotation table from Jaspar with the variation-scan result table ####
 
 ## We merge the variations-can result table with Jaspar annotations in order 
 ## to get the information 
@@ -1372,7 +1369,7 @@ IntersectBed <- function(a, b) {
   return(my.df)
 }
 
-## Intersection between remap catalog and haplor data
+## Intersection between remap catalog and haplotype blocks of the SOIs 
 #remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog, SOIsBed.gr))
 
 #remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, haplotype.block.gr))
