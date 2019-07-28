@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068", # malaria
-  #query = "EFO_0001360", # type ii diabetes mellitus
+  #query =  "EFO_0001068", # malaria
+  query = "EFO_0001360", # type ii diabetes mellitus
   # query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
@@ -206,6 +206,7 @@ bioconductor.libraries.to.install <- c(
   "ChIPseeker",
   "TxDb.Hsapiens.UCSC.hg38.knownGene",
   "ReactomePA",
+  "enrichplot",
   #"rGREAT",
   "XGR",
   #"FunciSNP",
@@ -1640,7 +1641,7 @@ plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to 
 ```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 par(mfrow = c(2,2))  
-par(mar = c(9.1, 5.1, 4.1, 2.1))
+#par(mar = c(9.1, 5.1, 4.1, 2.1))
 
 varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
 varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
@@ -1709,7 +1710,7 @@ legend(2000,9.5, # places a legend at the appropriate place
 
 grid(col = "#DDDDDD", lty = "solid")
 
-par(mar = c(5.1, 5/1, 4.1, 2.1))
+#par(mar = c(5.1, 5/1, 4.1, 2.1))
 par(mfrow=c(1,1))
 ```
 
@@ -1741,8 +1742,8 @@ motif.alt.pv_ratio <- varscan.with.peaks %>%
   #dplyr::summarise(N = n()) 
 
 B <- ggplot(motif.alt.pv_ratio, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = pval_ratio),
-     colour = "white") + scale_fill_gradient(low = "white",
-     high = "#145A32")+
+     colour = "white") + scale_fill_gradient(low = "#145A32",
+     high = "#37A3F3")+
      labs(x='', y = '')+
       theme_bw()+
       guides(fill = guide_legend(title = "Pval-ratio"))+
@@ -1751,7 +1752,7 @@ B <- ggplot(motif.alt.pv_ratio, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = 
       theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
-plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
+plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```
 
 
@@ -1823,16 +1824,16 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 
 ### rSNPs and the corresponding TFs 
 
-```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),".Predicted rSNPs and the corresponding TFs whose DNA binding sites are affected.**")}
+```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Predicted rSNPs and the corresponding TFs whose DNA binding sites are affected. **B. **rSNPs and associated genes. **")}
 
 ## rSNPs and associated TFs
 
 snp.tf <- varscan.with.peaks %>% 
-  dplyr::select(name, var_id) %>% 
-  dplyr::group_by(var_id, name) %>% 
+  dplyr::select(label, var_id) %>% 
+  dplyr::group_by(var_id, label) %>% 
   dplyr::summarise(N = n()) 
 
-ggplot(snp.tf, aes(name, var_id)) + geom_tile(aes(fill = var_id)) +
+A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = var_id)) +
      labs(x='TFs', y = 'rSNPs') +
       theme_bw()+
       guides(fill = FALSE) +
@@ -1842,6 +1843,24 @@ ggplot(snp.tf, aes(name, var_id)) + geom_tile(aes(fill = var_id)) +
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
 
+
+# rSNPs and associated genes
+gene.ass <- rSNPs.info %>% 
+  dplyr::select(hgnc_symbol, var_id) %>% 
+  dplyr::group_by(hgnc_symbol, var_id) %>% 
+  dplyr::summarise(N = n()) 
+
+B <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
+  geom_tile(aes(fill = var_id)) +
+     labs(x='Genes', y = 'rSNPs') +
+      theme_bw()+
+      guides(fill = FALSE) +
+  #ggtitle("rSNPs and associated genes") +
+      #theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+
+plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```
 
 
@@ -1884,12 +1903,12 @@ GSE.df <- varscan.with.peaks %>%
   dplyr::group_by(GSE, name) %>% 
   dplyr::summarise(N = n()) 
 
-B <-  ggplot(data=GSE.df, aes(x=GSE, y=name, fill=N)) +
+B <-  ggplot(data=GSE.df, aes(x=GSE, y=N, fill=name)) +
 geom_bar(stat="identity", position=position_dodge()) +
   #theme_cowplot() +
    theme_bw() +
   labs(x='GSE', y = 'TFs') +
-      guides(fill = FALSE)+
+      guides(fill = guide_legend(title = "TFs"))+
   #ggtitle("TFs by GEO series") +
       #theme(legend.position="none")+
       theme(plot.title = element_text(hjust = 0.5,size = 10),
@@ -1909,36 +1928,12 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 
 
 
-
-## rSNPs and associated genes
-
-```{r rSNPs_genes_features, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". rSNPs and associated genes.** "), out.width = "80%", fig.width=8, fig.height=4.5}
-
-# rSNPs and associated genes
-gene.ass <- rSNPs.info %>% 
-  dplyr::select(hgnc_symbol, var_id) %>% 
-  dplyr::group_by(hgnc_symbol, var_id) %>% 
-  dplyr::summarise(N = n()) 
-
-ggplot(gene.ass, aes(hgnc_symbol, var_id)) + geom_tile(aes(fill = var_id)) +
-     labs(x='Genes', y = 'rSNPs') +
-      theme_bw()+
-      guides(fill = FALSE) +
-  #ggtitle("rSNPs and associated genes") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-
-```
-
-
 ### Functional enrichment analysis 
 
-We performe the functional enrichment analysis to identify predominant biological themes among the genes associated with the rSNPs by incorporating biological knowledge provided by biological ontologies.
+We performe the functional enrichment analysis to identify predominant biological themes among the genes associated with the rSNPs (Gene Of Interest, GOI) by incorporating biological knowledge provided by biological ontologies.
 
 
-```{r functional_analysis_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r functional_analysis_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
 
@@ -1947,7 +1942,7 @@ rSNPs.gene.gr <- with(rSNPs.gene.bed,
                             ranges   = IRanges(start =  start.1, end =  end.1),
                             strand   = Rle("*")))
 
- geneAnno <- annotatePeak(rSNPs.gene.gr, tssRegion=c(-3000, 3000),
+ geneAnno <- annotatePeak(rSNPs.gene.gr, #tssRegion=c(-3000, 3000),
                          TxDb=txdb, annoDb="org.Hs.eg.db")
  
 print(geneAnno)
@@ -1961,68 +1956,60 @@ dotplot(pathway2)
 ```
 
 
+We compute the enrichment gene-disease associations of DisGeNET (Janet et al. 2015) from several public data sources and the literature. The DisGeNET contains also gene-disease associations and snp-gene-disease associations.
 
-In this section, we running `gprofiler` R function to identify enriched processes among significant genes associated with the rSNPs
+```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 20 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015). Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
 
-```{r gprofiler}
+# Select the GOI
+geneList <- na.omit(rSNPs.info$entrezgene_id)
 
-## Selecte the Ensembl gene ID
-ENS <- unique(na.omit(rSNPs.info$ensembl_gene_id))
+## Checking the enrichment gene-disease associations in DisGeNET
+edo <- enrichDGN(geneList)
 
-## Running gProfiler
-gprofiler_results <- gprofiler(query = ENS, 
-                                  organism = "hsapiens",
-                                  ordered_query = F, 
-                                  exclude_iea = F, 
-                                  max_p_value = 0.05, 
-                                  max_set_size = 0,
-                                  correction_method = "fdr",
-                                  hier_filtering = "none", 
-                                  domain_size = "annotated")
-
-
-## Subset and reorder gProfiler results to only include columns of interest
-gprofiler_results_reordered <- gprofiler_results[, c("term.id", "domain", "term.name", "p.value", "overlap.size", "term.size", "intersection")]
-
-## Order the results by p-adjusted value
-gprofiler_results_reordered <- gprofiler_results_reordered[order(gprofiler_results_reordered$p.value), ]
-
-## Extract only the 'GO' terms from the results
-# gprofiler_results_GOs <- gprofiler_results_reordered[grep('GO:', gprofiler_results_reordered$term.id), ]
-
-## Plot of the functional annotation of each gene corresponding to rSNPs
-
-gprofiler.df <- gprofiler_results_reordered %>% 
-  dplyr::select(domain, intersection, p.value) %>% 
-  dplyr::group_by(domain, intersection, p.value) %>% 
-  dplyr::summarise(N = n()) 
-
-ggplot(gprofiler.df, aes(intersection, domain)) + 
-  geom_tile(aes(fill = p.value),
-     colour = "white") + scale_fill_gradient(low = "gray", 
-  high = "steelblue") +
-     labs(x='Ensembl gene ID', y = 'Domaines') +
-      theme_bw()+
-  guides(fill = guide_legend(title = "P-value"))+
-  #ggtitle("rSNPs and associated genes") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
+## Barplot of enrichment gene-disease associations from DisGeNET
+barplot(edo, showCategory = 20)
 
 ```
 
 
 
-```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment of genes using DOSE (annotates genes with human disease association).")}
 
-# Functional enrichment of genes using DOSE
-entrez.gene.id <- na.omit(rSNPs.info$entrezgene_id)
-x <- enrichDO(entrez.gene.id)
+```{r gene_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms. This network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
 
-dotplot(x)
+## convert gene ID to Symbol
+edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+
+
+## Network of the linkages of genes and biological concepts
+
+#cnetplot(edox, foldChange=geneList)
+
+cnetplot(edox, categorySize="pvalue", foldChange=geneList)
+
 ```
 
+
+
+```{r circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Circular network of the linkages of genes and biological concepts.")}
+## Circular networ.
+cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+
+```
+
+
+
+```{r emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets")}
+
+emapplot(edo)
+
+```
+
+
+```{r heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of GOI and enriched terms.")}
+
+heatplot(edox, foldChange=geneList)
+
+```
 
 
 ### Exploring tissue-specific gene enrichment results
@@ -2094,7 +2081,6 @@ session_info()
 
 proc.time() - ptm
 ```
-
 
 
 
