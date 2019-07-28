@@ -1272,7 +1272,7 @@ varscan.jaspar.merged$label <- paste(varscan.jaspar.merged$X.ac_motif, varscan.j
 
 
 
-```{r varscan_snps_per_motif, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distribution of TFBS potentially affected by each SOI from variation-scan results.** "), out.width = "10s0%", fig.width=10, fig.height=4.5}
+```{r varscan_snps_per_motif, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distribution of TFBS potentially affected by each SOI from variation-scan results.** "), out.width = "100%", fig.width=10, fig.height=4.5}
 
 # Barplot of the number of SNPs affected per motif
 # barplot(sort(table(varscan.jaspar.merged$matrix_id), decreasing = TRUE),
@@ -1408,15 +1408,15 @@ write.table(x = remap.SOI.overlaps,
 
 ```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Transcription factors (TFs) enriched in ChIP-seq regions overlapping with the haplotype blocks of SNPs of interest (SOIs).** "), out.width = "80%", fig.width=8, fig.height=6}
 
-barplot(sort(table(remap.SOI.overlaps$TF), decreasing = FALSE),
-        main = "ReMap peaks / rSNP overlaps per factor",
+enriched.TFs <- sort(table(remap.SOI.overlaps$TF), decreasing = FALSE)
+barplot(enriched.TFs,
+        main = "TFs enriched in ChIP-seq peaks",
         las = 2, 
         cex.names = 0.7, 
         col = "#37A3F3", 
         border = "#05245F",
         horiz = TRUE
         )
-
 ```
 
 
@@ -1451,32 +1451,23 @@ remap.SOI.bed.peak <- remap.SOI.overlaps[, c("seqnames", "start", "end")]
 message("Creating a remap.SOI.peak matrix data..")
 tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 
-```
 
 
-#### Heatmap of ChIP-seq binding to TSS regions
-
-```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". # Heatmap of ChIP binding to TSS regions** "), out.width = "80%", fig.width=8, fig.height=4.5}
+# Heatmap of ChIP binding to TSS regions
 
 message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
+
 tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = "blue")
 
 # It's possible to create a heatmap of ChIP-seq binding to TSS regions using a ChIP-seq peak data in GRange format.
 #peakHeatmap(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000, color="blue")
-```
 
 
 
-#### Average Profile of ChIP-seq peaks binding to TSS region
-
-```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Average Profile of ChIP-seq peaks binding to TSS region.** "), out.width = "80%", fig.width=8, fig.height=4.5}
-
-# Average Profile of ChIP peaks binding to TSS region
-
-# Confidence interval estimated by bootstrap method 
-#is also supported for characterizing ChIP binding profiles.
-
-
+## Compute Average Profile of ChIP peaks binding to TSS region
+## Confidence interval estimated by bootstrap method 
+## is also supported for characterizing ChIP binding profiles.
+message("Compute th average profile of ChIP-seq peaks binding to TSS region")
 plotAvgProf(tagMatrix, xlim = c(-3000, 3000),
              conf = 0.95, resample = 1000,
             xlab = "Genomic Region (5'->3')", ylab = "Read Count Frequency")
@@ -1490,7 +1481,6 @@ plotAvgProf(tagMatrix, xlim = c(-3000, 3000),
 
 
 
-
 ## Regulatory SNPs analysis
 
 The interactions between TFs and target sites are the main edges of gene regulatory networks that determines the expression levels of target genes at a particular time point during development, in a given tissue and under specific conditions.
@@ -1498,7 +1488,7 @@ The interactions between TFs and target sites are the main edges of gene regulat
 The rSNPs alter the affinity of several TFs binding sites (TFBS). A SNP's effect on TF binding is estimated based on a position weight matrix (PWM) model for the binding specificity of the corresponding factor. 
 
 
-In this section, we predict the regulatory SNPs rSNPS) among the SOIs, as well as the TFs and  TFBS potentially affected by the variations of these rSNPs. 
+In this section, we predict the regulatory SNPs (rSNPs) among the SOIs, as well as the TFs and  TFBS potentially affected by the variations of these rSNPs. 
 
 To achieve this, the workflow merges the *ReMap* and *variation-scan* result tables based on  correspondences of the SNP IDS and TF names.
 
@@ -1563,7 +1553,7 @@ geneInfo <- getBM(attributes = c('chromosome_name',
 # Remove duplicated gene
 # JvH 2019-07-27. YVON, je remplace ci-dessous start_position par entrezgene_id, car a priori on pourrait imaginer que 2 gènes différents aient des positions de départ identiques (par exemple s'ils sont codés dans des sens inverses). Je ne suis pas sûr qu'il y ait des exemples dans le génome humain mais dans des génomes viraux ça ne m'étonnerait pas qu'on en trouve. 
 # geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
-geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
+#geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
 
 #View(geneInfo.uniq)
 
@@ -1575,34 +1565,32 @@ snpInfo.vs.geneInfo <- merge(geneInfo,
 # View(snpInfo.vs.geneInfo)
 
 # Merging gene and SNPs informations with the rSNP table
-rSNPs.genes.info <- merge(varscan.with.peaks,
+rSNPs.info <- merge(varscan.with.peaks,
                           snpInfo.vs.geneInfo,
                           by.x = "var_id",
                           by.y = "refsnp_id",
                           all.x = TRUE,
                           all.y = FALSE)
-# View(rSNPs.genes.info)
-
-rSNPs.data <- rSNPs.genes.info[!duplicated(rSNPs.genes.info$var_id),]
-# View(rSNPs.data)
 
 
-rSNPs.data.display <- rSNPs.data[, c("seqnames", "hgnc_symbol",  "var_id", "start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "matrix_id", "name",  "consequence_type_tv")]
+rSNPs.info.display <- rSNPs.info[, c("chrom", "hgnc_symbol",  "var_id", "pos_Start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "X.ac_motif", "name",  "consequence_type_tv")]
 
-kable(rSNPs.data.display, caption = "Predicted regulatory SNPs")
+kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 ```
+
+
 
 
 ### Peak annotation 
 
-We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. 
+We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. We presente the genomic annotations of the ChIP-seq paeks co-localised with the rSNPs
 
 ```{r peak_annotation_rSNPs}
 
-# rSNPs in BED file
-rSNPs.bed <- rSNPs.data[, c("seqnames", "start", "end")]
+# Create a bed file for rSNPs overlaped with ChIP-seq peaks
+rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
 
-# Create a GRanges object
+# Create a GRanges object for rSNPs overlaped with ChIP-seq peaks
 
  rSNPs.gr <- with(rSNPs.bed,
                    GRanges( seqnames = Rle(seqnames),
@@ -1611,24 +1599,22 @@ rSNPs.bed <- rSNPs.data[, c("seqnames", "start", "end")]
  
  message("Performing a peak annotation..")
  
+## The TSS regions of 3kb is not restricted to TSS regions. The regions 
+## can be other types that defined by the user.
+ 
+ 
  peakAnno <- annotatePeak(rSNPs.gr, tssRegion = c(-3000, 3000),
                          TxDb = txdb, annoDb = "org.Hs.eg.db")
  
- print(peakAnno)
+ #print(peakAnno)
+
  
-
-```
-
-
+ 
 ### Genomic annotation
-
-Location of the peaks in terms of genomic features.
-
-```{r genomic_annotation, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic annotation of the ChIP-seq paeks co-localised with the rSNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
-
-par(mfrow = c(2,2)) 
-
+## Location of the peaks in terms of genomic features.
+ 
 upsetplot(peakAnno)
+
 
 #plotAnnoBar(peakAnno1)
 plotAnnoPie(peakAnno, 
@@ -1640,20 +1626,10 @@ plotAnnoPie(peakAnno,
  
 #vennpie(peakAnno1, r = 0.2)
 
-par(mfrow=c(1,2)) 
-```
+# Distribution of TF-binding loci relative to TSS
+# Percentage of binding sites upstream and downstream from the TSS of the nearest genes
+plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to TSS")
 
-
-
-### Distribution of TF-binding loci relative to TSS
-
-Percentage of binding sites upstream and downstream from the TSS of the nearest genes
-
-```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distribution of transcription factor-binding loci\n relative to TSS.** "), out.width = "80%", fig.width=8, fig.height=4.5}
-
-# Distribution of TF-binding loci
-plotDistToTSS(peakAnno)
- 
 ```
 
 
@@ -1663,9 +1639,9 @@ plotDistToTSS(peakAnno)
 
 ```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "80%", fig.width=8, fig.height=4.5}
 
+par(mfrow = c(2,2))  
+par(mar = c(9.1, 5.1, 4.1, 2.1))
 
-
-par(mfrow = c(2,2))
 varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
 varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
 
@@ -1733,8 +1709,8 @@ legend(2000,9.5, # places a legend at the appropriate place
 
 grid(col = "#DDDDDD", lty = "solid")
 
-par(mfrow = c(1,1))
-
+par(mar = c(5.1, 5/1, 4.1, 2.1))
+par(mfrow=c(1,1))
 ```
 
 
@@ -1742,11 +1718,11 @@ par(mfrow = c(1,1))
 
 ## rSNPs with hight effect of motif alteration
 motif.alt.effect <- varscan.with.peaks %>% 
-  dplyr::select(var_id, matrix_id, best_pval) 
+  dplyr::select(var_id, X.ac_motif, best_pval) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
 
-A <- ggplot(motif.alt.effect, aes(matrix_id, var_id)) + geom_tile(aes(fill = best_pval),
+A <- ggplot(motif.alt.effect, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = best_pval),
      colour = "white") + scale_fill_gradient(low = "white",
      high = "steelblue")+
      labs(x='', y = '')+
@@ -1760,11 +1736,11 @@ A <- ggplot(motif.alt.effect, aes(matrix_id, var_id)) + geom_tile(aes(fill = bes
 
 
 motif.alt.pv_ratio <- varscan.with.peaks %>% 
-  dplyr::select(var_id, matrix_id, pval_ratio) 
+  dplyr::select(var_id, X.ac_motif, pval_ratio) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
 
-B <- ggplot(motif.alt.pv_ratio, aes(matrix_id, var_id)) + geom_tile(aes(fill = pval_ratio),
+B <- ggplot(motif.alt.pv_ratio, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = pval_ratio),
      colour = "white") + scale_fill_gradient(low = "white",
      high = "#145A32")+
      labs(x='', y = '')+
@@ -1779,47 +1755,47 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 ```
 
 
-### Visualization of TFBS in logos
+
 
 ```{r download_logos_from_jaspar}
-
+### Visualization of TFBS in logos
 ## Adapted from: <Aziz Khan>aziz.khan@ncmm.uio.no
 
 #set path to store results
-dir.create(paste0(result.dir.path["JASPAR"],'logo'), showWarnings = FALSE, recursive = TRUE)
-
-#get human profiles
-url <- paste0(parameters$jaspar.rest.root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=1000&format=json")
-result <- fromJSON(url)
-
-#jaspar2018_pubmedid = "29140473"
-
-# Initialize a vector
-results_matrix = c()
-matrix_ids = result$results$matrix_id
-
-# Create the vector of matrix_id from variation-scan
-rSNPsMatrix <- varscan.with.peaks$matrix_id
-
-inter.matrix_ids <- intersect.Vector(rSNPsMatrix, matrix_ids)
-
-for (matrix_id in inter.matrix_ids)
-{
-  matrix_url <- paste0(parameters$jaspar.rest.root,"matrix/", matrix_id,".json")
-  matrix_result <- fromJSON(matrix_url)
-  message(paste0("Downloading...", matrix_result$sequence_logo))
-  
-  source <- matrix_result$source;
-  if(is.null(source)){
-    source = 'NA';
-  }
-
-# Downloag and save logo
-logo_url <- matrix_result$sequence_logo
-logo_file = paste0(result.dir.path["JASPAR"], 'logo/', matrix_result$matrix_id, ".svg")
-
-download.file(logo_url, destfile = logo_file, method = "libcurl")
-}
+# dir.create(paste0(result.dir.path["JASPAR"],'logo'), showWarnings = FALSE, recursive = TRUE)
+# 
+# #get human profiles
+# url <- paste0(parameters$jaspar.rest.root,"matrix/?collection=CORE&tax_group=vertebrates&order=name&version=latest&page_size=1000&format=json")
+# result <- fromJSON(url)
+# 
+# #jaspar2018_pubmedid = "29140473"
+# 
+# # Initialize a vector
+# results_matrix = c()
+# matrix_ids = result$results$matrix_id
+# 
+# # Create the vector of matrix_id from variation-scan
+# rSNPsMatrix <- varscan.with.peaks$matrix_id
+# 
+# inter.matrix_ids <- intersect.Vector(rSNPsMatrix, matrix_ids)
+# 
+# for (matrix_id in inter.matrix_ids)
+# {
+#   matrix_url <- paste0(parameters$jaspar.rest.root,"matrix/", matrix_id,".json")
+#   matrix_result <- fromJSON(matrix_url)
+#   message(paste0("Downloading...", matrix_result$sequence_logo))
+#   
+#   source <- matrix_result$source;
+#   if(is.null(source)){
+#     source = 'NA';
+#   }
+# 
+# # Downloag and save logo
+# logo_url <- matrix_result$sequence_logo
+# logo_file = paste0(result.dir.path["JASPAR"], 'logo/', matrix_result$matrix_id, ".svg")
+# 
+# download.file(logo_url, destfile = logo_file, method = "libcurl")
+# }
 
 ```
 
@@ -1828,19 +1804,19 @@ download.file(logo_url, destfile = logo_file, method = "libcurl")
 ```{r grImport2_import_svg, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Logos for TFBSM affected by the rSNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 ## We used the `grImport2` package for R imports the TFBSM SVG images directly into R.
 
-logoDir <- paste0("~/cisreg-GWAS_results/", parameters$query, "/JASPARlogo/")
-
-logoList <- list.files(path = logoDir, 
-                       pattern = ".svg", 
-                       all.files = T, 
-                       full.names = F, 
-                       no.. = T) 
-if (length(logoList) == 0) {
-  message("No logo in the logo dir: ", logoDir)
-} else {
-  firstLogo <- readPicture(file.path(logoDir, logoList[1]))
-  grid.picture(firstLogo)
-}
+# logoDir <- paste0("~/cisreg-GWAS_results/", parameters$query, "/JASPARlogo/")
+# 
+# logoList <- list.files(path = logoDir, 
+#                        pattern = ".svg", 
+#                        all.files = T, 
+#                        full.names = F, 
+#                        no.. = T) 
+# if (length(logoList) == 0) {
+#   message("No logo in the logo dir: ", logoDir)
+# } else {
+#   firstLogo <- readPicture(file.path(logoDir, logoList[1]))
+#   grid.picture(firstLogo)
+# }
 
 ```
 
@@ -1939,7 +1915,7 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```{r rSNPs_genes_features, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". rSNPs and associated genes.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # rSNPs and associated genes
-gene.ass <- rSNPs.data %>% 
+gene.ass <- rSNPs.info %>% 
   dplyr::select(hgnc_symbol, var_id) %>% 
   dplyr::group_by(hgnc_symbol, var_id) %>% 
   dplyr::summarise(N = n()) 
@@ -1964,7 +1940,7 @@ We performe the functional enrichment analysis to identify predominant biologica
 
 ```{r functional_analysis_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
-rSNPs.gene.bed <- rSNPs.data[, c("seqnames", "start.1", "end.1")]
+rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
 
 rSNPs.gene.gr <- with(rSNPs.gene.bed,
                    GRanges( seqnames = Rle(seqnames),
@@ -1991,7 +1967,7 @@ In this section, we running `gprofiler` R function to identify enriched processe
 ```{r gprofiler}
 
 ## Selecte the Ensembl gene ID
-ENS <- unique(na.omit(rSNPs.data$ensembl_gene_id))
+ENS <- unique(na.omit(rSNPs.info$ensembl_gene_id))
 
 ## Running gProfiler
 gprofiler_results <- gprofiler(query = ENS, 
@@ -2014,11 +1990,7 @@ gprofiler_results_reordered <- gprofiler_results_reordered[order(gprofiler_resul
 ## Extract only the 'GO' terms from the results
 # gprofiler_results_GOs <- gprofiler_results_reordered[grep('GO:', gprofiler_results_reordered$term.id), ]
 
-```
-
-
-```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1)," .")}
-
+## Plot of the functional annotation of each gene corresponding to rSNPs
 
 gprofiler.df <- gprofiler_results_reordered %>% 
   dplyr::select(domain, intersection, p.value) %>% 
@@ -2045,7 +2017,7 @@ ggplot(gprofiler.df, aes(intersection, domain)) +
 ```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment of genes using DOSE (annotates genes with human disease association).")}
 
 # Functional enrichment of genes using DOSE
-entrez.gene.id <- na.omit(rSNPs.data$entrezgene_id)
+entrez.gene.id <- na.omit(rSNPs.info$entrezgene_id)
 x <- enrichDO(entrez.gene.id)
 
 dotplot(x)
@@ -2061,7 +2033,7 @@ The below bar charts shown the tissue-specific gene enrichment.
 
 
 # Select the associated genes with the rSNPs
-inputGenes <- unique(na.omit(rSNPs.data$hgnc_symbol))
+inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
 gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
               geneIdType=SymbolIdentifier())
 output <- teEnrichment(inputGenes = gs)
