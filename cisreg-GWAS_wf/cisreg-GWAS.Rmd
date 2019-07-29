@@ -1282,7 +1282,7 @@ SNPs.per.motif <- sort(table(varscan.jaspar.merged$label), decreasing = TRUE)
 par(mfrow = c(1,2))  
 par(mar = c(9.1, 5.1, 4.1, 2.1))
 barplot(SNPs.per.motif,
-        main = "variation-scan\nSNPs per motif",
+        main = "A. variation-scan\nSNPs per motif",
         xlab = "Number of predicted rSNPs",
         ylab = "Motif rank",
         las = 2, names = 1:length(SNPs.per.motif),
@@ -1290,7 +1290,7 @@ barplot(SNPs.per.motif,
         horiz = FALSE)
 
 barplot(SNPs.per.motif[1:30],
-        main = "variation-scan\nTop-ranking motifs",
+        main = "B. variation-scan\nTop-ranking motifs",
         ylab = "Number of predicted rSNPs",
         xlab = NA,
         las = 2, cex.names = 0.8, 
