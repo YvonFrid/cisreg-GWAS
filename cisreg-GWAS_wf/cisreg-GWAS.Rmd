@@ -1427,7 +1427,7 @@ The principle of the test is to measure the significance of the intersection bet
 
 
 
-```{r download_remap_data}
+```{r load_remap_data}
 message("Downloading the ReMap catalog.")
 
 ## Specify the files containing bed peak catalogue in two formats`
