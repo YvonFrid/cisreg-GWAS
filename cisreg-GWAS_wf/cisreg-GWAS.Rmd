@@ -119,8 +119,7 @@ parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   query =  "EFO_0001068", # malaria
-  # query = "EFO_0001360", # type ii diabetes mellitus
-  # query = "EFO_0001360", # type ii diabetes mellitus
+  #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -807,7 +806,7 @@ kable(head(snpInfo[, c("refsnp_source",
 ```{r DA_LD_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated (DA) SNPs and LD SNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Barplot of genomic context of DA and LD SNPs
-snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
+snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
 
 # barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
 #         #main = "Genomic context of DA and LD SNPs",
@@ -852,8 +851,8 @@ SOIs <- subset(snpInfo, noncoding == TRUE)
 # dim(snpInfo)
 # dim(SOIs)
 
-##  assign all the SNPs without documented consequence type to the "intergenic" class
-SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "intergenic"
+##  assign all the SNPs without documented consequence type to the "unknown" class
+SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "unknown"
 
 # dim(SOIs)
 nbSOIs <- nrow(SOIs)
@@ -928,7 +927,7 @@ write.table(x = SOIs,
 ```{r genomic_context_of_SOIs, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". (A) Genomic context of disease-associated (DA) SNPs and SNPs in linkage disequilibrium (LD). (B) Genomic context of the SOIs. The SOIs are selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).** ")}
 
 #Barplot of genomic context of DA and LD SNPs
-snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "intergenic"
+snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
 # barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
 #         #main = "Genomic context of DA and LD SNPs",
 #         las=2, cex.names = 0.7, col = "#207DC2", xlab="", ylab="Number of SNPs",)
@@ -1686,10 +1685,10 @@ geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
 # View(geneInfo.uniq)
 
 # Merging snpInfo and geneInfo data tables
-snpInfo.vs.geneInfo <- merge(y = geneInfo.uniq,
-                             x = snpInfo,
-                             by.x = "ensembl_gene_id",
-                             by.y = "ensembl_gene_stable_id")
+snpInfo.vs.geneInfo <- merge(x = snpInfo,
+                             y = geneInfo.uniq,
+                             by.x = "ensembl_gene_stable_id",
+                             by.y = "ensembl_gene_id")
 # View(snpInfo.vs.geneInfo)
 
 # Merging gene and SNPs informations with the rSNP table
