@@ -652,7 +652,8 @@ message("Getting LD SNPs from Ensembl for ", length(DArsIDs), " disease-associat
 LdSNPs <- data.frame()
 LDsnpIDs <- vector()
 # LdSNPstats <- data.frame()
-
+ldGroups <- list()
+  
 i <- 0 ## Instantiate counter
 for (rsID in DArsIDs) {
   i <- i + 1
@@ -672,14 +673,26 @@ for (rsID in DArsIDs) {
   
   ## Append the new LD SNps to the current collection
   # names(newLdSNPs)
-  LdSNPs <- rbind(LdSNPs, 
-                  data.frame(
-                    variation1 = as.vector(newLdSNPs$variation1),
-                    variation2 = as.vector(newLdSNPs$variation2),
-                    r2 = as.vector(newLdSNPs$r2),
-                    d_prime = as.vector(newLdSNPs$d_prime),
-                    population = as.vector(newLdSNPs$population_name)
-                  ))
+  currentLdSNPs <- data.frame(
+    variation1 = as.vector(newLdSNPs$variation1),
+    variation2 = as.vector(newLdSNPs$variation2),
+    r2 = as.vector(newLdSNPs$r2),
+    d_prime = as.vector(newLdSNPs$d_prime),
+    population = as.vector(newLdSNPs$population_name))
+  
+  LdSNPs <- rbind(LdSNPs, currentLdSNPs)
+  
+  ## Add the DA SNP to the LD SNPs with correlation of 1
+  # LdSNPs <- rbind(LdSNPs, 
+  #                 data.frame(
+  #                   variation1 = rsID,
+  #                   variation2 = rsID,
+  #                   r2 = 1,
+  #                   d_prime = 1,
+  #                   population = parameters$population
+  #                 ))
+  
+  ldGroups[[rsID]] <- c(rsID, as.vector(currentLdSNPs$variation2))
   
 #   ## This is q auick hacky solution; zill need to be updated
 #   variationURL <- paste(sep = "", 
@@ -714,11 +727,15 @@ for (rsID in DArsIDs) {
 
 }
 
+
+## Identify the LD groups from the pairs of LDs
+# length(unique(LdSNPs$variation1))
+
+
 ## Filter out redundancy between LD SNPs
 LDsnpIDs <- unique(LDsnpIDs)
 nbLDSNPs <- length(LDsnpIDs) ## Total number of LD SNPs for all the DA-SNPs
 workflowSummary["LD: SNPs in Linkage Disequilibrium with DA SNPs"] <- nbLDSNPs
-
 message("\tTotal number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
@@ -954,13 +971,16 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
 
 
 
-## Haplotype block
+## LD groups
+
+We compute the coordinates of each LD group.s
 
 
 ```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 message("Identifying haplotype blocks")
 
+# View(LdSNPs)
 
 haplotype <- as.data.frame(merge(x = SOIsBed,
                    y = LdSNPs,
@@ -968,6 +988,9 @@ haplotype <- as.data.frame(merge(x = SOIsBed,
                    by.y = "variation2",
                    all.x = TRUE,
                    all.y = FALSE))
+# View(haplotype)
+
+# length(unique(LdSNPs$variation))
 
 # Remove lines contain NAs
 haplotype <- na.omit(haplotype)
@@ -989,32 +1012,46 @@ GRanges( seqnames = Rle(chrom),
 ranges   = IRanges(start = regionStart, end = regionEnd),
 strand   = Rle("*"), rsID = variation1))
 
-
-
-## Vector of the DA SNPs
-var <- haplotype$variation1
-
-## Count the number of LD SNPs per DA SNP
-ld.block <- sort(table(var), decreasing = TRUE)
+# ## Vector of the DA SNPs
+# var <- haplotype$variation1
+# 
+# ## Count the number of LD SNPs per DA SNP
+# ld.block <- sort(table(var), decreasing = TRUE)
 
 ## Display the top 30 haplotype blocks
-if (length(ld.block) > 30) {
-  df.sorted <- df.sorted[1:30]
-}
-
 ## Barplot of haplotype blocks
 par.ori <- par(no.readonly = TRUE)
-par(mar = c(4,6,1,1))
-barplot(ld.block, 
-        horiz = TRUE, 
-        las = 1, 
-        cex.names = 1,
-        col = "#0D5F05",
-        #main = "Number of SNPs in LD per SOI",
-        xlab = "Number of SNPs in LD",
-        #ylab = "Disease-associated SNPs",
-        cex.axis = 1,
-        cex.lab = 1)
+par(mar = c(5.1, 7, 3.1, 1.1))
+
+# max.snps <- min(length(ld.block), 20)
+# barplot(ld.block[1:max.snps], 
+#         horiz = TRUE, 
+#         las = 1, 
+#         cex.names = 1,
+#         col = "#0D5F05",
+#         #main = "Number of SNPs in LD per SOI",
+#         xlab = "Number of SNPs in LD",
+#         #ylab = "Disease-associated SNPs",
+#         cex.axis = 1,
+#         cex.lab = 1)
+# 
+ld.block <- sort(unlist(lapply(ldGroups, length)), decreasing = TRUE)
+max.snps <- min(length(ld.block), 20)
+y <- barplot(
+  ld.block[1:max.snps],
+  main = "LD block sizes",
+  horiz = TRUE, 
+  xlim = c(0, max(ld.block)*1.1),
+  las = 1, 
+  cex.names = 0.8,
+  col = "#0D5F05",
+  #main = "Number of SNPs in LD per SOI",
+  xlab = "Number of SNPs in LD block",
+  #ylab = "Disease-associated SNPs",
+  cex.axis = 1,
+  cex.lab = 1)
+text(x = ld.block[1:max.snps], y = y, labels = ld.block[1:max.snps], pos = 4)
+
 par(par.ori)
 ```
 
