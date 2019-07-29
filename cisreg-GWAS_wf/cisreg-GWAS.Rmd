@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  #query =  "EFO_0001068", # malaria
-  query = "EFO_0001360", # type ii diabetes mellitus
+  query =  "EFO_0001068", # malaria
+  # query = "EFO_0001360", # type ii diabetes mellitus
   # query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
@@ -135,12 +135,13 @@ parameters <- list(
   flowchart.format = "pdf", # Format for insertion in the report,
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
+  GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
   #RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
   #RSAT.rest.root = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
-  remapUrl=  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
+  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
 )
 
 
@@ -170,6 +171,7 @@ knitr::opts_chunk$set(fig.path = paste(
 
 ## Initialise a vector to summarize the results
 workflowSummary <- vector()
+
 
 
 ```
@@ -287,7 +289,7 @@ for (dir in c(parameters$result.dir, result.dir.path)) {
 }
 
 ## Prepare a table for the output files
-outfiles <- data.frame()
+outfiles <- vector()
 
 ```
 
@@ -354,72 +356,176 @@ We define as **Disease-Associated SNPs SNPs** or **DA SNPs** the SNPs (coding or
 
 
 
-```{r retrieve_associations}
+```{r retrieve_associations_gwas_catalog_REST}
 
-## Retrieving the trait-variant associations from GWAS catalog
-message("Retrieving information from GWAS catalog via REST interface")
+## Retrieving the trait-variant associations from GWAS catalog via the REST interface.
+## NOTE: this method is much slower than the direct download (chink below) 
+## and returns incomplete results (less associations than via the download) so by default we do not use it. 
 
-## URL to the GWAS REST API query for the disease
-gwascatalog.studies.urlrest <- paste(
-  sep = "", 
-  "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", 
-  parameters$query, "/studies")
-message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
-gwascatalog.disease.url <- paste(
-  sep = "", 
-  "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
-message("GWAS catalog link\t", gwascatalog.disease.url)
-# gwascatalog.table.url <- paste(
-#   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
-# message("GWAS TSV table\t", gwascatalog.table.url)
-GWASstudiesRestOutput <- fromJSON(
-  gwascatalog.studies.urlrest, 
-  content_type("application/json"), 
-  simplifyDataFrame = TRUE)
-names(GWASstudiesRestOutput)
-# View(GWASstudiesRestOutput)
-# View(GWASstudiesRestOutput[["_embedded"]])
-
-## Count the number of studies
-nbStudies <- nrow(GWASstudiesRestOutput[["_embedded"]]$studies)
-message("\tGWAS catalog contains ", 
-        nbStudies, 
-        " studies for trait ", parameters$trait)
-
-## Get the URLs of the studies
-SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
-
-## Collect the disease-associated SNPs (DA SNPs) in the GWAS catalog
-DAsnpIDs <- vector()
-i <- 0
-snpTable <- data.frame()
-for (studyURL in SNPstudyLinks) {
-  i <- i + 1
-  message("Retrieving SNPs for study ", i , "/", nbStudies, "\t", studyURL)
-  studyRESToutput <- fromJSON(studyURL,  
-                              simplifyDataFrame = TRUE)
-  # We have to discard the _links column because it contains lists
-  newSnpTable <- as.data.frame(studyRESToutput[["_embedded"]][["singleNucleotidePolymorphisms"]])[,1:6]
-  message("\tadding ", nrow(newSnpTable), " SNPs")
-  snpTable <- rbind(snpTable, newSnpTable)
+if (parameters$GWAS.REST) {
+  ## Retrieving the trait-variant associations from GWAS catalog
+  message("Retrieving information from GWAS catalog via REST interface")
+  
+  ## URL to the GWAS REST API query for the disease
+  gwascatalog.studies.urlrest <- paste(
+    sep = "", 
+    "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", 
+    parameters$query, "/studies")
+  message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
+  gwascatalog.disease.url <- paste(
+    sep = "", 
+    "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
+  message("GWAS catalog link\t", gwascatalog.disease.url)
+  # gwascatalog.table.url <- paste(
+  #   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+  # message("GWAS TSV table\t", gwascatalog.table.url)
+  GWASstudiesRestOutput <- fromJSON(
+    gwascatalog.studies.urlrest, 
+    content_type("application/json"), 
+    simplifyDataFrame = TRUE)
+  names(GWASstudiesRestOutput)
+  # View(GWASstudiesRestOutput)
+  # View(GWASstudiesRestOutput[["_embedded"]])
+  
+  ## Count the number of studies
+  nbStudies <- nrow(GWASstudiesRestOutput[["_embedded"]]$studies)
+  message("\tGWAS catalog contains ", 
+          nbStudies, 
+          " studies for trait ", parameters$trait)
+  
+  ## Get the URLs of the studies
+  SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
+  
+  ## Collect the disease-associated SNPs (DA SNPs) in the GWAS catalog
+  DAsnpIDs <- vector()
+  i <- 0
+  gwas.results <- data.frame()
+  for (studyURL in SNPstudyLinks) {
+    i <- i + 1
+    message("Retrieving SNPs for study ", i , "/", nbStudies, "\t", studyURL)
+    studyRESToutput <- fromJSON(studyURL,  
+                                simplifyDataFrame = TRUE)
+    
+    # We have to discard the _links column because it contains lists
+    current.study <- studyRESToutput[["_embedded"]][["singleNucleotidePolymorphisms"]]
+    
+    if (is.null(current.study$rsId)) {
+      message("\tnot a single SNP in this study")
+    } else {
+      #  newgwas.results <- as.data.frame(current.study)[,1:6]
+      newgwas.results <- data.frame(
+        studyURL = studyURL,
+        rsID = current.study$rsId,
+        merged = current.study$merged,
+        functionalClass = current.study$functionalClass
+      )
+      message("\tadding ", nrow(newgwas.results), " SNPs")
+      gwas.results <- rbind(gwas.results, newgwas.results)
+    }
+    
+  }
+  
+  ## Export the GWAS-SNP associations
+  outfiles["GWAS-SNP associations (REST)"] <- file.path(
+    result.dir.path["Ensembl"],
+    paste(sep = "", parameters$query, "_gwas-catalog_REST", ".tsv"))
+  
+  write.table(x = gwas.results, file = outfiles["GWAS-SNP associations (REST)"] , 
+              quote = FALSE, row.names = FALSE, col.names = TRUE, sep = "\t")
+  
+  #### Compute statistics about the associations ####
+  
+  ## Count the number of associations
+  nbAssoc <- nrow(gwas.results)
+  
+  # View(gwas.results)
+  
+  ## Collect unique SNP IDs
+  DAsnpIDs <- unique(as.vector(gwas.results$rsID))
+  nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
+  message("Unique disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
+  
+  ## Check SNP IDs
+  DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+  #workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
+  nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
+  
+  workflowSummary <- append(workflowSummary, c(
+    "Association Studies for the disease" = nbStudies,
+    "Disease SNP associations" = nbAssoc,
+    "Disease-Associated SNPs (unique IDs)" = nbDiseaseAssociatedSNPs,
+    "SNPs with rs identifier" = length(DArsIDs),
+    "SNPs with non-rs identifier" = length(nonrsIDs)))
+  
+  message("Studies: ", nbStudies)
+  message("Associations: ", nbAssoc)
+  message("Unique SNP IDs: ", nbDiseaseAssociatedSNPs)
+  message("SNPs with rs identifier: ", length(DArsIDs))
+  message("SNPs with non-rs identifier: ", length(nonrsIDs))
 }
 
+```
+
+
+```{r retrieve_associations_gwas_catalog_download}
+
+## Here we download information from the Web site of the GWAS catalog 
+message("Downloading informations of disease-associated SNPs from GWAS catalog")
+
+
+## URL to the primary GWAS page for the query disease
+gwascatalog.disease.url <- paste0(
+  "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
+message("GWAS catalog link\t", gwascatalog.disease.url)
+
+gwascatalog.table.url <- paste0(
+  "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
+  parameters$query, 
+  "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+message("URL to downmoad info from GWAS catalog\t", gwascatalog.table.url)
+
+
+query.url <- paste(sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
+                   parameters$query,
+                   "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+
+#gwas.file <- paste(sep = "", 'gwas_catalog_', parameters$query,'.tsv')
+
+outfiles["GWAS-SNP associations (GWAS downlaod)"] <- file.path(
+  result.dir.path["Ensembl"],
+  paste(sep = "", parameters$query, "_gwas-catalog_download", ".tsv"))
+
+
+
+download.file(url = query.url,
+              destfile = outfiles["GWAS-SNP associations (GWAS downlaod)"], 
+              method = 'auto')
+message("\tDownloaded ", 
+        parameters$query, "-associated GWAS in file\t", 
+        outfiles["GWAS-SNP associations (GWAS downlaod)"])
+
+
+#message("Reading GWAS catalog in tsv format")
+gwas.results <- read.delim(file = outfiles["GWAS-SNP associations (GWAS downlaod)"], 
+                          header = TRUE, 
+                          sep = "\t", 
+                          stringsAsFactors = FALSE,
+                          na.strings = c(""," ","NA"))
+
+#### Compute statistics about the associations ####
+
+## Number of studies
+nbStudies <- length(unique(gwas.results$STUDY.ACCESSION))
+
 ## Count the number of associations
-nbAssoc <- nrow(snpTable)
+nbAssoc <- nrow(gwas.results)
+message("Downloaded ", nbAssoc, " associations from GWAS catalog (may contain redundant SNPs)")
 
 ## Collect unique SNP IDs
-DAsnpIDs <- unique(snpTable$rsId)
+DAsnpIDs <- unique(as.vector(gwas.results$SNPS))
 nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
 message("Unique disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
-gwas.file <- paste(sep = "", 'data/gwas_catalog_', parameters$query,'.tsv')
-# if (parameters$force.download || !file.exists(gwas.file)) {
-#   message("Downloading disease-associated SNPs and Genes from GWAS catalog")
-#   download.file(url = query.url,
-#                 destfile = gwas.file, method = 'auto')
-#   message("\tDownloaded ", parameters$query, "-associated GWAS in file ", gwas.file)
-# } else {
-#   message("\tDisease-associated SNPs file already there: ", gwas.file)
-# }
+
 ## Check SNP IDs
 DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
 #workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
@@ -438,54 +544,11 @@ message("Unique SNP IDs: ", nbDiseaseAssociatedSNPs)
 message("SNPs with rs identifier: ", length(DArsIDs))
 message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
-```
+#gwas.results$dbSNPS <- paste("rs", gwas.results$SNP_ID_CURRENT, sep = "")
+#gwas.results$CHR_ID <- paste("chr", gwas.results$CHR_ID, sep = "")
 
-
-```{r Downloading_complementary_informations_DAsnps}
-
-message("Retrieving info about associated SNPs from the GWAS catalog")
-
-## URL to the primary GWAS page for the query disease
-gwascatalog.disease.url <- paste0(
-  "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
-message("GWAS catalog link\t", gwascatalog.disease.url)
-
-gwascatalog.table.url <- paste0(
-  "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
-  parameters$query, 
-  "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
-message("GWAS TSV table\t", gwascatalog.table.url)
-
-
-message("Downloading complementary informations of disease-associated  from GWAS catalog")
-
-query.url <- paste(sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
-                   parameters$query,
-                   "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
-
-#gwas.file <- paste(sep = "", 'gwas_catalog_', parameters$query,'.tsv')
-
-gwas.file <- file.path(
-result.dir.path["Ensembl"],
-paste(sep = "", parameters$query, "_gwas_catalog", ".tsv"))
-
-download.file(url = query.url,
-              destfile = gwas.file, method = 'auto')
-message("\tDownloaded ", parameters$query, "-associated GWAS in file ", gwas.file)
-
-
-#message("Reading GWAS catalog in tsv format")
-gwasResults <- read.delim(file = gwas.file, 
-                          header = TRUE, 
-                          sep = "\t", 
-                          stringsAsFactors = FALSE,
-                          na.strings = c(""," ","NA"))
-
-#gwasResults$dbSNPS <- paste("rs", gwasResults$SNP_ID_CURRENT, sep = "")
-#gwasResults$CHR_ID <- paste("chr", gwasResults$CHR_ID, sep = "")
-
-#dim(gwasResults)
-#View(gwasResults)
+#dim(gwas.results)
+#View(gwas.results)
 ```
 
 
@@ -499,15 +562,22 @@ In total, we found `r length(DArsIDs)` **disease-associated (DA) SNPs** from GWA
 The barplot shows the genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
 
 
-```{r DA-SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated variants from GWAS catalog.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r DA_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated variants from GWAS catalog.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Find the genomic tag SNPs informations
 message("Retrieving genomic information about ", length(DArsIDs), " disease-associated SNPs.")
 
-tagSNPsInfo <- snpTable[, c("rsId", "functionalClass")]
+if (parameters$GWAS.REST) {
+  tagSNPsInfo <- gwas.results[, c("rsId", "functionalClass")]
+  Context <- tagSNPsInfo$functionalClass
+} else {
+  tagSNPsInfo <- gwas.results[, c("SNPS", "CONTEXT")]
+  Context <- tagSNPsInfo$CONTEXT
+}
+
+# names(gwas.results)
 
 # Create a data frame
-Context <- tagSNPsInfo$functionalClass
 DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
 
 ## Make the frequencies numbers (rather than factors)
@@ -525,16 +595,16 @@ ggplot(data=DA.df, aes(x=Context, y=Freq)) +
 
 ## JvH:Yvon, je pense que ceci pose problème car si tu as des valeurs uniques de PUBMEDID même si un SNP est caractérisé par plusieurs études. Il n'y a pas de raison d'inclure le PUBMEDID dans ce tableau-ci, je propose donc de simplifier en exportant un tableau avec 1 colonne pour le SNP ID et 1 colonne pour le nombre d'études d'association. 
 # studiesPerSNP <- 
-#   gwasResults %>% 
+#   gwas.results %>% 
 #   dplyr::select(PUBMEDID, SNPS) %>% 
 #   dplyr::group_by(SNPS, PUBMEDID) %>%
 #   dplyr::summarise(N = n())
 
-## Total number of associations (all studies)
-nbAss <- nrow(gwasResults) 
+# ## Total number of associations (all studies)
+# nbAss <- nrow(gwas.results) 
 
 ## Number of studies per SNP
-studiesPerSNP <- as.data.frame.table(sort(table(gwasResults$SNPS), decreasing = TRUE))
+studiesPerSNP <- as.data.frame.table(sort(table(gwas.results$SNPS), decreasing = TRUE))
 names(studiesPerSNP) <- c("SNP", "N")
 
 ## Select the SNPs with an "rs" IDs
@@ -547,9 +617,9 @@ nb.rsID <- length(unique(rsID))
 
 ## Summarize the results obtained so far
 workflowSummary <- append(workflowSummary, c(
-  "GWAS studies"  = nbStudies,
-  "Associations" =  nbAss,
-  "Non-redundant SNPs" = nrow(studiesPerSNP),
+#  "GWAS studies"  = nbStudies,
+#  "Associations" =  nbAssoc,
+#  "Non-redundant SNPs" = nrow(studiesPerSNP),
   "SNPs demonstrated by >1 studies" = nrow(subset(studiesPerSNP, N > 1)),
   "SNPs demonstrated by 1 study" = nrow(subset(studiesPerSNP, N == 1)),
   "SNPs with rsID" = nb.rsID)
@@ -558,6 +628,7 @@ workflowSummary <- append(workflowSummary, c(
 ## Print the summmary
 kable(as.data.frame(workflowSummary), 
       col.names = "Number of results", 
+      row.names = TRUE,
       caption = "Disease-associated SNPs")
 
 #View(studiesPerSNP)
@@ -580,6 +651,7 @@ message("Getting LD SNPs from Ensembl for ", length(DArsIDs), " disease-associat
 ## Instantiate the data frame for LD SNPs and a vector of IDs
 LdSNPs <- data.frame()
 LDsnpIDs <- vector()
+# LdSNPstats <- data.frame()
 
 i <- 0 ## Instantiate counter
 for (rsID in DArsIDs) {
@@ -598,7 +670,7 @@ for (rsID in DArsIDs) {
     newLdSNpIDs <- vector()
   } 
   
- ## Append the new LD SNps to the current collection
+  ## Append the new LD SNps to the current collection
   # names(newLdSNPs)
   LdSNPs <- rbind(LdSNPs, 
                   data.frame(
@@ -608,7 +680,7 @@ for (rsID in DArsIDs) {
                     d_prime = as.vector(newLdSNPs$d_prime),
                     population = as.vector(newLdSNPs$population_name)
                   ))
-
+  
 #   ## This is q auick hacky solution; zill need to be updated
 #   variationURL <- paste(sep = "", 
 #                  "http://rest.ensembl.org/variation/human/", rsID,
@@ -631,6 +703,15 @@ for (rsID in DArsIDs) {
            "\t", rsID, 
           "\t", nbNewSNPIDs, " LD SNPs",
           "\tCurrent total: ", length(LDsnpIDs))
+
+  # ## Add info on the number of LD SNPs to the table describing DA SNPs
+  # LdSNPstats <- rbind(LdSNPstats,
+  #                     data.frame(
+  #                       rsID = rsID,
+  #                       LD.SNPs = nbNewSNPIDs,
+  #                       cumLD.SNPs = length(LDsnpIDs)
+  #                     ))
+
 }
 
 ## Filter out redundancy between LD SNPs
