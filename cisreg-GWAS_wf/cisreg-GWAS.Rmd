@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068", # malaria
-  #query = "EFO_0001360", # type ii diabetes mellitus
+  # query =  "EFO_0001068", # malaria
+  query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -634,6 +634,56 @@ kable(as.data.frame(workflowSummary),
 
 ```
 
+## Getting information about DA SNPs from BioMart
+
+
+```{r biomart_filter_da_ids}
+
+#### Select DA SNP IDs valid for Biomart  #### 
+
+## Get coordinates of DA SNPs from BioMart
+message("Gathering information from Ensembl BioMart for ", length(DArsIDs)," DA SNPs")
+
+## Define thje BioMart database and dataset to use.
+DA.snpmart <- useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") 
+
+## Get information from BioMart
+DA.snpInfo <- getBM(
+  attributes = c(
+    'refsnp_id',
+    'refsnp_source',
+    'chr_name',
+    'chrom_start',
+    'chrom_end'), 
+  filters =  "snp_filter", 
+  uniqueRows = TRUE,
+  values = DArsIDs, # (DArsIDs + LDsnpIDs)
+  mart = DA.snpmart)
+
+# Removing the duplicated information
+DA.snpInfo <- DA.snpInfo[!duplicated(DA.snpInfo$refsnp_id),]
+
+
+## Select valid SNP IDs, i.e. those for which we could get information from BioMart
+valid.DA.snp.ID <- DA.snpInfo$refsnp_id
+nb.valid.DA.snp.ID <- length(valid.DA.snp.ID)
+
+message("Identified ", nb.valid.DA.snp.ID, 
+        " rsIDs with information in Biomart among ", nbDiseaseAssociatedSNPs, " DA SNPs")
+workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
+
+```
+
+```{r da_snps_per_chrom_barplot, fig.cap="Number of Disease-associated SNPs per chromosome. ", out.width="50%", fig.width=6, fig.height=8}
+
+## Drax a barplot with the number of disease-associated SNPs per chromosome
+barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
+        main = "Disease-associated SNPs per chromosome",
+        horiz = TRUE, col = "#BBDDFF",
+        cex.names = 0.8, las = 1)
+
+
+```
 
 
 ## Linkage desequilibrium (LD)
@@ -645,7 +695,7 @@ We used the [Ensembl REST API](http://rest.ensembl.org/documentation/info/ld_id_
 
 ```{r linkage_desiquilibrium}
 
-message("Getting LD SNPs from Ensembl for ", length(DArsIDs), " disease-associated SNPs. ")
+message("Getting LD SNPs from Ensembl for ", length(valid.DA.snp.ID), " disease-associated SNPs. ")
 
 ## Instantiate the data frame for LD SNPs and a vector of IDs
 LdSNPs <- data.frame()
@@ -654,7 +704,7 @@ LDsnpIDs <- vector()
 ldGroups <- list()
   
 i <- 0 ## Instantiate counter
-for (rsID in DArsIDs) {
+for (rsID in valid.DA.snp.ID) {
   i <- i + 1
   
   ## Generate the URL to address a query to ENSEMBL via their REST interface
@@ -664,7 +714,10 @@ for (rsID in DArsIDs) {
                  "?content-type=application/json",
                  "&r2=", parameters$r2, 
                  "&window_size=", as.character(parameters$ld.distance))
-  newLdSNPs <- fromJSON(ldURL, simplifyDataFrame = TRUE)
+
+  newLdSNPs <- fromJSON(ldURL, simplifyDataFrame = TRUE, flatten = TRUE)
+  
+  
   newLdSNpIDs <-  as.vector(newLdSNPs$variation2)
   if (is.null(newLdSNpIDs)) {
     newLdSNpIDs <- vector()
@@ -693,7 +746,7 @@ for (rsID in DArsIDs) {
   
   ldGroups[[rsID]] <- c(rsID, as.vector(currentLdSNPs$variation2))
   
-#   ## This is q auick hacky solution; zill need to be updated
+#   ## This is a auick hacky solution; zill need to be updated
 #   variationURL <- paste(sep = "", 
 #                  "http://rest.ensembl.org/variation/human/", rsID,
 #                  "?content-type=application/json")
@@ -711,7 +764,7 @@ for (rsID in DArsIDs) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
   }
   message("\tDA SNP", 
-          "\t", i, "/", nbDiseaseAssociatedSNPs,
+          "\t", i, "/", nb.valid.DA.snp.ID, 
            "\t", rsID, 
           "\t", nbNewSNPIDs, " LD SNPs",
           "\tCurrent total: ", length(LDsnpIDs))
@@ -739,7 +792,7 @@ message("\tTotal number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
 ## Merge DA-SNPs and LD-SNPs
-rsIDs <- sort(unique(c(DArsIDs, LDsnpIDs)))
+rsIDs <- sort(unique(c(valid.DA.snp.ID, LDsnpIDs)))
 nbSNPs <- length(rsIDs)
 workflowSummary["Union of DA and LD SNPs"] <- nbSNPs
 
@@ -774,7 +827,7 @@ snpInfo <- getBM(attributes = c('refsnp_source',
                                 'ensembl_gene_stable_id',
                                 'consequence_type_tv'), 
                  filters =  "snp_filter", 
-                 values = rsIDs, # (DArsIDs + LDsnpIDs)
+                 values = rsIDs, # (valid.DA.snp.ID + LDsnpIDs)
                  mart = snpmart)
 # dim(snpInfo)
 
@@ -1712,7 +1765,7 @@ kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 
 We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. We presente the genomic annotations of the ChIP-seq paeks co-localised with the rSNPs
 
-```{r peak_annotation_rSNPs}
+```{r peak_annotation_rSNPs, results=FALSE}
 
 # Create a bed file for rSNPs overlaped with ChIP-seq peaks
 rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
@@ -1761,10 +1814,10 @@ plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to 
 
 
 
-### Distribution of variation-scan score
+### Distribution of variation-scan scores
 
 
-```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "100%", fig.width=8, fig.height=7}
 
 par(mfrow = c(2,2))  
 #par(mar = c(9.1, 5.1, 4.1, 2.1))
