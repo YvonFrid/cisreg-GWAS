@@ -988,7 +988,6 @@ eTerm <- xEnricherSNPs(snpList,
 
 # View enrichment results
 enrichSNPsResults <- xEnrichViewer(eTerm, 
-                                   top_num = 10, 
                                    sortBy = c("adjp", 
                                               "fdr", 
                                               "pvalue",
@@ -1006,7 +1005,7 @@ enrichSNPsResults <- xEnrichViewer(eTerm,
 # visualises enrichment results using a barplot.
 
 bp <- xEnrichBarplot(
-  eTerm, top_num = 10, 
+  eTerm, top_num = 20, 
   displayBy = c("fc", "adjp", "fdr",
                 "zscore", "pvalue"), 
   FDR.cutoff = 0.05, 
@@ -1335,17 +1334,17 @@ if (file.exists(remapRdataFile)) {
     message("Remap bed file already exists, skipping download. ")
     message("\t", remapBedFile)
   } else {
-    message ("Downloading the ReMap catalog")
+    message("Downloading the ReMap catalog")
     system.time({download.file(parameters$remapUrl, 
                                dest = remapBedFile, method = "libcurl") })
   }
 
   ## Load the bed files
-  message ("Loading ReMap peaks from bed file")
-  system.time({ remap.data <- fread(file = remapBedFile) })
+  message("Loading ReMap peaks from bed file")
+  system.time({remap.data <- fread(file = remapBedFile) })
   
   ## Convert the bed peaks into a grange object
-  message ("Converting ReMap peaks into grange objects")
+  message("Converting ReMap peaks into grange objects")
   system.time({ 
     remapCatalog.gr <- with(remap.data,
                             GRanges( seqnames = Rle(V1),
@@ -1443,7 +1442,7 @@ promoter <- getPromoters(
 remap.SOI.bed.peak <- remap.SOI.overlaps[, c("seqnames", "start", "end")]
 
 # Create a GRanges object of the ChIP-seq peak overlapped with the SOIs haplotype blocks.
- remap.SOI.peak.gr <- with(remap.SOI.bed.peak,
+remap.SOI.peak.gr <- with(remap.SOI.bed.peak,
                    GRanges( seqnames = Rle(seqnames),
                             ranges   = IRanges(start =  start, end =  end),
                             strand   = Rle("*")))
@@ -1543,9 +1542,18 @@ write.table(x = varscan.with.peaks,
 
 ```{r gene_info}
 
-## Get gene features from Ensembl
+#### Get gene features from Ensembl ####
 #snpInfo$ensembl_gene_stable_id
-ensembl = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") # BioMart database and dataset to use.
+# Specify the BioMart database and dataset to use.
+bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") 
+
+# JvH 209-07-27: YVON, plutôt que de collecter geneInfo avec le vecteur redondant des gènes associés à chaque SNP, puis de filtrer les valeurs uniques, il me semble plus logique de lancer la requête geneInfo <- getBM avec un vecteur de valeurs uniques pour les IDs ensembl de gènes.
+
+
+## Get information about all genes
+geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
+
+length(geneIDs.unique)
 geneInfo <- getBM(attributes = c('chromosome_name', 
                                  'start_position',
                                  'end_position',
@@ -1555,8 +1563,9 @@ geneInfo <- getBM(attributes = c('chromosome_name',
                                  'go_id',
                                  'description'), 
                   filters =  "ensembl_gene_id", 
-                  values = snpInfo$ensembl_gene_stable_id, 
-                  mart = ensembl)
+                  values = geneIDs.unique, 
+                  mart = bioMartConnection)
+# dim(geneInfo)
 # View(geneInfo)
 # names(geneInfo)
 
@@ -1564,12 +1573,12 @@ geneInfo <- getBM(attributes = c('chromosome_name',
 # JvH 2019-07-27. YVON, je remplace ci-dessous start_position par entrezgene_id, car a priori on pourrait imaginer que 2 gènes différents aient des positions de départ identiques (par exemple s'ils sont codés dans des sens inverses). Je ne suis pas sûr qu'il y ait des exemples dans le génome humain mais dans des génomes viraux ça ne m'étonnerait pas qu'on en trouve. 
 # geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
 geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
-
-#View(geneInfo.uniq)
+# dim(geneInfo.uniq)
+# View(geneInfo.uniq)
 
 # Merging snpInfo and geneInfo data tables
-snpInfo.vs.geneInfo <- merge(geneInfo,
-                             snpInfo,
+snpInfo.vs.geneInfo <- merge(y = geneInfo.uniq,
+                             x = snpInfo,
                              by.x = "ensembl_gene_id",
                              by.y = "ensembl_gene_stable_id")
 # View(snpInfo.vs.geneInfo)
