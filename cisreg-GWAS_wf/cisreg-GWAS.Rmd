@@ -1421,7 +1421,7 @@ barplot(enriched.TFs,
 ```
 
 
-### Profile of ChIP-seq peaks binding to TSS regions.
+### Profile of ChIP-seq peaks binding to TSS regions
 
 We compute the profile ChIP-seq binding to TSS regions overlapped with the haplotype blocks of the SOIs. We are defined the flanking sequences around (by default) -3kb to +3kb . Then align the peaks that are mapping to these regions, we can to generate the tagMatrix.
 
