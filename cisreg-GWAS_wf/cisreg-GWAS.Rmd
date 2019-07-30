@@ -118,16 +118,11 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-<<<<<<< HEAD
   query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
-=======
-  # query =  "EFO_0001068", # malaria
-  # query = "EFO_0001360", # type ii diabetes mellitus
->>>>>>> 222dfdb82c82598eedc2e8f495b4acfd70289cb3
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  query =  "EFO_0008407", # tuberculosis
+  # query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -569,10 +564,7 @@ In total, we found `r nb.DA.rsIDs` **disease-associated (DA) SNPs** from GWAS ca
 
 The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
 
-<<<<<<< HEAD
-=======
 The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to `r parameters$trait`.
->>>>>>> 222dfdb82c82598eedc2e8f495b4acfd70289cb3
 
 
 
@@ -689,12 +681,8 @@ par(mfrow = c(1,2))
 par(mar = c(5.1, 8, 9.1, 1.1))
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
 barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
-<<<<<<< HEAD
         #main = "Disease-associated SNPs per chromosome",
         main = "A",
-=======
-        main = "Disease-associated SNPs per chromosome",
->>>>>>> 222dfdb82c82598eedc2e8f495b4acfd70289cb3
         xlab = "SNPs",
         ylab = "Chromosomes",
         cex.axis = 0.8,
@@ -1017,7 +1005,6 @@ write.table(x = SOIs,
 
 
 
-<<<<<<< HEAD
 ```{r genomic_context_of_SOIs, out.width = "100%", fig.width=8, fig.height=6, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic feature of the SNPs of Interest (SOIs)** **A. ** Number of the SOIs per chromosome. **B. ** Genomic context of the SOIs, which  were selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).")}
 par(mfrow = c(1,2)) 
 #par.ori <- par(no.readonly = TRUE)
@@ -1050,13 +1037,15 @@ x <- barplot(height = soi.df,
         las = 1)
 text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 0.7, pos = 4)
 #box()
-=======
-```{r genomic_context_of_SOIs, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". (A) Genomic context of disease-associated (DA) SNPs and SNPs in linkage disequilibrium (LD). (B) Genomic context of the SOIs. The SOIs are selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).** ")}
+```
+
+
+```{r genomic_context_of_SOIs_ggplot, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". (A) Genomic context of disease-associated (DA) SNPs and SNPs in linkage disequilibrium (LD). (B) Genomic context of the SOIs. The SOIs are selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).** ")}
 
 #Barplot of genomic context of DA and LD SNPs
 snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
 
-# Create a data frame
+# Create a data frameg
 allSNPs.Context <- snpInfo$consequence_type_tv
 allSNPs.DA.df <- as.data.frame.table(sort(table(allSNPs.Context), decreasing = T))
 ## Make the frequencies numbers (rather than factors)
@@ -1088,7 +1077,6 @@ B <- ggplot(data = SOIs.DA.df, aes(x = SOIs.Context, y = Freq)) +
   coord_flip()
 
 plot_grid(A, B,  labels = c("A", "B"), ncol = 1, nrow = 2)
->>>>>>> 222dfdb82c82598eedc2e8f495b4acfd70289cb3
 
 #par(par.ori)
 
@@ -1311,92 +1299,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 ```{r rsat_rest_api_R}
 
-<<<<<<< HEAD
-# # Create the vector of SOIs
-# input <- paste(collapse = ",", SOIs$refsnp_id)
-# 
-# ## Build the API request for variation-info and submit it
-# message("\tRetrieving information on variants from RSAT REST Web services")
-# 
-# varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
-#             body = list(i_string = input,
-#                         i_string_type = 'text'))
-# 
-# ## Parse the content returned from the server
-# varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-# # class(varInfo.content)
-# 
-# ## Parse the JSON content
-# varinfo.fromJSON <- fromJSON(varInfo.content)
-# # class(varinfo.fromJSON)
-# # names(varinfo.fromJSON)
-# varInfo.URL <- varinfo.fromJSON$result_url
-# varInfo.server.path <- varinfo.fromJSON$result_path
-# 
-# ## Download variation info result and store it to a local file
-# varInfo.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
-# download.file(url = varInfo.URL, destfile = varInfo.file)
-# #system(paste("open", result.dir.path["RSAT"]))
-# 
-# 
-# 
-# ## Build the API request for retrieve-variation-seq and submit it
-# message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
-# varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
-#                body = list(i_string = varInfo.server.path,
-#                            i_string_type = 'piping'))
-# 
-# ## Parse the content returned from the server
-# varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
 
-## Parse the JSON content
-# varSeq.fromJSON <- fromJSON(varSeq.content)
-# varSeq.server.path <- varSeq.fromJSON$result_path
-# varSeq.URL <- varSeq.fromJSON$result_url
-
-## Download variation info result and store it to a local file
-# varSeq.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
-# download.file(url = varSeq.URL, destfile = varSeq.file)
-# #system(paste("open", result.dir.path["RSAT"]))
-
-# ## Build the API request for Variation-scan and submit it
-# message("Scanning variant alleles with motifs via RSAT REST services")
-# varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
-#                 body = list(
-#                   i_string = varSeq.server.path,
-#                   i_string_type = 'piping',
-#                   m_string = parameters$motifDB.URL,
-#                   m_string_type = "url",
-#                   m_format =  "transfac"),
-#                   top = 2,
-#                   #uth_pval = 0.004,
-#                   #lth_pval_ratio = 100,
-#                   add_headers("Accept" = "application/json"))
-# #                add_headers("Accept" = "text/plain"))
-# 
-# # var <- content(varscan, "text", encoding = "UTF-8")
-# # var <- fromJSON(var)
-# 
-# 
-# ## Parse the content returned from the server
-# varscan.content <- httr::content(varscan, "text", encoding = "UTF-8")
-# 
-# ## Parse the JSON content
-# varscan.fromJSON <- fromJSON(varscan.content)
-# varscan.server.path <- varscan.fromJSON$result_path
-# varscan.URL <- varscan.fromJSON$result_url
-# 
-# ## Download variation info result and store it to a local file
-# varscan.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
-# download.file(url = varscan.URL, destfile = varscan.file)
-# system(paste("open", result.dir.path["RSAT"]))
-=======
 
 if (parameters$RSAT.rest) {
   
@@ -1492,7 +1395,6 @@ if (parameters$RSAT.rest) {
   download.file(url = varscan.URL, destfile = outfiles["RSAT variation-scan (tsv)"])
   system(paste("open", result.dir.path["RSAT"]))
 }
->>>>>>> 222dfdb82c82598eedc2e8f495b4acfd70289cb3
 
 ```
 
