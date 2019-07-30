@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-   query =  "EFO_0001068", # malaria
-  # query = "EFO_0001360", # type ii diabetes mellitus
+  #query =  "EFO_0001068", # malaria
+  query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -676,7 +676,7 @@ workflowSummary["Valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ```{r da_snps_per_chrom_barplot, fig.cap="Number of Disease-associated SNPs per chromosome. ", out.width="50%", fig.width=6, fig.height=8}
 
-## Drax a barplot with the number of disease-associated SNPs per chromosome
+## Draw a barplot with the number of disease-associated SNPs per chromosome
 barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
         #main = "Disease-associated SNPs per chromosome",
         xlab = "SNPs",
