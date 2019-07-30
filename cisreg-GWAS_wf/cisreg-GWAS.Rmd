@@ -119,10 +119,10 @@ parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   # query =  "EFO_0001068", # malaria
-  query = "EFO_0001360", # type ii diabetes mellitus
+  # query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  #query =  "EFO_0008407", # tuberculosis
+  query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -441,25 +441,26 @@ if (parameters$GWAS.REST) {
   
   ## Collect unique SNP IDs
   DAsnpIDs <- unique(as.vector(gwas.results$rsID))
-  nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
-  message("Unique disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
+  nb.DA.SNPs <- length(DAsnpIDs)
+  message("Unique disease-associated SNPs: ", nb.DA.SNPs)
   
   ## Check SNP IDs
-  DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
-  #workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
-  nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
+  DA.rsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+  nb.DA.rsIDs <- nb.DA.rsIDs
+  #workflowSummary["DA: Disease-associated SNPs"] <- nb.DA.rsIDs
+  nonrsIDs <- setdiff(DAsnpIDs, DA.rsIDs)
   
   workflowSummary <- append(workflowSummary, c(
     "Association Studies for the disease" = nbStudies,
     "Disease SNP associations" = nbAssoc,
-    "Disease-Associated SNPs (unique IDs)" = nbDiseaseAssociatedSNPs,
-    "SNPs with rs identifier" = length(DArsIDs),
+    "Disease-Associated SNPs (unique IDs)" = nb.DA.SNPs,
+    "SNPs with rs identifier" = nb.DA.rsIDs,
     "SNPs with non-rs identifier" = length(nonrsIDs)))
   
   message("Studies: ", nbStudies)
   message("Associations: ", nbAssoc)
-  message("Unique SNP IDs: ", nbDiseaseAssociatedSNPs)
-  message("SNPs with rs identifier: ", length(DArsIDs))
+  message("Unique SNP IDs: ", nb.DA.SNPs)
+  message("SNPs with rs identifier: ", nb.DA.rsIDs)
   message("SNPs with non-rs identifier: ", length(nonrsIDs))
 }
 
@@ -522,25 +523,25 @@ message("Downloaded ", nbAssoc, " associations from GWAS catalog (may contain re
 
 ## Collect unique SNP IDs
 DAsnpIDs <- unique(as.vector(gwas.results$SNPS))
-nbDiseaseAssociatedSNPs <- length(DAsnpIDs)
-message("Unique disease-associated SNPs: ", nbDiseaseAssociatedSNPs)
+nb.DA.SNPs <- length(DAsnpIDs)
+message("Unique disease-associated SNPs: ", nb.DA.SNPs)
 
 ## Check SNP IDs
-DArsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
-#workflowSummary["DA: Disease-associated SNPs"] <- length(DArsIDs)
-nonrsIDs <- setdiff(DAsnpIDs, DArsIDs)
+DA.rsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+#workflowSummary["DA: Disease-associated SNPs"] <- nb.DA.rsIDs
+nonrsIDs <- setdiff(DAsnpIDs, DA.rsIDs)
 
 workflowSummary <- append(workflowSummary, c(
   "Association Studies for the disease" = nbStudies,
   "Disease SNP associations" = nbAssoc,
-  "Disease-Associated SNPs (unique IDs)" = nbDiseaseAssociatedSNPs,
-  "SNPs with rs identifier" = length(DArsIDs),
+  "Disease-Associated SNPs (unique IDs)" = nb.DA.SNPs,
+  "SNPs with rs identifier" = nb.DA.rsIDs,
   "SNPs with non-rs identifier" = length(nonrsIDs)))
 
 message("Studies: ", nbStudies)
 message("Associations: ", nbAssoc)
-message("Unique SNP IDs: ", nbDiseaseAssociatedSNPs)
-message("SNPs with rs identifier: ", length(DArsIDs))
+message("Unique SNP IDs: ", nb.DA.SNPs)
+message("SNPs with rs identifier: ", nb.DA.rsIDs)
 message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
 #gwas.results$dbSNPS <- paste("rs", gwas.results$SNP_ID_CURRENT, sep = "")
@@ -553,18 +554,18 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
 
 
-In total, we found `r length(DArsIDs)` **disease-associated (DA) SNPs** from GWAS catalog.
+In total, we found `r nb.DA.rsIDs` **disease-associated (DA) SNPs** from GWAS catalog.
 
 
 ### Proportion of genomic context of the disease-associated SNPs
 
-The barplot shows the genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
+The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to `r parameters$trait`.
 
 
 ```{r DA_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated variants from GWAS catalog.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Find the genomic tag SNPs informations
-message("Retrieving genomic information about ", length(DArsIDs), " disease-associated SNPs.")
+message("Retrieving genomic information about ", nb.DA.rsIDs, " disease-associated SNPs.")
 
 if (parameters$GWAS.REST) {
   tagSNPsInfo <- gwas.results[, c("rsId", "functionalClass")]
@@ -642,9 +643,9 @@ kable(as.data.frame(workflowSummary),
 #### Select DA SNP IDs valid for Biomart  #### 
 
 ## Get coordinates of DA SNPs from BioMart
-message("Gathering information from Ensembl BioMart for ", length(DArsIDs)," DA SNPs")
+message("Gathering information from Ensembl BioMart for ", nb.DA.rsIDs," DA SNPs")
 
-## Define thje BioMart database and dataset to use.
+## Define the BioMart database and dataset to use.
 DA.snpmart <- useMart(biomart = "ENSEMBL_MART_SNP", dataset = "hsapiens_snp") 
 
 ## Get information from BioMart
@@ -657,7 +658,7 @@ DA.snpInfo <- getBM(
     'chrom_end'), 
   filters =  "snp_filter", 
   uniqueRows = TRUE,
-  values = DArsIDs, # (DArsIDs + LDsnpIDs)
+  values = DA.rsIDs, # (DA.rsIDs + LDsnpIDs)
   mart = DA.snpmart)
 
 # Removing the duplicated information
@@ -669,7 +670,7 @@ valid.DA.snp.ID <- DA.snpInfo$refsnp_id
 nb.valid.DA.snp.ID <- length(valid.DA.snp.ID)
 
 message("Identified ", nb.valid.DA.snp.ID, 
-        " rsIDs with information in Biomart among ", nbDiseaseAssociatedSNPs, " DA SNPs")
+        " rsIDs with information in Biomart among ", nb.DA.SNPs, " DA SNPs")
 workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ```
