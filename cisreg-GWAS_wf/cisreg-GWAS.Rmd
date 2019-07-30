@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  # query =  "EFO_0001068", # malaria
-  query = "EFO_0001360", # type ii diabetes mellitus
+   query =  "EFO_0001068", # malaria
+  # query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -187,7 +187,7 @@ cran.libraries.to.install <-
     "cowplot",
     "scales",
     "tidyr",
-    "VSE",
+    #"VSE",
     "DiagrammeR",
     "VennDiagram",
     "jsonlite",
@@ -195,7 +195,7 @@ cran.libraries.to.install <-
     "xml2",
     "RCurl",
     "data.table",
-    "gProfileR",
+    #"gProfileR",
     "DOSE"
  
   )     
@@ -584,11 +584,11 @@ DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
 
 #Barplot of genomic context of DA-SNPs
 ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat = "identity", fill = "#D4AC0D", color="black")+
+  geom_bar(stat = "identity", fill = "#207DC2", color="black")+
   geom_text(aes(label=Freq), vjust=-0.1, hjust = -0.5, size = 4)+
   xlab("Genomic context")+
   ylab("Frequency")+
-  theme_test()+
+  theme_cowplot()+
   coord_flip()
 
 
@@ -670,7 +670,7 @@ nb.valid.DA.snp.ID <- length(valid.DA.snp.ID)
 
 message("Identified ", nb.valid.DA.snp.ID, 
         " rsIDs with information in Biomart among ", nbDiseaseAssociatedSNPs, " DA SNPs")
-workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
+workflowSummary["Valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ```
 
@@ -678,7 +678,9 @@ workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ## Drax a barplot with the number of disease-associated SNPs per chromosome
 barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
-        main = "Disease-associated SNPs per chromosome",
+        #main = "Disease-associated SNPs per chromosome",
+        xlab = "SNPs",
+        ylab = "Chromosomes",
         horiz = TRUE, col = "#BBDDFF",
         cex.names = 0.8, las = 1)
 
@@ -844,14 +846,14 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 #                   )
 #dim(snpInfo)
 
-kable(head(snpInfo[, c("refsnp_source", 
-                       "chr_name" , 
-                       "chrom_start" , 
-                       "chrom_end" ,
-                       "refsnp_id", 
-                       "allele", 
-                       "consequence_type_tv")]), 
-      caption = "LD SNPs features (top of the table)")
+# kable(head(snpInfo[, c("refsnp_source", 
+#                        "chr_name" , 
+#                        "chrom_start" , 
+#                        "chrom_end" ,
+#                        "refsnp_id", 
+#                        "allele", 
+#                        "consequence_type_tv")]), 
+#       caption = "LD SNPs features (top of the table)")
 
 ```
 
@@ -884,8 +886,6 @@ ggplot(data = DA.df, aes(x = Context, y = Freq)) +
 ```
 
 
-
-
 ## SNPs Of Interest (SOIs)
 
 We define as **SNPs of Interest** (**SOIs**) all the non-coding SNPs that are either associated to the disease, and in LD with these associated SNPs. We gathering the informations about LD SNPs from Ensembl using `biomaRt package`.
@@ -909,7 +909,7 @@ SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "unknown"
 
 # dim(SOIs)
 nbSOIs <- nrow(SOIs)
-workflowSummary["SOis: SNPs of interest"] <- nbSOIs
+workflowSummary["SOIs: SNPs of interest"] <- nbSOIs
 message("\tSelected ", 
         nbSOIs, " SNPs of Interest (non-coding) among ", 
         nrow(snpInfo), " SNPs from GWAS or in LD. ")
@@ -1337,38 +1337,6 @@ varscan <- separate(
 # but in the meantime we use this substitution as a patch
 varscan$X.ac_motif <- gsub(pattern = "_", ".", varscan$X.ac_motif)
 
-# names(varscan)
-
-# ## Define the column names for the varscan output
-# varscanColumns <- c("X.ac_motif", 
-#                     "var_id", 
-#                     "var_class", 
-#                     "chrom", 
-#                     "pos_Start", 
-#                     "pos_End", 
-#                     "strand", 
-#                     "best_w", 
-#                     "worst_w", 
-#                     "w_diff", 
-#                     "best_pval", 
-#                     "worst_pval", 
-#                     "pval_ratio", 
-#                     "best_variant", 
-#                     "worst_variant", 
-#                     "best_offset", 
-#                     "worst_offset", 
-#                     "min_offset_diff", 
-#                     "best_strand",
-#                     "worst_strand", 
-#                     "str_change", 
-#                     "best_seq", 
-#                     "worst_seq", 
-#                     "minor_allele_freq")
-# 
-# varscan <- varscan[, varscanColumns]
-
-#View(varscan)
-
 ## Count the number of results (SNP - motif pairs) reported by variation-scan
 nbVarscanResults <- nrow(varscan)
 workflowSummary["variation-scan: SNP-motif pairs returned by variation-scan"] <- nbVarscanResults
@@ -1386,7 +1354,7 @@ workflowSummary["variation-scan: predicted rSNPs"] <- varscan.nb.snps
 
 
 
-### Assignation of TF from JASPAR with the corresponding motif in RSAT variation-scan
+### Assignation of TFs from JASPAR with the corresponding motif in RSAT variation-scan
 
 In this section, we download the Jaspar motifs identifier and  corresponding transcription factor (TF) names. We need these data for to compare and select the TF names correspending their motifs in variation-scan results.
 
@@ -1470,6 +1438,102 @@ par(mfrow=c(1,1))
 ```
 
 
+```{r varscan_heatmap, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of rSNPs predicted by variation-scan.** "), out.width = "100%", fig.width=10, fig.height=6}
+#varscan.jaspar.merged$best_pval <- -log10(varscan.jaspar.merged$best_pval)
+
+
+varscan.jaspar.merged.signif <-  subset(varscan.jaspar.merged, pval_ratio >= 100)
+
+ggplot(varscan.jaspar.merged.signif, aes(label, var_id)) + geom_tile(aes(fill = -log10(best_pval)),
+     colour = "white") + 
+     labs(x='Motifs', y = 'SNPs')+
+      theme_bw()+
+      guides(fill = guide_legend(title = "-log10(P-value)"))+
+  ggtitle("Heatmap of rSNPs predicted by variation-scan (Pval-ratio > 100)") +
+      #theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+```
+
+
+### Distribution of variation-scan scores
+
+
+```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "100%", fig.width=8, fig.height=7}
+
+par(mfrow = c(2,2))  
+#par(mar = c(9.1, 5.1, 4.1, 2.1))
+
+varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
+varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
+
+best.pval <- -log10(varscan.jaspar.merged$best_pval)
+worst.pval <- -log10(varscan.jaspar.merged$worst_pval)
+
+pval.range <- range(c(best.pval, worst.pval))
+
+n <- nrow(varscan.jaspar.merged)
+f <- 1:n / n
+plot(sort(best.pval), f, type = "l", col = "blue", 
+     xlim = pval.range,
+     main = "A. P-value distributions",
+     xlab = "-log10(P-value)",
+     ylab = "Frequency")
+lines(sort(worst.pval), f, type = "l", col = "red")
+legend(1, 95, legend=c("Best P-value", "Worst P-value"),
+       col=c("blue", "red"), lty=1:2, cex=0.8)
+
+
+grid(col = "#DDDDDD", lty = "solid")
+
+###################################################
+## Plotting P-value ratio
+
+
+pvalRatioPos <- log10(varscan.jaspar.merged$pval_ratio)
+
+
+#pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
+
+n <- nrow(varscan.jaspar.merged)
+f <- 1:n / n
+plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
+     #xlim = pvalRatio,
+     main = "B. P-value ratio distributions",
+     xlab = "-log10(P-value ratio)",
+     ylab = "Frequency")
+
+
+grid(col = "#DDDDDD", lty = "solid")
+
+## Weight
+varscan.jaspar.merged$best_w <- as.numeric(varscan.jaspar.merged$best_w)
+varscan.jaspar.merged$worst_w <- as.numeric(varscan.jaspar.merged$worst_w)
+
+best.weight <- varscan.jaspar.merged$best_w
+worst.weight <- varscan.jaspar.merged$worst_w
+
+weight.range <- range(c(best.weight, worst.weight))
+
+
+n <- nrow(varscan.jaspar.merged)
+f <- 1:n / n
+plot(sort(best.weight), f, type = "l", col = "blue",
+     xlim = weight.range,
+     main = "C. Weight distributions",
+     xlab = "Weight",
+     ylab = "Frequency")
+
+lines(sort(worst.weight), f, type = "l", col = "red")
+
+legend(2000,9.5, # places a legend at the appropriate place 
+      c("best.weight", "worst.weight"))
+
+grid(col = "#DDDDDD", lty = "solid")
+
+#par(mar = c(5.1, 5/1, 4.1, 2.1))
+par(mfrow=c(1,1))
+```
 
 ## Chip-Seq peaks annotation using ReMap data
 
@@ -1595,7 +1659,7 @@ barplot(enriched.TFs,
 We compute the profile ChIP-seq binding to TSS regions overlapped with the haplotype blocks of the SOIs. We are defined the flanking sequences around (by default) -3kb to +3kb . Then align the peaks that are mapping to these regions, we can to generate the tagMatrix.
 
 
-```{r chip-seq_peak_annotation}
+```{r chip-seq_peak_annotation, results = FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Create TxDb object contained transcript-related features of a particular hg38 human genome
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
@@ -1625,9 +1689,9 @@ tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 
 # Heatmap of ChIP binding to TSS regions
 
-message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
+#message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
 
-tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = "blue")
+#tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = "blue")
 
 # It's possible to create a heatmap of ChIP-seq binding to TSS regions using a ChIP-seq peak data in GRange format.
 #peakHeatmap(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000, color="blue")
@@ -1673,7 +1737,7 @@ varscan.with.peaks <- merge(
 
 #View(varscan.with.peaks)
 
-kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "var_id", "X.ac_motif", "name", "best_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
+#kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "var_id", "X.ac_motif", "name", "best_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
 nbrSNPs <- length(unique(varscan.with.peaks$var_id))
 message("Number of rSNPs: ", nbrSNPs)
@@ -1714,7 +1778,7 @@ bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapie
 ## Get information about all genes
 geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
 
-length(geneIDs.unique)
+#length(geneIDs.unique)
 geneInfo <- getBM(attributes = c('chromosome_name', 
                                  'start_position',
                                  'end_position',
@@ -1759,13 +1823,12 @@ kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 ```
 
 
-
-
 ### Peak annotation 
 
 We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. We presente the genomic annotations of the ChIP-seq paeks co-localised with the rSNPs
 
-```{r peak_annotation_rSNPs, results=FALSE}
+```{r peak_annotation_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+
 
 # Create a bed file for rSNPs overlaped with ChIP-seq peaks
 rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
@@ -1786,15 +1849,7 @@ rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
  peakAnno <- annotatePeak(rSNPs.gr, tssRegion = c(-3000, 3000),
                          TxDb = txdb, annoDb = "org.Hs.eg.db")
  
- #print(peakAnno)
-
- 
- 
-### Genomic annotation
-## Location of the peaks in terms of genomic features.
- 
-upsetplot(peakAnno)
-
+# print(peakAnno)
 
 #plotAnnoBar(peakAnno1)
 plotAnnoPie(peakAnno, 
@@ -1808,119 +1863,44 @@ plotAnnoPie(peakAnno,
 
 # Distribution of TF-binding loci relative to TSS
 # Percentage of binding sites upstream and downstream from the TSS of the nearest genes
-plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to TSS")
+#plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to TSS")
 
 ```
 
 
 
-### Distribution of variation-scan scores
-
-
-```{r varscan_score_distributions, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Distributions of scores returned by variation-scan.** (**A**) Best (red) and worst (blue) p-value. (**B**) Ratio between worst (blue) and best (red) p-value ( pval_ratio = worst_pval/best_pval ). (**C**) emphazise the differences between best weigth for the putative site (red) and worst weigth for the putative site (blue). "), out.width = "100%", fig.width=8, fig.height=7}
-
-par(mfrow = c(2,2))  
-#par(mar = c(9.1, 5.1, 4.1, 2.1))
-
-varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
-varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
-
-best.pval <- -log10(varscan.jaspar.merged$best_pval)
-worst.pval <- -log10(varscan.jaspar.merged$worst_pval)
-
-pval.range <- range(c(best.pval, worst.pval))
-
-n <- nrow(varscan.jaspar.merged)
-f <- 1:n / n
-plot(sort(best.pval), f, type = "l", col = "blue", 
-     xlim = pval.range,
-     main = "A. P-value distributions",
-     xlab = "-log10(P-value)",
-     ylab = "Frequency")
-lines(sort(worst.pval), f, type = "l", col = "red")
-legend(1, 95, legend=c("Best P-value", "Worst P-value"),
-       col=c("blue", "red"), lty=1:2, cex=0.8)
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-###################################################
-## Plotting P-value ratio
-
-
-pvalRatioPos <- log10(varscan.jaspar.merged$pval_ratio)
-
-
-#pvalRatio.range <- range(c(pvalRatioPos, pvalRatioNeg))
-
-n <- nrow(varscan.jaspar.merged)
-f <- 1:n / n
-plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
-     #xlim = pvalRatio,
-     main = "B. P-value ratio distributions",
-     xlab = "-log10(P-value ratio)",
-     ylab = "Frequency")
-
-
-grid(col = "#DDDDDD", lty = "solid")
-
-## Weight
-varscan.jaspar.merged$best_w <- as.numeric(varscan.jaspar.merged$best_w)
-varscan.jaspar.merged$worst_w <- as.numeric(varscan.jaspar.merged$worst_w)
-
-best.weight <- varscan.jaspar.merged$best_w
-worst.weight <- varscan.jaspar.merged$worst_w
-
-weight.range <- range(c(best.weight, worst.weight))
-
-
-n <- nrow(varscan.jaspar.merged)
-f <- 1:n / n
-plot(sort(best.weight), f, type = "l", col = "blue",
-     xlim = weight.range,
-     main = "C. Weight distributions",
-     xlab = "Weight",
-     ylab = "Frequency")
-
-lines(sort(worst.weight), f, type = "l", col = "red")
-
-legend(2000,9.5, # places a legend at the appropriate place 
-      c("best.weight", "worst.weight"))
-
-grid(col = "#DDDDDD", lty = "solid")
-
-#par(mar = c(5.1, 5/1, 4.1, 2.1))
-par(mfrow=c(1,1))
-```
-
-
-```{r varscan_results, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of the scanning of the SOIs with motifs using *variation-scan*.** **A. ** P-value of the best putative site. **B. **  Ratio between worst and best P-value. ")}
+```{r varscan_results, out.width = "100%", fig.width=8, fig.height=4, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of the scanning of the SOIs with motifs using *variation-scan*.** **A. ** P-value of the best putative site. **B. **  Ratio between worst and best P-value. ")}
 
 ## rSNPs with hight effect of motif alteration
 motif.alt.effect <- varscan.with.peaks %>% 
-  dplyr::select(var_id, X.ac_motif, best_pval) 
+  dplyr::select(var_id, label, best_pval) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
+motif.alt.effect$best_pval = -log10(motif.alt.effect$best_pval)
 
-A <- ggplot(motif.alt.effect, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = best_pval),
+
+A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_pval),
      colour = "white") + scale_fill_gradient(low = "white",
      high = "steelblue")+
      labs(x='', y = '')+
       theme_bw()+
-      guides(fill = guide_legend(title = "P-value"))+
+      guides(fill = guide_legend(title = "-log10(P-value)"))+
   ggtitle("rSNPs with hight effect of motif alteration") +
       #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
+      theme(plot.title = element_text(hjust = 0.5,size = 10),
+            axis.title = element_text(size=10),
+            legend.title = element_text(size=10),
+        legend.text = element_text(size=8))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
 
 
 motif.alt.pv_ratio <- varscan.with.peaks %>% 
-  dplyr::select(var_id, X.ac_motif, pval_ratio) 
+  dplyr::select(var_id, label, pval_ratio) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
 
-B <- ggplot(motif.alt.pv_ratio, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = pval_ratio),
+B <- ggplot(motif.alt.pv_ratio, aes(label, var_id)) + geom_tile(aes(fill = pval_ratio),
      colour = "white") + scale_fill_gradient(low = "#145A32",
      high = "#37A3F3")+
      labs(x='', y = '')+
@@ -1928,7 +1908,10 @@ B <- ggplot(motif.alt.pv_ratio, aes(X.ac_motif, var_id)) + geom_tile(aes(fill = 
       guides(fill = guide_legend(title = "Pval-ratio"))+
   #ggtitle("rSNPs with hight effect of motif alteration") +
       #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
+      theme(plot.title = element_text(hjust = 0.5,size = 10),
+            axis.title = element_text(size=10),
+            legend.title = element_text(size=10),
+        legend.text = element_text(size=8))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
 plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
@@ -2001,9 +1984,8 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```
 
 
-### rSNPs and the corresponding TFs 
 
-```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Predicted rSNPs and the corresponding TFs whose DNA binding sites are affected. **B. **rSNPs and associated genes. **")}
+```{r rsnp_tf_gene_tissue, out.width = "100%", fig.width=8, fig.height=7, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Predicted rSNPs and the corresponding TFs whose DNA binding sites are affected. **B. **Predicted TFs across representative tissue/cell types as reported by ReMap catalog. **C. ** rSNPs and associated genes.**")}
 
 ## rSNPs and associated TFs
 
@@ -2012,44 +1994,16 @@ snp.tf <- varscan.with.peaks %>%
   dplyr::group_by(var_id, label) %>% 
   dplyr::summarise(N = n()) 
 
-A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = var_id)) +
+A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = N)) +
      labs(x='TFs', y = 'rSNPs') +
       theme_bw()+
-      guides(fill = FALSE) +
+  guides(fill = guide_legend(title = "TFs"))+
+      #guides(fill = TRUE) +
   #ggtitle("") +
       #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
+      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=10))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
-
-
-# rSNPs and associated genes
-gene.ass <- rSNPs.info %>% 
-  dplyr::select(hgnc_symbol, var_id) %>% 
-  dplyr::group_by(hgnc_symbol, var_id) %>% 
-  dplyr::summarise(N = n()) 
-
-B <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-  geom_tile(aes(fill = var_id)) +
-     labs(x='Genes', y = 'rSNPs') +
-      theme_bw()+
-      guides(fill = FALSE) +
-  #ggtitle("rSNPs and associated genes") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
-```
-
-
-
-
-### Predicting tissue/cell type specific transcription factor binding sites
-
-```{r TFs_vs_rSNPs, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),".TFs whose DNA binding sites are affected by the rSNPs.** **A. ** Predicted TFs across representative tissue/cell types as reported by ReMap catalog.  **B. ** Number of TFs by GEO series")}
-
-#remap.SOI.overlaps.unique <- remap.SOI.overlaps[!duplicated(remap.SOI.overlaps),]
 
 ## TF and tissue
 tissue <- varscan.with.peaks %>% 
@@ -2057,12 +2011,16 @@ tissue <- varscan.with.peaks %>%
   dplyr::group_by(Tissue, name) %>% 
   dplyr::summarise(N = n()) 
 
-A <- ggplot(data=tissue, aes(x=Tissue, y=N, fill=name)) +
+tissue$N <- sort(tissue$N, decreasing = F)
+
+B <- ggplot(data=tissue, aes(x=Tissue, y=N, fill=name)) +
 geom_bar(stat="identity", position=position_dodge(), color="black") +
   theme_bw() +
   labs(x='Tissue', y = 'Frequency')+
       guides(fill = guide_legend(title = "TFs"))+
-  ggtitle("Predicted TFs in the corresponding tissue/cell type") +
+  theme(legend.title = element_text(size=10),
+        legend.text = element_text(size=8))+
+  #ggtitle("Predicted TFs in the corresponding tissue/cell type") +
   coord_flip() +
       #theme(legend.position="none")+
       theme(plot.title = element_text(hjust = 0.5,size = 10),
@@ -2076,34 +2034,26 @@ geom_bar(stat="identity", position=position_dodge(), color="black") +
             panel.grid.minor = element_blank())
 
 
-## GEO accession
-GSE.df <- varscan.with.peaks %>% 
-  dplyr::select(GSE, name) %>% 
-  dplyr::group_by(GSE, name) %>% 
+# rSNPs and associated genes
+gene.ass <- rSNPs.info %>% 
+  dplyr::select(hgnc_symbol, var_id) %>% 
+  dplyr::group_by(hgnc_symbol, var_id) %>% 
   dplyr::summarise(N = n()) 
 
-B <-  ggplot(data=GSE.df, aes(x=GSE, y=N, fill=name)) +
-geom_bar(stat="identity", position=position_dodge()) +
-  #theme_cowplot() +
-   theme_bw() +
-  labs(x='GSE', y = 'TFs') +
-      guides(fill = guide_legend(title = "TFs"))+
-  #ggtitle("TFs by GEO series") +
+C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
+  geom_tile(aes(fill = var_id)) +
+     labs(x='Genes', y = 'rSNPs') +
+      theme_bw()+
+      guides(fill = FALSE) +
+  #ggtitle("rSNPs and associated genes") +
       #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),
-            axis.title = element_text(size=10))+
-      theme(axis.text.x = element_text(angle = 90, 
-                                       vjust = 1, 
-                                       hjust = 1, 
-                                       size = 5),
-            axis.text.y = element_text(size=5),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank())
+      theme(plot.title = element_text(hjust = 0.5, size = 10),axis.title = element_text(size=10))+
+      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
 
-#grid.arrange(A, B, C, D,  ncol=2, nrow = 2)
-plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 
+plot_grid(A, B, C,  labels=c("A", "B", "C"), ncol = 2, nrow = 2)
 ```
+
 
 
 
@@ -2112,7 +2062,7 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 We performe the functional enrichment analysis to identify predominant biological themes among the genes associated with the rSNPs (Gene Of Interest, GOI) by incorporating biological knowledge provided by biological ontologies.
 
 
-```{r functional_analysis_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r functional_analysis_rSNPs, results=FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
 
@@ -2137,7 +2087,7 @@ dotplot(pathway2)
 
 We compute the enrichment gene-disease associations of DisGeNET (Janet et al. 2015) from several public data sources and the literature. The DisGeNET contains also gene-disease associations and snp-gene-disease associations.
 
-```{r out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 20 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015). Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
+```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
 
 # Select the GOI
 geneList <- na.omit(rSNPs.info$entrezgene_id)
@@ -2146,45 +2096,34 @@ geneList <- na.omit(rSNPs.info$entrezgene_id)
 edo <- enrichDGN(geneList)
 
 ## Barplot of enrichment gene-disease associations from DisGeNET
-barplot(edo, showCategory = 20)
+barplot(edo, showCategory = 30)
 
 ```
 
 
 
-
-```{r gene_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms. This network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
+```{r results=FALSE, circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms**. This circular network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
 
 ## convert gene ID to Symbol
 edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
 
 
-## Network of the linkages of genes and biological concepts
+## Circular network of the linkages of genes and biological concepts
 
-#cnetplot(edox, foldChange=geneList)
-
-cnetplot(edox, categorySize="pvalue", foldChange=geneList)
-
-```
-
-
-
-```{r circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Circular network of the linkages of genes and biological concepts.")}
-## Circular networ.
 cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
 
 ```
 
 
 
-```{r emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets")}
+```{r results=FALSE, emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets.**")}
 
 emapplot(edo)
 
 ```
 
 
-```{r heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of GOI and enriched terms.")}
+```{r results=FALSE, heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of genes of interest (GOI) and enriched terms.**")}
 
 heatplot(edox, foldChange=geneList)
 
@@ -2195,8 +2134,7 @@ heatplot(edox, foldChange=geneList)
 
 The below bar charts shown the tissue-specific gene enrichment.
 
-```{r tissue_specific_gene_enrichment, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** **A. ** the x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. **B. **  the x-axis shows each of the tissues, and the y-axis represents the fold-change values of the tissue-specific gene enrichment. ")}
-
+```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. ")}
 
 # Select the associated genes with the rSNPs
 inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
@@ -2209,27 +2147,22 @@ enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = ro
 enrichmentOutput$Tissue <- row.names(enrichmentOutput)
 
 
-s <- ggplot(enrichmentOutput,aes(x=reorder(Tissue,-Log10PValue),y=Log10PValue,label = Tissue.Specific.Genes,fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = '-LOG10(P-Adjusted)')+
-      theme_bw()+
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+ggplot(enrichmentOutput,
+       aes(x=reorder(Tissue,-Log10PValue),
+           y=Log10PValue,
+           label = Tissue.Specific.Genes,
+           fill = Tissue))+
+  geom_bar(stat = 'identity')+
+  labs(x='', y = '-LOG10(P-Adjusted)')+
+  theme_bw()+
+  theme(legend.position="none")+
+  theme(plot.title = element_text(hjust = 0.5,size = 20),
+        axis.title = element_text(size=15))+
+  theme(axis.text.x = element_text(angle = 45, 
+                                   vjust = 1, hjust = 1),
+        panel.grid.major= element_blank(),
+        panel.grid.minor = element_blank())
 
-
-h <- ggplot(enrichmentOutput,aes(x=reorder(Tissue,-fold.change),y=fold.change,label = Tissue.Specific.Genes,fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = 'Fold change')+
-      theme_bw()+
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-
-# grid.arrange(s, h, labels=c("A", "B"), ncol=1, nrow = 2,   top = textGrob("Tissue-specific gene enrichment ", gp=gpar(fontsize=12,font=3)))
-
-plot_grid(s, h, labels=c("A", "B"), ncol = 1, nrow = 2)
 ```
 
 
