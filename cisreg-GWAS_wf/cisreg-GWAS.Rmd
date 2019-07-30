@@ -118,8 +118,8 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  #query =  "EFO_0001068", # malaria
-  query = "EFO_0001360", # type ii diabetes mellitus
+  query =  "EFO_0001068", # malaria
+  #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
@@ -556,12 +556,14 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 In total, we found `r length(DArsIDs)` **disease-associated (DA) SNPs** from GWAS catalog.
 
 
-### Proportion of genomic context of the disease-associated SNPs
+## Getting information about DA SNPs from BioMart
 
-The barplot shows the genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
+The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
 
 
-```{r DA_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated variants from GWAS catalog.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+
+
+```{r DA_SNPs, out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Find the genomic tag SNPs informations
 message("Retrieving genomic information about ", length(DArsIDs), " disease-associated SNPs.")
@@ -576,31 +578,20 @@ if (parameters$GWAS.REST) {
 
 # names(gwas.results)
 
-# Create a data frame
-DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
-
-## Make the frequencies numbers (rather than factors)
-DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
-
-#Barplot of genomic context of DA-SNPs
-ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat = "identity", fill = "#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust = -0.5, size = 4)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_cowplot()+
-  coord_flip()
-
-
-## JvH:Yvon, je pense que ceci pose problème car si tu as des valeurs uniques de PUBMEDID même si un SNP est caractérisé par plusieurs études. Il n'y a pas de raison d'inclure le PUBMEDID dans ce tableau-ci, je propose donc de simplifier en exportant un tableau avec 1 colonne pour le SNP ID et 1 colonne pour le nombre d'études d'association. 
-# studiesPerSNP <- 
-#   gwas.results %>% 
-#   dplyr::select(PUBMEDID, SNPS) %>% 
-#   dplyr::group_by(SNPS, PUBMEDID) %>%
-#   dplyr::summarise(N = n())
-
-# ## Total number of associations (all studies)
-# nbAss <- nrow(gwas.results) 
+# # Create a data frame
+# DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
+# 
+# ## Make the frequencies numbers (rather than factors)
+# DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
+# 
+# #Barplot of genomic context of DA-SNPs
+# ggplot(data=DA.df, aes(x=Context, y=Freq)) +
+#   geom_bar(stat = "identity", fill = "#207DC2", color="black")+
+#   geom_text(aes(label=Freq), vjust=-0.1, hjust = -0.5, size = 4)+
+#   xlab("Genomic context")+
+#   ylab("Frequency")+
+#   theme_cowplot()+
+#   coord_flip()
 
 ## Number of studies per SNP
 studiesPerSNP <- as.data.frame.table(sort(table(gwas.results$SNPS), decreasing = TRUE))
@@ -634,7 +625,8 @@ kable(as.data.frame(workflowSummary),
 
 ```
 
-## Getting information about DA SNPs from BioMart
+
+
 
 
 ```{r biomart_filter_da_ids}
@@ -674,17 +666,42 @@ workflowSummary["Valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ```
 
-```{r da_snps_per_chrom_barplot, fig.cap="Number of Disease-associated SNPs per chromosome. ", out.width="50%", fig.width=6, fig.height=8}
 
+
+```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Disease-associated SNPs per chromosome. **B. ** Genomic context of disease-associated SNPs from GWAS catalog.** "), out.width="50%", fig.width=6, fig.height=8}
+
+
+par(mfrow = c(1,2)) 
+#par.ori <- par(no.readonly = TRUE)
+par(mar = c(5.1, 8, 9.1, 1.1))
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
 barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
         #main = "Disease-associated SNPs per chromosome",
+        main = "A",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        horiz = TRUE, col = "#BBDDFF",
-        cex.names = 0.8, las = 1)
+        cex.axis = 0.8,
+        horiz = TRUE,
+        col = "#BBDDFF",
+        cex.names = 0.7, 
+        las = 1)
 
+df <- sort(table(tagSNPsInfo$CONTEXT),  decreasing = FALSE)
+max.context <- length(df)
+x <- barplot(height = df,
+        #main = "Disease-associated SNPs per chromosome",
+        xlim = c(0, max(df)*1.1),
+        cex.axis = 1,
+        main = "B",
+        cex.lab = 1,
+        horiz = TRUE, 
+        col = "#DBDDFF",
+        cex.names = 0.7, 
+        las = 1)
+text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 0.7, pos = 4)
+#par(par.ori)
 
+par(mfrow = c(1,1)) 
 ```
 
 
@@ -824,6 +841,7 @@ snpInfo <- getBM(attributes = c('refsnp_source',
                                 'refsnp_id',
                                 'allele_1',
                                 'allele',
+                                'minor_allele_freq',
                                 'cds_start',
                                 'cds_end',
                                 'ensembl_gene_stable_id',
@@ -977,49 +995,43 @@ write.table(x = SOIs,
 
 
 
-```{r genomic_context_of_SOIs, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". (A) Genomic context of disease-associated (DA) SNPs and SNPs in linkage disequilibrium (LD). (B) Genomic context of the SOIs. The SOIs are selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).** ")}
+```{r genomic_context_of_SOIs, out.width = "100%", fig.width=8, fig.height=6, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic feature of the SNPs of Interest (SOIs)** **A. ** Number of the SOIs per chromosome. **B. ** Genomic context of the SOIs, which  were selected by discarding all SNPs in conding regions (e.g. synonymous_variant, missense_variant).")}
+par(mfrow = c(1,2)) 
+#par.ori <- par(no.readonly = TRUE)
+par(mar = c(5.1, 8, 3.1, 2.1))
+## Draw a barplot with the number of disease-associated SNPs per chromosome
+barplot(height = sort(table(SOIs$chr_name), decreasing = FALSE), 
+        #main = "Disease-associated SNPs per chromosome",
+        main = "A",
+        xlab = "SNPs",
+        ylab = "Chromosomes",
+        cex.axis = 0.8,
+        horiz = TRUE,
+        col = "#6699ff",
+        cex.names = 0.7, 
+        las = 1)
+#box()
 
-#Barplot of genomic context of DA and LD SNPs
-snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
-# barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
-#         #main = "Genomic context of DA and LD SNPs",
-#         las=2, cex.names = 0.7, col = "#207DC2", xlab="", ylab="Number of SNPs",)
-# Create a data frame
-Context <- snpInfo$consequence_type_tv
-DA.df <- as.data.frame.table(sort(table(Context), decreasing = T))
-## Make the frequencies numbers (rather than factors)
-## JvH (2019-07-25): this is not necessary with as.data.frame.table() above
-# DA.df$Freq <- unlist(DA.df$Freq)
+soi.df <- sort(table(SOIs$consequence_type_tv),  decreasing = FALSE)
+max.context <- length(soi.df)
+x <- barplot(height = soi.df,
+        #main = "Disease-associated SNPs per chromosome",
+        xlim = c(0, max(soi.df)*1.1),
+        cex.axis = 1,
+        main = "B",
+        xlab = "SNPs",
+        cex.lab = 1,
+        horiz = T, 
+        col = "#ffcc99",
+        cex.names = 0.7, 
+        las = 1)
+text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 0.7, pos = 4)
+#box()
 
-# Barplot of genomic context of DA-SNPs
-A <- ggplot(data = DA.df, aes(x = Context, y=Freq)) +
-  geom_bar(stat = "identity", fill="#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_classic()+
-  coord_flip()
+#par(par.ori)
 
-
-#Barplot of genomic context of the SOIs
-
-# Create a data frame
-Context <- SOIs$consequence_type_tv
-DA.df <- data.frame(sort(table(Context), decreasing = T))
-
-B <- ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat="identity", fill="#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_classic()+
-  coord_flip()
-
-plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
-
-
+par(mfrow = c(1,1)) 
 ```
-
 
 
 
@@ -1256,13 +1268,13 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 # 
 # ## Parse the content returned from the server
 # varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
-# 
-# ## Parse the JSON content
+
+## Parse the JSON content
 # varSeq.fromJSON <- fromJSON(varSeq.content)
 # varSeq.server.path <- varSeq.fromJSON$result_path
 # varSeq.URL <- varSeq.fromJSON$result_url
-# 
-# ## Download variation info result and store it to a local file
+
+## Download variation info result and store it to a local file
 # varSeq.file <- file.path(
 #   result.dir.path["RSAT"],
 #   paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
