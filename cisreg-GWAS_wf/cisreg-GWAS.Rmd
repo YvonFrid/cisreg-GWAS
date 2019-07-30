@@ -511,6 +511,7 @@ gwas.results <- read.delim(file = outfiles["GWAS-SNP associations (GWAS downlaod
                           sep = "\t", 
                           stringsAsFactors = FALSE,
                           na.strings = c(""," ","NA"))
+# View(gwas.results)
 
 #### Compute statistics about the associations ####
 
@@ -528,6 +529,7 @@ message("Unique disease-associated SNPs: ", nb.DA.SNPs)
 
 ## Check SNP IDs
 DA.rsIDs <- grep(pattern = '^rs\\d+', DAsnpIDs, perl = TRUE, value = TRUE)
+nb.DA.rsIDs <- length(DA.rsIDs)
 #workflowSummary["DA: Disease-associated SNPs"] <- nb.DA.rsIDs
 nonrsIDs <- setdiff(DAsnpIDs, DA.rsIDs)
 
@@ -565,7 +567,7 @@ The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to 
 ```{r DA_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated variants from GWAS catalog.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Find the genomic tag SNPs informations
-message("Retrieving genomic information about ", nb.DA.rsIDs, " disease-associated SNPs.")
+message("Analysing genomic context for ", nb.DA.rsIDs, " disease-associated SNPs.")
 
 if (parameters$GWAS.REST) {
   tagSNPsInfo <- gwas.results[, c("rsId", "functionalClass")]
@@ -663,7 +665,7 @@ DA.snpInfo <- getBM(
 
 # Removing the duplicated information
 DA.snpInfo <- DA.snpInfo[!duplicated(DA.snpInfo$refsnp_id),]
-
+# View(DA.snpInfo)
 
 ## Select valid SNP IDs, i.e. those for which we could get information from BioMart
 valid.DA.snp.ID <- DA.snpInfo$refsnp_id
@@ -679,7 +681,7 @@ workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
 barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE), 
-        #main = "Disease-associated SNPs per chromosome",
+        main = "Disease-associated SNPs per chromosome",
         xlab = "SNPs",
         ylab = "Chromosomes",
         horiz = TRUE, col = "#BBDDFF",
@@ -795,14 +797,19 @@ message("\tTotal number of LD SNPs: ", nbLDSNPs)
 #sort(table(LDsnpIDs))
 
 ## Merge DA-SNPs and LD-SNPs
-rsIDs <- sort(unique(c(valid.DA.snp.ID, LDsnpIDs)))
+DA.LD.IDs <- sort(unique(c(valid.DA.snp.ID, LDsnpIDs)))
+
+## Make sure all IDs (including those of LD SNPs we just retrieved) start with "rs"
+rsIDs <- grep(pattern = "^rs", x = DA.LD.IDs, value = TRUE)
 nbSNPs <- length(rsIDs)
 workflowSummary["Union of DA and LD SNPs"] <- nbSNPs
-
 message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
 # Kable
-kable(head(LdSNPs), caption = paste0("Top of the table describing the variants in Linkage disequilibrium (LD) with disease-associated SNPs within the window size of set to ", parameters$ld.distance, " kb"))
+kable(head(LdSNPs), caption = paste0(
+  "Top of the table describing the variants in linkage disequilibrium (LD) with disease-associated (DA) SNPs. ",
+  " Min r2 = ", parameters$r2, ".", 
+  "Max window size = ", parameters$ld.distance, " kb. "))
 
 ```
 
@@ -910,10 +917,10 @@ SOIs$consequence_type_tv[SOIs$consequence_type_tv == ""] <- "unknown"
 
 # dim(SOIs)
 nbSOIs <- nrow(SOIs)
-workflowSummary["SOIs: SNPs of interest"] <- nbSOIs
+workflowSummary["SOIs: SNPs of interest (non-coding DA or LD)"] <- nbSOIs
 message("\tSelected ", 
         nbSOIs, " SNPs of Interest (non-coding) among ", 
-        nrow(snpInfo), " SNPs from GWAS or in LD. ")
+        nrow(snpInfo), " SNPs (DA or LD). ")
 
 
 
@@ -934,12 +941,12 @@ SOIsBed.gr <- with(SOIsBed,
 
 
 ## Export rsID of SOIs in txt format
-soiTxt.file <- file.path(
+outfiles["SOI IDs (txt)"] <- file.path(
   result.dir.path["SOIs"], 
-  paste(sep = "", parameters$query, "_SOIs", ".txt"))
+  paste(sep = "", parameters$query, "_SOI_IDs", ".txt"))
 
 write.table(x = SOIs$refsnp_id,
-              file = soiTxt.file,
+              file = outfiles["SOI IDs (txt)"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
@@ -947,26 +954,26 @@ write.table(x = SOIs$refsnp_id,
 #system(paste("open", result.dir.path["SOIs"]))
 
 ## Export SOIs in BED format
-soiBed.file <- file.path(
+outfiles["SOI coordinates (bed)"] <- file.path(
   result.dir.path["SOIs"], 
   paste(sep = "", parameters$query, "_SOIs", ".bed"))
 
 write.table(x = SOIsBed,
-              file = soiBed.file,
+              file = outfiles["SOI coordinates (bed)"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
               col.names = FALSE)
-#system(paste("open", result.dir.path["SOIs"]))
+# system(paste("open", result.dir.path["SOIs"]))
 
 
 ## Export SOIs file in tsv format
-soi.file <- file.path(
+outfiles["SOI descriptions (tsv)"] <- file.path(
   result.dir.path["SOIs"], 
   paste(sep = "", parameters$query, "_SOIs", ".tsv"))
 
 write.table(x = SOIs,
-              file = soi.file,
+              file = outfiles["SOI descriptions (tsv)"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
@@ -982,41 +989,39 @@ write.table(x = SOIs,
 
 #Barplot of genomic context of DA and LD SNPs
 snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
-# barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
-#         #main = "Genomic context of DA and LD SNPs",
-#         las=2, cex.names = 0.7, col = "#207DC2", xlab="", ylab="Number of SNPs",)
+
 # Create a data frame
-Context <- snpInfo$consequence_type_tv
-DA.df <- as.data.frame.table(sort(table(Context), decreasing = T))
+allSNPs.Context <- snpInfo$consequence_type_tv
+allSNPs.DA.df <- as.data.frame.table(sort(table(allSNPs.Context), decreasing = T))
 ## Make the frequencies numbers (rather than factors)
 ## JvH (2019-07-25): this is not necessary with as.data.frame.table() above
 # DA.df$Freq <- unlist(DA.df$Freq)
 
 # Barplot of genomic context of DA-SNPs
-A <- ggplot(data = DA.df, aes(x = Context, y=Freq)) +
-  geom_bar(stat = "identity", fill="#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_classic()+
+A <- ggplot(data = allSNPs.DA.df, aes(x = allSNPs.Context, y = Freq)) +
+  geom_bar(stat = "identity", fill = "#207DC2", color = "black") +
+  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 3.5) +
+  xlab("Genomic context") +
+  ylab("Frequency") +
+  theme_classic() +
   coord_flip()
 
 
 #Barplot of genomic context of the SOIs
 
 # Create a data frame
-Context <- SOIs$consequence_type_tv
-DA.df <- data.frame(sort(table(Context), decreasing = T))
+SOIs.Context <- SOIs$consequence_type_tv
+SOIs.DA.df <- data.frame(sort(table(SOIs.Context), decreasing = T))
 
-B <- ggplot(data=DA.df, aes(x=Context, y=Freq)) +
-  geom_bar(stat="identity", fill="#207DC2", color="black")+
-  geom_text(aes(label=Freq), vjust=-0.1, hjust=-0.5, size=3.5)+
-  xlab("Genomic context")+
-  ylab("Frequency")+
-  theme_classic()+
+B <- ggplot(data = SOIs.DA.df, aes(x = SOIs.Context, y = Freq)) +
+  geom_bar(stat = "identity", fill = "#207DC2", color = "black") +
+  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 3.5) +
+  xlab("Genomic context") +
+  ylab("Frequency") +
+  theme_classic() +
   coord_flip()
 
-plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
+plot_grid(A, B,  labels = c("A", "B"), ncol = 1, nrow = 2)
 
 
 ```
@@ -1088,6 +1093,8 @@ par(mar = c(5.1, 7, 3.1, 1.1))
 #         cex.axis = 1,
 #         cex.lab = 1)
 # 
+
+## Draw a barplot with the number of SNPs per LD block (one block per DA SNP)
 ld.block <- sort(unlist(lapply(ldGroups, length)), decreasing = TRUE)
 max.snps <- min(length(ld.block), 20)
 y <- barplot(
@@ -1147,39 +1154,41 @@ message("Running enrichment analysis (xEnricherSNPs) for diseasess")
 snpList <- SOIs$refsnp_id
 
 # Run xEnricherSNPs
-eTerm <- xEnricherSNPs(snpList, 
-                       ontology = c("EF", 
-                                    "EF_disease",
-                                    "EF_phenotype", 
-                                    "EF_bp"), 
-                       include.LD = parameters$include.LD,
-                       LD.r2 = parameters$r2,
-                       size.range = c(10, 2000),
-                       RData.location = "http://galahad.well.ox.ac.uk/bigdata")
+eTerm <- c(snpList, 
+           ontology = c("EF", 
+                        "EF_disease",
+                        "EF_phenotype", 
+                        "EF_bp"), 
+           include.LD = parameters$include.LD,
+           LD.r2 = parameters$r2,
+           size.range = c(10, 2000),
+           RData.location = "http://galahad.well.ox.ac.uk/bigdata")
 
 
 # View enrichment results
-enrichSNPsResults <- xEnrichViewer(eTerm, 
-                                   sortBy = c("adjp", 
-                                              "fdr", 
-                                              "pvalue",
-                                              "zscore", 
-                                              "fc", 
-                                              "nAnno", 
-                                              "nOverlap",
-                                              "or", 
-                                              "none"), 
-                                   decreasing = NULL,
-                                   details = F)
+enrichSNPsResults <- xEnrichViewer(
+  eTerm, 
+  sortBy = c("adjp", 
+             "fdr", 
+             "pvalue",
+             "zscore", 
+             "fc", 
+             "nAnno", 
+             "nOverlap",
+             "or", 
+             "none"), 
+  decreasing = NULL,
+  details = F)
 
 
 #View(enrichSNPsResults)
 # visualises enrichment results using a barplot.
 
-bp <- xEnrichBarplot(
+par(mfrow = c(1,2))
+
+bp.fc <- xEnrichBarplot(
   eTerm, top_num = 20, 
-  displayBy = c("fc", "adjp", "fdr",
-                "zscore", "pvalue"), 
+  displayBy = "fc", 
   FDR.cutoff = 0.05, 
   bar.label = TRUE,
   bar.label.size = 3, 
@@ -1188,7 +1197,22 @@ bp <- xEnrichBarplot(
   wrap.width = NULL, 
   font.family = "sans",
   signature = TRUE)
-print(bp)
+print(bp.fc)
+
+bp.adjp <- xEnrichBarplot(
+  eTerm, top_num = 20, 
+  displayBy = "adjp", 
+  FDR.cutoff = 0.05, 
+  bar.label = TRUE,
+  bar.label.size = 3, 
+  bar.color = "yellow-orange",
+  bar.width = 0.8, 
+  wrap.width = NULL, 
+  font.family = "sans",
+  signature = TRUE)
+print(bp.adjp)
+
+par(mfrow = c(1,1))
 
 
 
@@ -1366,7 +1390,10 @@ jaspar.annotation.file <- file.path(
   result.dir.path["JASPAR"],
   paste0("jaspar_", "CORE", "_", "vertebrates", "_matrix_annotations.tsv"))
 
+
+
 if (file.exists(jaspar.annotation.file)) {
+  message("Loading Jaspar annotation table from file\n\t", jaspar.annotation.file)
   ## Load Jaspar annotation table from file if it exists
   jaspar.annotation.table <- read.delim(jaspar.annotation.file, header = TRUE, sep = "\t")
 } else {
@@ -1380,6 +1407,8 @@ if (file.exists(jaspar.annotation.file)) {
     save.logos = FALSE,
     overwrite = FALSE)
 }
+# View(jaspar.annotation.table)
+message("Loaded Jaspar annotation table for ", nrow(jaspar.annotation.table), " motifs. ")
 
 ```
 
@@ -1417,17 +1446,24 @@ varscan.jaspar.merged$label <- paste(varscan.jaspar.merged$X.ac_motif, varscan.j
 # barplot(sort(table(varscan.jaspar.merged$matrix_id), decreasing = TRUE),
 SNPs.per.motif <- sort(table(varscan.jaspar.merged$label), decreasing = TRUE)
 
-par(mfrow = c(1,2))  
-par(mar = c(9.1, 5.1, 4.1, 2.1))
-barplot(SNPs.per.motif,
-        main = "A. variation-scan\nSNPs per motif",
-        xlab = "Number of predicted rSNPs",
-        ylab = "Motif rank",
-        las = 2, names = 1:length(SNPs.per.motif),
-        col = "#37A3F3", border = "#37A3F3",
-        horiz = FALSE)
+max.motifs <- min(length(SNPs.per.motif), 20)
 
-barplot(SNPs.per.motif[1:30],
+if (max.motifs > length(SNPs.per.motif)) {
+  # plot distribution of SNPs per motif for all motifs, without labels
+  par(mfrow = c(1,2))  
+  par(mar = c(9.1, 5.1, 4.1, 2.1))
+  barplot(SNPs.per.motif,
+          main = "A. variation-scan\nSNPs per motif",
+          xlab = "Number of predicted rSNPs",
+          ylab = "Motif rank",
+          las = 2, names = 1:length(SNPs.per.motif),
+          col = "#37A3F3", border = "#05245F",
+          horiz = FALSE)
+}
+
+## Plot the SNPs per motif for the top-ranking motifs only, in order to see the labels
+par(mar = c(9.1, 5.1, 4.1, 2.1))
+barplot(SNPs.per.motif[1:max.motifs],
         main = "B. variation-scan\nTop-ranking motifs",
         ylab = "Number of predicted rSNPs",
         xlab = NA,
@@ -1435,7 +1471,7 @@ barplot(SNPs.per.motif[1:30],
         col = "#37A3F3", border = "#05245F",
         horiz = FALSE)
 par(mar = c(5.1, 5/1, 4.1, 2.1))
-par(mfrow=c(1,1))
+par(mfrow = c(1,1))
 ```
 
 
@@ -1481,8 +1517,8 @@ plot(sort(best.pval), f, type = "l", col = "blue",
      xlab = "-log10(P-value)",
      ylab = "Frequency")
 lines(sort(worst.pval), f, type = "l", col = "red")
-legend(1, 95, legend=c("Best P-value", "Worst P-value"),
-       col=c("blue", "red"), lty=1:2, cex=0.8)
+legend(1, 95, legend = c("Best P-value", "Worst P-value"),
+       col = c("blue", "red"), lty = 1:2, cex = 0.8)
 
 
 grid(col = "#DDDDDD", lty = "solid")
