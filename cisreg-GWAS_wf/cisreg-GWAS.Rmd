@@ -135,10 +135,11 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
+  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+  RSAT.varscan.pval = 1e-4,
+  RSAT.varscan.pval.ratio = 100,
   jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
-  #RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest.wsgi/",
-  #RSAT.rest.root = "http://134.158.247.7/rsat/rest/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
   remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
 )
@@ -1243,90 +1244,101 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 ```{r rsat_rest_api_R}
 
-# # Create the vector of SOIs
-# input <- paste(collapse = ",", SOIs$refsnp_id)
-# 
-# ## Build the API request for variation-info and submit it
-# message("\tRetrieving information on variants from RSAT REST Web services")
-# 
-# varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
-#             body = list(i_string = input,
-#                         i_string_type = 'text'))
-# 
-# ## Parse the content returned from the server
-# varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-# # class(varInfo.content)
-# 
-# ## Parse the JSON content
-# varinfo.fromJSON <- fromJSON(varInfo.content)
-# # class(varinfo.fromJSON)
-# # names(varinfo.fromJSON)
-# varInfo.URL <- varinfo.fromJSON$result_url
-# varInfo.server.path <- varinfo.fromJSON$result_path
-# 
-# ## Download variation info result and store it to a local file
-# varInfo.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
-# download.file(url = varInfo.URL, destfile = varInfo.file)
-# #system(paste("open", result.dir.path["RSAT"]))
-# 
-# 
-# 
-# ## Build the API request for retrieve-variation-seq and submit it
-# message("\tRetrieval of the sequences surrounding variants from RSAT REST Web services")
-# varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
-#                body = list(i_string = varInfo.server.path,
-#                            i_string_type = 'piping'))
-# 
-# ## Parse the content returned from the server
-# varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
-# 
-# ## Parse the JSON content
-# varSeq.fromJSON <- fromJSON(varSeq.content)
-# varSeq.server.path <- varSeq.fromJSON$result_path
-# varSeq.URL <- varSeq.fromJSON$result_url
-# 
-# ## Download variation info result and store it to a local file
-# varSeq.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
-# download.file(url = varSeq.URL, destfile = varSeq.file)
-# #system(paste("open", result.dir.path["RSAT"]))
 
-# ## Build the API request for Variation-scan and submit it
-# message("Scanning variant alleles with motifs via RSAT REST services")
-# varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
-#                 body = list(
-#                   i_string = varSeq.server.path,
-#                   i_string_type = 'piping',
-#                   m_string = parameters$motifDB.URL,
-#                   m_string_type = "url",
-#                   m_format =  "transfac"),
-#                   top = 2,
-#                   #uth_pval = 0.004,
-#                   #lth_pval_ratio = 100,
-#                   add_headers("Accept" = "application/json"))
-# #                add_headers("Accept" = "text/plain"))
-# 
-# # var <- content(varscan, "text", encoding = "UTF-8")
-# # var <- fromJSON(var)
-# 
-# 
-# ## Parse the content returned from the server
-# varscan.content <- httr::content(varscan, "text", encoding = "UTF-8")
-# 
-# ## Parse the JSON content
-# varscan.fromJSON <- fromJSON(varscan.content)
-# varscan.server.path <- varscan.fromJSON$result_path
-# varscan.URL <- varscan.fromJSON$result_url
-# 
-# ## Download variation info result and store it to a local file
-# varscan.file <- file.path(
-#   result.dir.path["RSAT"],
-#   paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
-# download.file(url = varscan.URL, destfile = varscan.file)
-# system(paste("open", result.dir.path["RSAT"]))
+if (parameters$RSAT.rest) {
+  
+  #### RSAT variation-info ####
+  
+  # Create the vector of SOIs
+  SOI.string <- paste(collapse = ",", SOIs$refsnp_id)
+  # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
+  
+  ## Submit a query to variation-info via the REST interface
+  message("\tRetrieving information on variants from RSAT REST Web services")
+  varInfo.time <- system.time(
+    varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
+                    body = list(i_string = SOI.string,
+                                i_string_type = 'text'))
+  )
+  # View(varInfo)
+  message("Time to run RSAT variation-info\n", varInfo.time)
+  
+  ## Extract the content from the REST response
+  varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
+  # class(varInfo.content)
+  
+  ## Parse the JSON content
+  varinfo.fromJSON <- fromJSON(varInfo.content)
+  # names(varinfo.fromJSON)
+  varInfo.URL <- varinfo.fromJSON$result_url
+  varInfo.server.path <- varinfo.fromJSON$result_path
+  
+  ## Download variation info result and store it to a local file
+  outfiles["RSAT variation-info (varBed)"] <- file.path(
+    result.dir.path["RSAT"],
+    paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
+  download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
+  # system(paste("open", result.dir.path["RSAT"]))
+  
+  #### RSAT variation-seq ####s
+  
+  # ## Build the API request for retrieve-variation-seq and submit it
+  message("\tRetrieving the sequences surrounding variants from RSAT REST Web services")
+  varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+                 body = list(i_string = varInfo.server.path,
+                             i_string_type = 'piping'))
+  
+  ## Parse the content returned from the server
+  varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
+  
+  ## Parse the JSON content
+  varSeq.fromJSON <- fromJSON(varSeq.content)
+  varSeq.server.path <- varSeq.fromJSON$result_path
+  varSeq.URL <- varSeq.fromJSON$result_url
+  
+  ## Download variation info result and store it to a local file
+  outfiles["RSAT retrieve-variation-seq (varSeq)"] <- file.path(
+    result.dir.path["RSAT"],
+    paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
+  download.file(url = varSeq.URL, destfile = outfiles["RSAT retrieve-variation-seq (varSeq)"])
+    # system(paste("open", result.dir.path["RSAT"]))
+
+  #### RSAT variation-scan ####
+  
+  ## Build the API request for Variation-scan and submit it
+  message("Scanning variant alleles with motifs via RSAT REST services")
+  varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
+                  body = list(
+                    i_string = varSeq.server.path,
+                    i_string_type = 'piping',
+                    m_string = parameters$motifDB.URL,
+                    m_string_type = "url",
+                    m_format =  "transfac"),
+                  top = 2,
+                  uth_pval = parameters$RSAT.varscan.pval,
+                  lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
+                  add_headers("Accept" = "application/json"))
+  #                add_headers("Accept" = "text/plain"))
+  
+  # var <- content(varscan, "text", encoding = "UTF-8")
+  # var <- fromJSON(var)
+  
+  
+  ## Parse the content returned from the server
+  varscan.content <- httr::content(varscan, "text", encoding = "UTF-8")
+  
+  ## Parse the JSON content
+  varscan.fromJSON <- fromJSON(varscan.content)
+  varscan.server.path <- varscan.fromJSON$result_path
+  varscan.URL <- varscan.fromJSON$result_url
+  
+  ## Download variation info result and store it to a local file
+  outfiles["RSAT variation-scan (tsv)"] <- file.path(
+    result.dir.path["RSAT"],
+    paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
+  download.file(url = varscan.URL, destfile = outfiles["RSAT variation-scan (tsv)"])
+  system(paste("open", result.dir.path["RSAT"]))
+}
 
 ```
 
@@ -1834,17 +1846,6 @@ message("Gettting information about ", nb.genes, " genes in Ensembl.")
 
 ## Get information about all genes
 #length(geneIDs.unique)
-geneInfo <- getBM(attributes = c('chromosome_name', 
-                                 'start_position',
-                                 'end_position',
-                                 'ensembl_gene_id',
-                                 'hgnc_symbol',
-                                 'entrezgene_id',
-#                                 'go_id', ## Yvon, je supprime go_id, car il provoque une multiplication des annotations (je suppose que c'est parce qu'un gène appartient à plusieurs classes GO)
-                                 'description'), 
-                  filters =  "ensembl_gene_id", 
-                  values = geneIDs.unique, 
-                  mart = bioMartConnection)
 # dim(geneInfo)
 # View(geneInfo)
 # names(geneInfo)
@@ -1856,22 +1857,22 @@ geneInfo.uniq <- geneInfo[!duplicated(geneInfo$ensembl_gene_id),]
 # View(geneInfo.uniq)
 
 # Merging snpInfo and geneInfo data tables
-snpInfo.vs.geneInfo <- merge(x = snpInfo,
+snpInfo.with.geneInfo <- merge(x = snpInfo,
                              y = geneInfo.uniq,
                              by.x = "ensembl_gene_stable_id",
                              by.y = "ensembl_gene_id", 
                              all.x = TRUE)
 # dim(snpInfo)
-# dim(snpInfo.vs.geneInfo)
-# View(snpInfo.vs.geneInfo)
+# dim(snpInfo.with.geneInfo)
+# View(snpInfo.with.geneInfo)
 
 # Merging gene and SNPs informations with the rSNP table
 rSNPs.info <- merge(varscan.with.peaks,
-                          snpInfo.vs.geneInfo,
-                          by.x = "var_id",
-                          by.y = "refsnp_id",
-                          all.x = TRUE,
-                          all.y = FALSE)
+                    snpInfo.with.geneInfo,
+                    by.x = "var_id",
+                    by.y = "refsnp_id",
+                    all.x = TRUE,
+                    all.y = FALSE)
 
 
 rSNPs.info.display <- rSNPs.info[, c("chrom", "hgnc_symbol",  "var_id", "pos_Start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "X.ac_motif", "name",  "consequence_type_tv")]
