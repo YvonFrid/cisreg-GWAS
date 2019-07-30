@@ -1766,38 +1766,52 @@ To achieve this, the workflow merges the *ReMap* and *variation-scan* result tab
 
 ```{r rSNPs, out.width = "80%", fig.width=8, fig.height=4.5}
 
+# dim(varscan.jaspar.merged)
+# names(varscan.jaspar.merged)
+# dim(remap.SOI.overlaps)
+# names(remap.SOI.overlaps)
+# varscan.jaspar.merged$var_id
+# varscan.jaspar.merged$name
+# remap.SOI.overlaps$rsid
+# remap.SOI.overlaps$TF
+
+## Select the intersections between rSNP predictions (variation-scan results) 
+## and ChIP-seq peaks (from ReMap)
 varscan.with.peaks <- merge(
   varscan.jaspar.merged, 
   remap.SOI.overlaps, 
   by.x = c("var_id", "name"),
   by.y = c("rsid", "TF"))
 
-#View(varscan.with.peaks)
+# View(varscan.with.peaks)
 
 #kable(head(varscan.with.peaks[, c( "chrom","pos_Start", "var_id", "X.ac_motif", "name", "best_pval", "pval_ratio")]), caption = "Potential regulatory SNPs ")
 
+## Count the number of rSNPs, i.e. those where the variation-scan prediction matches a ChIP-seq peak annotated in ReMap.
 nbrSNPs <- length(unique(varscan.with.peaks$var_id))
-message("Number of rSNPs: ", nbrSNPs)
 workflowSummary["rSNPs: predicted potential rSNPs"] <- nbrSNPs
+message("Number of rSNPs: ", nbrSNPs)
 
-nbrTFs <- length(unique(varscan.with.peaks$name))
-message("Number of TFs: ", nbrTFs)
-workflowSummary["TFs: TFs whose the TFBS are affected by the rSNPs"] <- nbrTFs
+
+## Count the number of transcription factors whose binding is confirmed by ReMap and predicted by variation-scan to be affected by some SOI
+nb.TFs <- length(unique(varscan.with.peaks$name))
+workflowSummary["TFs: TFs whose the TFBS are affected by the rSNPs"] <- nb.TFs
+message("Number of TFs: ", nb.TFs)
 
 
 
 ## Export the rSNPs file in tsv format
-rsnps.file <- file.path(
+outfiles["rSNPs"] <- file.path(
   result.dir.path["rSNPs"], 
   paste(sep = "", parameters$query, "_rSNPs", ".tsv"))
 
 write.table(x = varscan.with.peaks,
-              file = rsnps.file,
+              file = outfiles["rSNPs"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
               col.names = TRUE)
-#system(paste("open", result.dir.path["rSNPs"]))
+# system(paste("open", result.dir.path["rSNPs"]))
 
 ```
 
@@ -1811,10 +1825,14 @@ bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapie
 
 # JvH 209-07-27: YVON, plutôt que de collecter geneInfo avec le vecteur redondant des gènes associés à chaque SNP, puis de filtrer les valeurs uniques, il me semble plus logique de lancer la requête geneInfo <- getBM avec un vecteur de valeurs uniques pour les IDs ensembl de gènes.
 
+## Select the Ensembl Gene IDs
+geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
+geneIDs.unique <- grep(pattern = "^ENSG", x = geneIDs.unique, value = TRUE)
+# length(geneIDs.unique)
+nb.genes <- length(geneIDs.unique)
+message("Gettting information about ", nb.genes, " genes in Ensembl.")
 
 ## Get information about all genes
-geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
-
 #length(geneIDs.unique)
 geneInfo <- getBM(attributes = c('chromosome_name', 
                                  'start_position',
@@ -1822,7 +1840,7 @@ geneInfo <- getBM(attributes = c('chromosome_name',
                                  'ensembl_gene_id',
                                  'hgnc_symbol',
                                  'entrezgene_id',
-                                 'go_id',
+#                                 'go_id', ## Yvon, je supprime go_id, car il provoque une multiplication des annotations (je suppose que c'est parce qu'un gène appartient à plusieurs classes GO)
                                  'description'), 
                   filters =  "ensembl_gene_id", 
                   values = geneIDs.unique, 
@@ -1831,10 +1849,9 @@ geneInfo <- getBM(attributes = c('chromosome_name',
 # View(geneInfo)
 # names(geneInfo)
 
-# Remove duplicated gene
-# JvH 2019-07-27. YVON, je remplace ci-dessous start_position par entrezgene_id, car a priori on pourrait imaginer que 2 gènes différents aient des positions de départ identiques (par exemple s'ils sont codés dans des sens inverses). Je ne suis pas sûr qu'il y ait des exemples dans le génome humain mais dans des génomes viraux ça ne m'étonnerait pas qu'on en trouve. 
-# geneInfo.uniq <- geneInfo[!duplicated(geneInfo$start_position),]
-geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
+
+# Remove duplicated genes
+geneInfo.uniq <- geneInfo[!duplicated(geneInfo$ensembl_gene_id),]
 # dim(geneInfo.uniq)
 # View(geneInfo.uniq)
 
@@ -1842,7 +1859,10 @@ geneInfo.uniq <- geneInfo[!duplicated(geneInfo$entrezgene_id),]
 snpInfo.vs.geneInfo <- merge(x = snpInfo,
                              y = geneInfo.uniq,
                              by.x = "ensembl_gene_stable_id",
-                             by.y = "ensembl_gene_id")
+                             by.y = "ensembl_gene_id", 
+                             all.x = TRUE)
+# dim(snpInfo)
+# dim(snpInfo.vs.geneInfo)
 # View(snpInfo.vs.geneInfo)
 
 # Merging gene and SNPs informations with the rSNP table
