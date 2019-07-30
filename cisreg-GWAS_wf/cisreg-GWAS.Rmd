@@ -562,7 +562,7 @@ In total, we found `r nb.DA.rsIDs` **disease-associated (DA) SNPs** from GWAS ca
 
 ## Getting information about DA SNPs from BioMart
 
-The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(DArsIDs)` SNPs associated to `r parameters$trait`.
+The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(nb.DA.rsIDs)` SNPs associated to `r parameters$trait`.
 
 The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to `r parameters$trait`.
 
@@ -1203,7 +1203,7 @@ We identify `r nrow(haplotype.block)` haplotype blocks of a given SNP based on t
 We used the `xEnricherSNPs()` function (`XGR package`, [@fang_xgr_2016]) to analyse the enrichment of SNPs for all the traits mapped to EFO in the GWAS catalogues.
 
 
-```{r SNPs_EFO_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for the Experiment Factor Ontology (EFO), analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5 }
+```{r SNPs_EFO_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for the Experiment Factor Ontology (EFO), analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5, eval=FALSE}
 
 
 message("Running enrichment analysis (xEnricherSNPs) for diseasess")
@@ -1527,6 +1527,8 @@ if (max.motifs > length(SNPs.per.motif)) {
           las = 2, names = 1:length(SNPs.per.motif),
           col = "#37A3F3", border = "#05245F",
           horiz = FALSE)
+} else {
+  par(mfrow = c(1,1)) 
 }
 
 ## Plot the SNPs per motif for the top-ranking motifs only, in order to see the labels
@@ -1901,6 +1903,18 @@ nb.genes <- length(geneIDs.unique)
 message("Gettting information about ", nb.genes, " genes in Ensembl.")
 
 ## Get information about all genes
+geneInfo <- getBM(attributes = c('chromosome_name', 
+                                 'start_position',
+                                 'end_position',
+                                 'ensembl_gene_id',
+                                 'hgnc_symbol',
+                                 'entrezgene_id',
+#                                 'go_id', ## Yvon, je supprime go_id, car il provoque une multiplication des annotations (je suppose que c'est parce qu'un gène appartient à plusieurs classes GO)
+                                 'description'), 
+                  filters =  "ensembl_gene_id", 
+                  values = geneIDs.unique, 
+                  mart = bioMartConnection)
+
 #length(geneIDs.unique)
 # dim(geneInfo)
 # View(geneInfo)
@@ -1934,6 +1948,8 @@ rSNPs.info <- merge(varscan.with.peaks,
 rSNPs.info.display <- rSNPs.info[, c("chrom", "hgnc_symbol",  "var_id", "pos_Start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "X.ac_motif", "name",  "consequence_type_tv")]
 
 kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
+
+
 ```
 
 
