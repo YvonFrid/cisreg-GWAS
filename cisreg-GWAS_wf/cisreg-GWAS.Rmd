@@ -1860,7 +1860,6 @@ remap.TFs.per.SOI <- t(as.data.frame(as.list(
      INDICES = remap.SNP.TF$rsid, 
      FUN = paste, collapse = "; "))))
 remap.TFs.per.SOI[is.na(remap.TFs.per.SOI)] <- "" ## Replace NA values by empty string
-# head(TFs.per.SOI)
 colnames(remap.TFs.per.SOI) <- "ReMap.TF.names"
 # class(TFs.per.SOI)
 # View(TFs.per.SOI)
@@ -1927,18 +1926,127 @@ SOIs.annotations[is.na(SOIs.annotations$varscan.TFs), "varscan.TFs"] <- ""
 # View(SOIs.annotations)
 # head(SOIs.annotations)
 
+```
 
+
+```{r SOI_annotations_varscan_inter_remap}
+
+#### Annotate SOIs with the TFs found by both RSAT and ReMap
+
+#' @description Compute the intersection between two strings containing concatenated terms
+#' @author Jacques van Helden
+#' @param x first string
+#' @param y second string
+#' @param case.sensitive=TRUE if FALSE, convert x and y to uppercase in order to perform a case-insensitive comparison
+#' @param split="; " separator
+#' @param ... additional parameters are passed to strsplit()
+#' @example
+#' x <- "GATA1; MIER1; HDGF; ATF1; ZBTB7C"
+#' y <- "RARA::RXRG; Mier1; Mecom; ZBTB7C; RUNX2"
+#' 
+#' ## Case-sensitive comparison
+#' StringSplitIntersect(x, y, split = "; ", case.sensitive = TRUE)
+#' 
+#' #' ## Case-sensitive comparison
+#' StringSplitIntersect(x, y, split = "; ", case.sensitive = FALSE)
+#' @export
+StringSplitIntersect <- function(x, 
+                                 y, 
+                                 case.sensitive = FALSE,
+                                 split = "; ", 
+                                 ...) {
+  if (!case.sensitive) {
+    x <- toupper(x)
+    y <- toupper(y)
+  }
+  x.terms <- unlist(strsplit(x = x, split = split))
+  y.terms <- unlist(strsplit(x = y, split = split))
+  result <- base::intersect(x = x.terms, y = y.terms, ...)
+  return(result)
+}
+
+#SOIs.annotations <- Vectorize(SOIs.annotations)
+# head(SOIs.annotations)
+i <- 1
+SOIs.annotations$TF.names.remap.inter.varscan <- ""
+for (i in 1:nrow(SOIs.annotations)) {
+  common.TF <- StringSplitIntersect(
+    x = SOIs.annotations$varscan.TFs[i],
+    y = SOIs.annotations$ReMap.TF.names[i],
+    case.sensitive = FALSE,
+    split = "; "
+  )
+  SOIs.annotations[i, "remap.inter.varscan.nb.TFs"] <- length(common.TF)
+  SOIs.annotations[i, "remap.inter.varscan.TF.names"] <- paste(common.TF, collapse = "; ")
+}
+# head(SOIs.annotations)
+# View(SOIs.annotations)
 
 ```
 
+
+```{r SOI_annotate_genes}
+#### add gene information to SOI annotations ####
+
+## Get gene features from Ensembl
+#snpInfo$ensembl_gene_stable_id
+# Specify the BioMart database and dataset to use.
+message("Opennig a connection to bioMart")
+bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") 
+
+
+## Select the Ensembl Gene IDs
+SOIs.geneIDs.unique <- as.vector(sort(unique(SOIs.annotations$ensembl_gene_stable_id)))
+SOIs.geneIDs.unique <- grep(pattern = "^ENSG", x = SOIs.geneIDs.unique, value = TRUE)
+# length(geneIDs.unique)
+nb.genes <- length(geneIDs.unique)
+message("Gettting information about ", nb.genes, " genes in Ensembl.")
+
+## Get information about all genes
+SOIs.geneInfo <- getBM(attributes = c('chromosome_name', 
+                                 'start_position',
+                                 'end_position',
+                                 'strand',
+                                 'ensembl_gene_id',
+                                 'hgnc_symbol',
+                                 'entrezgene_id',
+#                                 'go_id', ## Yvon, je supprime go_id, car il provoque une multiplication des annotations (je suppose que c'est parce qu'un gène appartient à plusieurs classes GO)
+                                 'description'), 
+                  filters =  "ensembl_gene_id", 
+                  values = SOIs.geneIDs.unique, 
+                  mart = bioMartConnection)
+
+# length(SOIs.geneIDs.unique)
+# dim(SOIs.geneInfo)
+# View(SOIs.geneInfo)
+# names(SOIs.geneInfo)
+
+# names(SOIs.annotations)
+SOIs.annotations <- merge(x = SOIs.annotations, 
+                          y = SOIs.geneInfo,
+                          all.x = TRUE,
+                          by.x = "ensembl_gene_stable_id",
+                          by.y = "ensembl_gene_id")
+
+# View(SOIs.annotations)
+
+```
+
+
 ```{r export_SOI_annotations}
 
-#### Export SOI annotations with varscan and ReMap ####
+#### Sort the SOI annontation table #### 
+message("Sorting SOI annotations by decreasing intersection between variation-scan and ReMap")
 
+## Sort by decreasing number of TFs at the intersection between ReMap and variation-scan
+SOIs.annotations <- SOIs.annotations[order(SOIs.annotations$remap.inter.varscan.nb.TFs, decreasing = TRUE),]
+
+#### Export SOI annotations with varscan and ReMap ####
 outfiles["SOI annotations with ReMap and varscan (tsv)"] <-
   file.path(
     result.dir.path["rSNPs"],
     paste(sep = "", parameters$query, "_SNPs_varscan_remap", ".tsv"))
+message("Exporting SOI annotations to table\n", outfiles["SOI annotations with ReMap and varscan (tsv)"] )
 write.table(x = SOIs.annotations, quote = FALSE,
             file = outfiles["SOI annotations with ReMap and varscan (tsv)"],
             sep = "\t", row.names = FALSE, col.names = TRUE)
@@ -2095,12 +2203,12 @@ message("Number of TFs: ", nb.TFs)
 
 
 ## Export the rSNPs file in tsv format
-outfiles["rSNPs"] <- file.path(
+outfiles["candidate rSNPs"] <- file.path(
   result.dir.path["rSNPs"], 
   paste(sep = "", parameters$query, "_rSNPs", ".tsv"))
 
 write.table(x = varscan.with.peaks,
-              file = outfiles["rSNPs"],
+              file = outfiles["candidate rSNPs"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
