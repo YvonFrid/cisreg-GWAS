@@ -118,11 +118,11 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  query =  "EFO_0001068", # malaria
+  # query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  # query =  "EFO_0008407", # tuberculosis
+  query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -1406,6 +1406,7 @@ if (parameters$RSAT.rest) {
 varscanFile <- file.path(
   result.dir.path["RSAT"],  
   paste0(parameters$query, "_varscan_web.txt"))
+# system(paste("open ", varscanFile))
 
 ## Load variation-scan results
 ## Note: this is a temporary solution, since variation-scan should be invoked via REST Web services 
@@ -1959,41 +1960,47 @@ We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with
 
 ```{r peak_annotation_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping peak annotations. ")
+  
+} else {
 
-# Create a bed file for rSNPs overlaped with ChIP-seq peaks
-rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
-
-# Create a GRanges object for rSNPs overlaped with ChIP-seq peaks
-
- rSNPs.gr <- with(rSNPs.bed,
+  
+  # Create a bed file for rSNPs overlaped with ChIP-seq peaks
+  rSNPs.bed <- rSNPs.info[, c("seqnames", "start", "end")]
+  
+  
+  # Create a GRanges object for rSNPs overlaped with ChIP-seq peaks
+  rSNPs.gr <- with(rSNPs.bed,
                    GRanges( seqnames = Rle(seqnames),
                             ranges   = IRanges(start =  start, end =  end),
                             strand   = Rle("*")))
- 
- message("Performing a peak annotation..")
- 
-## The TSS regions of 3kb is not restricted to TSS regions. The regions 
-## can be other types that defined by the user.
- 
- 
- peakAnno <- annotatePeak(rSNPs.gr, tssRegion = c(-3000, 3000),
-                         TxDb = txdb, annoDb = "org.Hs.eg.db")
- 
-# print(peakAnno)
-
-#plotAnnoBar(peakAnno1)
-plotAnnoPie(peakAnno, 
-            legend.position = "rightside", 
-            ndigit = 0.5, 
-            cex = 0.1,
-            col = NA,
-            pie3D = FALSE)
- 
-#vennpie(peakAnno1, r = 0.2)
-
-# Distribution of TF-binding loci relative to TSS
-# Percentage of binding sites upstream and downstream from the TSS of the nearest genes
-#plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to TSS")
+  
+  message("Running peak annotation with peakAnno.")
+  
+  ## The TSS regions of 3kb is not restricted to TSS regions. The regions 
+  ## can be other types that defined by the user.
+  
+  
+  peakAnno <- annotatePeak(rSNPs.gr, tssRegion = c(-3000, 3000),
+                           TxDb = txdb, annoDb = "org.Hs.eg.db")
+  
+  # print(peakAnno)
+  
+  #plotAnnoBar(peakAnno1)
+  plotAnnoPie(peakAnno, 
+              legend.position = "rightside", 
+              ndigit = 0.5, 
+              cex = 0.1,
+              col = NA,
+              pie3D = FALSE)
+  
+  #vennpie(peakAnno1, r = 0.2)
+  
+  # Distribution of TF-binding loci relative to TSS
+  # Percentage of binding sites upstream and downstream from the TSS of the nearest genes
+  #plotDistToTSS(peakAnno, title = "Distribution of TF-binding loci \n relative to TSS")
+}
 
 ```
 
@@ -2001,50 +2008,57 @@ plotAnnoPie(peakAnno,
 
 ```{r varscan_results, out.width = "100%", fig.width=8, fig.height=4, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of the scanning of the SOIs with motifs using *variation-scan*.** **A. ** P-value of the best putative site. **B. **  Ratio between worst and best P-value. ")}
 
-## rSNPs with hight effect of motif alteration
-motif.alt.effect <- varscan.with.peaks %>% 
-  dplyr::select(var_id, label, best_pval) 
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping figure. ")
+  
+} else {
+  
+  ## rSNPs with hight effect of motif alteration
+  motif.alt.effect <- varscan.with.peaks %>% 
+    dplyr::select(var_id, label, best_pval) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
-motif.alt.effect$best_pval = -log10(motif.alt.effect$best_pval)
-
-
-A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_pval),
-     colour = "white") + scale_fill_gradient(low = "white",
-     high = "steelblue")+
-     labs(x='', y = '')+
-      theme_bw()+
-      guides(fill = guide_legend(title = "-log10(P-value)"))+
-  ggtitle("rSNPs with hight effect of motif alteration") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),
-            axis.title = element_text(size=10),
-            legend.title = element_text(size=10),
-        legend.text = element_text(size=8))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-
-
-motif.alt.pv_ratio <- varscan.with.peaks %>% 
-  dplyr::select(var_id, label, pval_ratio) 
+  motif.alt.effect$best_pval = -log10(motif.alt.effect$best_pval)
+  
+  
+  A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_pval),
+                                                                colour = "white") + scale_fill_gradient(low = "white",
+                                                                                                        high = "steelblue")+
+    labs(x='', y = '')+
+    theme_bw()+
+    guides(fill = guide_legend(title = "-log10(P-value)"))+
+    ggtitle("rSNPs with hight effect of motif alteration") +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 10),
+          axis.title = element_text(size=10),
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=8))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+  
+  
+  
+  motif.alt.pv_ratio <- varscan.with.peaks %>% 
+    dplyr::select(var_id, label, pval_ratio) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
+  
+  B <- ggplot(motif.alt.pv_ratio, aes(label, var_id)) + geom_tile(aes(fill = pval_ratio),
+                                                                  colour = "white") + scale_fill_gradient(low = "#145A32",
+                                                                                                          high = "#37A3F3")+
+    labs(x='', y = '')+
+    theme_bw()+
+    guides(fill = guide_legend(title = "Pval-ratio"))+
+    #ggtitle("rSNPs with hight effect of motif alteration") +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 10),
+          axis.title = element_text(size=10),
+          legend.title = element_text(size=10),
+          legend.text = element_text(size=8))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+  
+  plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
+}
 
-B <- ggplot(motif.alt.pv_ratio, aes(label, var_id)) + geom_tile(aes(fill = pval_ratio),
-     colour = "white") + scale_fill_gradient(low = "#145A32",
-     high = "#37A3F3")+
-     labs(x='', y = '')+
-      theme_bw()+
-      guides(fill = guide_legend(title = "Pval-ratio"))+
-  #ggtitle("rSNPs with hight effect of motif alteration") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),
-            axis.title = element_text(size=10),
-            legend.title = element_text(size=10),
-        legend.text = element_text(size=8))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```
 
 
@@ -2118,70 +2132,74 @@ plot_grid(A, B,  labels=c("A", "B"), ncol = 2, nrow = 1)
 ```{r rsnp_tf_gene_tissue, out.width = "100%", fig.width=8, fig.height=7, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Predicted rSNPs and the corresponding TFs whose DNA binding sites are affected. **B. **Predicted TFs across representative tissue/cell types as reported by ReMap catalog. **C. ** rSNPs and associated genes.**")}
 
 ## rSNPs and associated TFs
+if (nrow(varscan.with.peaks) == 0) {
+  message("Skipping TF/tissue figure because the merging between RSAT variation-scan and ReMap did not return a single rSNP. ")
+} else {
+  snp.tf <- varscan.with.peaks %>% 
+    dplyr::select(label, var_id) %>% 
+    dplyr::group_by(var_id, label) %>% 
+    dplyr::summarise(N = n()) 
+  
+  A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = N)) +
+    labs(x='TFs', y = 'rSNPs') +
+    theme_bw()+
+    guides(fill = guide_legend(title = "TFs"))+
+    #guides(fill = TRUE) +
+    #ggtitle("") +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=10))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+  
+  
+  ## TF and tissue
+  tissue <- varscan.with.peaks %>% 
+    dplyr::select(name, Tissue) %>% 
+    dplyr::group_by(Tissue, name) %>% 
+    dplyr::summarise(N = n()) 
+  
+  tissue$N <- sort(tissue$N, decreasing = F)
+  
+  B <- ggplot(data=tissue, aes(x=Tissue, y=N, fill=name)) +
+    geom_bar(stat="identity", position=position_dodge(), color="black") +
+    theme_bw() +
+    labs(x='Tissue', y = 'Frequency')+
+    guides(fill = guide_legend(title = "TFs"))+
+    theme(legend.title = element_text(size=10),
+          legend.text = element_text(size=8))+
+    #ggtitle("Predicted TFs in the corresponding tissue/cell type") +
+    coord_flip() +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 10),
+          axis.title = element_text(size=10))+
+    theme(axis.text.x = element_text(angle = 0, 
+                                     vjust = 1, 
+                                     hjust = 1, 
+                                     size = 5),
+          axis.text.y = element_text(size=5),
+          panel.grid.major= element_blank(),
+          panel.grid.minor = element_blank())
+  
+  
+  # rSNPs and associated genes
+  gene.ass <- rSNPs.info %>% 
+    dplyr::select(hgnc_symbol, var_id) %>% 
+    dplyr::group_by(hgnc_symbol, var_id) %>% 
+    dplyr::summarise(N = n()) 
+  
+  C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
+    geom_tile(aes(fill = var_id)) +
+    labs(x='Genes', y = 'rSNPs') +
+    theme_bw()+
+    guides(fill = FALSE) +
+    #ggtitle("rSNPs and associated genes") +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5, size = 10),axis.title = element_text(size=10))+
+    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+  
+  
+  plot_grid(A, B, C,  labels=c("A", "B", "C"), ncol = 2, nrow = 2)
+}
 
-snp.tf <- varscan.with.peaks %>% 
-  dplyr::select(label, var_id) %>% 
-  dplyr::group_by(var_id, label) %>% 
-  dplyr::summarise(N = n()) 
-
-A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = N)) +
-     labs(x='TFs', y = 'rSNPs') +
-      theme_bw()+
-  guides(fill = guide_legend(title = "TFs"))+
-      #guides(fill = TRUE) +
-  #ggtitle("") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=10))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-
-## TF and tissue
-tissue <- varscan.with.peaks %>% 
-  dplyr::select(name, Tissue) %>% 
-  dplyr::group_by(Tissue, name) %>% 
-  dplyr::summarise(N = n()) 
-
-tissue$N <- sort(tissue$N, decreasing = F)
-
-B <- ggplot(data=tissue, aes(x=Tissue, y=N, fill=name)) +
-geom_bar(stat="identity", position=position_dodge(), color="black") +
-  theme_bw() +
-  labs(x='Tissue', y = 'Frequency')+
-      guides(fill = guide_legend(title = "TFs"))+
-  theme(legend.title = element_text(size=10),
-        legend.text = element_text(size=8))+
-  #ggtitle("Predicted TFs in the corresponding tissue/cell type") +
-  coord_flip() +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 10),
-            axis.title = element_text(size=10))+
-      theme(axis.text.x = element_text(angle = 0, 
-                                       vjust = 1, 
-                                       hjust = 1, 
-                                       size = 5),
-            axis.text.y = element_text(size=5),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank())
-
-
-# rSNPs and associated genes
-gene.ass <- rSNPs.info %>% 
-  dplyr::select(hgnc_symbol, var_id) %>% 
-  dplyr::group_by(hgnc_symbol, var_id) %>% 
-  dplyr::summarise(N = n()) 
-
-C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-  geom_tile(aes(fill = var_id)) +
-     labs(x='Genes', y = 'rSNPs') +
-      theme_bw()+
-      guides(fill = FALSE) +
-  #ggtitle("rSNPs and associated genes") +
-      #theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5, size = 10),axis.title = element_text(size=10))+
-      theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
-
-
-plot_grid(A, B, C,  labels=c("A", "B", "C"), ncol = 2, nrow = 2)
 ```
 
 
@@ -2194,23 +2212,34 @@ We performe the functional enrichment analysis to identify predominant biologica
 
 ```{r functional_analysis_rSNPs, results=FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
-rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
-
-rSNPs.gene.gr <- with(rSNPs.gene.bed,
-                   GRanges( seqnames = Rle(seqnames),
-                            ranges   = IRanges(start =  start.1, end =  end.1),
-                            strand   = Rle("*")))
-
- geneAnno <- annotatePeak(rSNPs.gene.gr, #tssRegion=c(-3000, 3000),
-                         TxDb=txdb, annoDb="org.Hs.eg.db")
- 
-print(geneAnno)
- 
-gene <- seq2gene(rSNPs.gene.gr, tssRegion = c(-1000, 1000), flankDistance = 3000, TxDb=txdb)
-pathway2 <- enrichPathway(gene)
-head(pathway2, 2)
-
-dotplot(pathway2)
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping gene annotation ")
+  
+} else {
+  
+  rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
+  
+  rSNPs.gene.gr <- with(rSNPs.gene.bed,
+                        GRanges( seqnames = Rle(seqnames),
+                                 ranges   = IRanges(start =  start.1, end =  end.1),
+                                 strand   = Rle("*")))
+  
+  geneAnno <- annotatePeak(rSNPs.gene.gr, #tssRegion=c(-3000, 3000),
+                           TxDb=txdb, annoDb="org.Hs.eg.db")
+  
+  print(geneAnno)
+  
+  result <- try({
+    gene <- seq2gene(rSNPs.gene.gr, 
+                     tssRegion = c(-1000, 1000), 
+                     flankDistance = 3000, 
+                     TxDb = txdb);
+    pathway2 <- enrichPathway(gene);
+    head(pathway2, 2);
+    dotplot(pathway2)
+  })
+  
+}
 
 ```
 
@@ -2218,15 +2247,20 @@ dotplot(pathway2)
 We compute the enrichment gene-disease associations of DisGeNET (Janet et al. 2015) from several public data sources and the literature. The DisGeNET contains also gene-disease associations and snp-gene-disease associations.
 
 ```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
-
-# Select the GOI
-geneList <- na.omit(rSNPs.info$entrezgene_id)
-
-## Checking the enrichment gene-disease associations in DisGeNET
-edo <- enrichDGN(geneList)
-
-## Barplot of enrichment gene-disease associations from DisGeNET
-barplot(edo, showCategory = 30)
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping enrichDGN() ")
+  
+} else {
+  
+  # Select the GOI
+  geneList <- na.omit(rSNPs.info$entrezgene_id)
+  
+  i## Checking the enrichment gene-disease associations in DisGeNET
+  edo <- enrichDGN(geneList)
+  
+  ## Barplot of enrichment gene-disease associations from DisGeNET
+  barplot(edo, showCategory = 30)
+}
 
 ```
 
@@ -2234,28 +2268,41 @@ barplot(edo, showCategory = 30)
 
 ```{r results=FALSE, circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms**. This circular network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
 
-## convert gene ID to Symbol
-edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
-
-
-## Circular network of the linkages of genes and biological concepts
-
-cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping cnetplot() ")
+  
+} else {
+  
+  ## convert gene ID to Symbol
+  edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+  
+  
+  ## Circular network of the linkages of genes and biological concepts
+  
+  cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+}
 
 ```
 
 
 
 ```{r results=FALSE, emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets.**")}
-
-emapplot(edo)
-
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping emapplot() ")
+  
+} else {
+  emapplot(edo)
+}
 ```
 
 
 ```{r results=FALSE, heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of genes of interest (GOI) and enriched terms.**")}
-
-heatplot(edox, foldChange=geneList)
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping heatplot() ")
+  
+} else {
+  heatplot(edox, foldChange=geneList)
+}
 
 ```
 
@@ -2266,32 +2313,37 @@ The below bar charts shown the tissue-specific gene enrichment.
 
 ```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. ")}
 
-# Select the associated genes with the rSNPs
-inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
-gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
-              geneIdType=SymbolIdentifier())
-output <- teEnrichment(inputGenes = gs)
-
-seEnrichmentOutput <- output[[1]]
-enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-enrichmentOutput$Tissue <- row.names(enrichmentOutput)
-
-
-ggplot(enrichmentOutput,
-       aes(x=reorder(Tissue,-Log10PValue),
-           y=Log10PValue,
-           label = Tissue.Specific.Genes,
-           fill = Tissue))+
-  geom_bar(stat = 'identity')+
-  labs(x='', y = '-LOG10(P-Adjusted)')+
-  theme_bw()+
-  theme(legend.position="none")+
-  theme(plot.title = element_text(hjust = 0.5,size = 20),
-        axis.title = element_text(size=15))+
-  theme(axis.text.x = element_text(angle = 45, 
-                                   vjust = 1, hjust = 1),
-        panel.grid.major= element_blank(),
-        panel.grid.minor = element_blank())
+if (nrow(rSNPs.info) == 0) {
+  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping tissue-specific gene enrichment. ")
+    
+  } else {
+    # Select the associated genes with the rSNPs
+  inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
+  gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
+                geneIdType=SymbolIdentifier())
+  output <- teEnrichment(inputGenes = gs)
+  
+  seEnrichmentOutput <- output[[1]]
+  enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+  enrichmentOutput$Tissue <- row.names(enrichmentOutput)
+  
+  
+  ggplot(enrichmentOutput,
+         aes(x=reorder(Tissue,-Log10PValue),
+             y=Log10PValue,
+             label = Tissue.Specific.Genes,
+             fill = Tissue))+
+    geom_bar(stat = 'identity')+
+    labs(x='', y = '-LOG10(P-Adjusted)')+
+    theme_bw()+
+    theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 20),
+          axis.title = element_text(size=15))+
+    theme(axis.text.x = element_text(angle = 45, 
+                                     vjust = 1, hjust = 1),
+          panel.grid.major= element_blank(),
+          panel.grid.minor = element_blank())
+}
 
 ```
 
