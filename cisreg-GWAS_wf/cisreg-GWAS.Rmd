@@ -1096,35 +1096,62 @@ message("Identifying haplotype blocks")
 
 # View(LdSNPs)
 
-haplotype <- as.data.frame(merge(x = SOIsBed,
-                   y = LdSNPs,
-                   by.x = "snp",
-                   by.y = "variation2",
-                   all.x = TRUE,
-                   all.y = FALSE))
-# View(haplotype)
+LD.SNP.coord <- as.data.frame(merge(x = SOIsBed,
+                                    y = LdSNPs,
+                                    by.x = "snp",
+                                    by.y = "variation2",
+                                    all.x = TRUE,
+                                    all.y = FALSE))
+# View(LD.SNP.coord)
+# names(LD.SNP.coord)
 
+## Tricky way to ensure that each SNP is included in its own LD block
+LD.SNP.coord$variation1 <- as.vector(LD.SNP.coord$variation1)
+LD.SNP.coord$r2 <- as.vector(LD.SNP.coord$r2)
+LD.SNP.coord$d_prime <- as.vector(LD.SNP.coord$d_prime)
+LD.SNP.coord$population <- as.vector(LD.SNP.coord$population)
+
+self.LD <- is.na(LD.SNP.coord$variation1)
+LD.SNP.coord[self.LD, "variation1"] <- as.vector(LD.SNP.coord[self.LD, "snp"])
+LD.SNP.coord[self.LD, "r2"] <- 1
+LD.SNP.coord[self.LD, "d_prime"] <- 1
+LD.SNP.coord[self.LD, "population"] <- parameters$population
+# LD.SNP.coord[self.LD, ]
+
+
+# sort(table(LD.SNP.coord$snp))
+# length(unique(LD.SNP.coord$snp))
+# length(unique(LD.SNP.coord$variation1))
+# dim(SOIsBed)
+# names(SOIsBed)
+# dim(LdSNPs)
+# length(sort(table(LdSNPs$variation1)))
+# length(sort(table(LdSNPs$variation2)))
+# names(LdSNPs)
 # length(unique(LdSNPs$variation))
 
 # Remove lines contain NAs
-haplotype <- na.omit(haplotype)
-
-# Number of LD SNPs per DA-SNP
-haplotype.block <- haplotype %>% 
-  dplyr::select("chrom", "chromStart", "chromEnd", "variation1") %>% 
-  dplyr::group_by(variation1) %>% 
-  dplyr::mutate(regionStart = min(chromStart),
-            regionEnd = max(chromEnd),
-            Nb_SNPs = n()) 
-
-workflowSummary["Haplotype block: group of SNPs in LD"] <- nrow(haplotype.block)
-
-
-# Make a grange object
-haplotype.block.gr <- with(haplotype.block,
-GRanges( seqnames = Rle(chrom),
-ranges   = IRanges(start = regionStart, end = regionEnd),
-strand   = Rle("*"), rsID = variation1))
+# LD.SNP.coord <- na.omit(LD.SNP.coord)
+# 
+# # Number of LD SNPs per DA-SNP
+# haplotype.block <- LD.SNP.coord %>%
+#   dplyr::select("chrom", "chromStart", "chromEnd", "variation1") %>%
+#   dplyr::group_by(variation1) %>%
+#   dplyr::mutate(
+#     regionStart = min(chromStart),
+#     regionEnd = max(chromEnd),
+#     Nb_SNPs = n())
+# 
+# View(haplotype.block)
+# 
+# workflowSummary["Haplotype block: group of SNPs in LD"] <- nrow(haplotype.block)
+# # dim(haplotype.block)
+# 
+# # Make a grange object
+# haplotype.block.gr <- with(haplotype.block,
+# GRanges( seqnames = Rle(chrom),
+# ranges   = IRanges(start = regionStart, end = regionEnd),
+# strand   = Rle("*"), rsID = variation1))
 
 # ## Vector of the DA SNPs
 # var <- haplotype$variation1
@@ -1150,11 +1177,48 @@ par(mar = c(5.1, 7, 3.1, 1.1))
 #         cex.lab = 1)
 # 
 
+## Collect the coordinates of the LD groups
+# length(ldGroups)
+i <- 1
+nb.ldGroups <- length(ldGroups)
+ldGroup.info <- data.frame()
+for (i in 1:length(ldGroups)) {
+  snp <- names(ldGroups)[i]
+  message("Computing LD block coordinates for DA SNP\t", i, "/", nb.ldGroups, "\t", snp)
+  ldGroup <- as.vector(unlist(ldGroups[i]))
+  current.ldGroup.info <- data.frame(
+    DA.SNP = snp,
+    nb.SNPs = length(ldGroup),
+    chr_name = SOIs[SOIs$refsnp_id == snp, "chr_name"],
+    chrom_start = min(SOIs[SOIs$refsnp_id %in% ldGroup, "chrom_start"]),
+    chrom_end = max(SOIs[SOIs$refsnp_id %in% ldGroup, "chrom_end"])
+  )
+  ldGroup.info <- rbind(ldGroup.info, current.ldGroup.info)
+  # names(SOIs)
+}
+ldGroup.info$size <- ldGroup.info$chrom_end - ldGroup.info$chrom_start + 1
+row.names(ldGroup.info) <- ldGroup.info$DA.SNP
+# View(ldGroup.info)
+# sum(ldGroup.info$size == 1)
+
+# Change the format of chromosome
+ldGroup.info$chr_name <- paste("chr", ldGroup.info$chr_name, sep = "")
+
+# Create a granges object for ldGroup.info
+haplotype.blocks.gr <- with(ldGroup.info,
+                   GRanges( seqnames = Rle(chr_name),
+                            ranges   = IRanges(start =  chrom_start, end =  chrom_end),
+                            snp = DA.SNP,
+                            strand   = Rle("*")))
+
+
 ## Draw a barplot with the number of SNPs per LD block (one block per DA SNP)
-ld.block <- sort(unlist(lapply(ldGroups, length)), decreasing = TRUE)
-max.snps <- min(length(ld.block), 20)
+ldGroup.snpNb <- ldGroup.info$nb.SNPs
+names(ldGroup.snpNb) <- ldGroup.info$DA.SNP
+snps.per.ldblock <- sort(ldGroup.snpNb, decreasing = TRUE)
+max.snps <- min(length(snps.per.ldblock), 20)
 y <- barplot(
-  ld.block[1:max.snps],
+  snps.per.ldblock[1:max.snps],
   main = "LD block sizes",
   horiz = TRUE, 
   xlim = c(0, max(ld.block)*1.1),
@@ -2244,7 +2308,7 @@ if (nrow(rSNPs.info) == 0) {
 ```
 
 
-We compute the enrichment gene-disease associations of DisGeNET (Janet et al. 2015) from several public data sources and the literature. The DisGeNET contains also gene-disease associations and snp-gene-disease associations.
+We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
 
 ```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
 if (nrow(rSNPs.info) == 0) {
@@ -2255,11 +2319,11 @@ if (nrow(rSNPs.info) == 0) {
   # Select the GOI
   geneList <- na.omit(rSNPs.info$entrezgene_id)
   
-  i## Checking the enrichment gene-disease associations in DisGeNET
-  edo <- enrichDGN(geneList)
+  ## Checking the enrichment gene-disease associations in DisGeNET
+  edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
   
   ## Barplot of enrichment gene-disease associations from DisGeNET
-  barplot(edo, showCategory = 30)
+  barplot(edo)
 }
 
 ```
