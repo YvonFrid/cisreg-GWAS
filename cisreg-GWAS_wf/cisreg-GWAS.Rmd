@@ -1790,10 +1790,12 @@ IntersectBed <- function(a, b) {
 
 #remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, haplotype.block.gr))
 remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, SOIsBed.gr))
+# dim(remap.SOI.overlaps)
+# length(SOIsBed.gr)
+# length(remapCatalog.gr)
 nbremap.SOI.overlaps <- nrow(remap.SOI.overlaps)
 message("Number of overlaps between SOIs and ReMap peaks: ", nbremap.SOI.overlaps)
 workflowSummary["ReMap: overlaps between SOIs and ReMap peaks"] <- nbremap.SOI.overlaps
-
 
 ## Split the ReMap peakset ID in order to obtain separate columns with the
 ## 1. GEO series
@@ -1805,12 +1807,12 @@ remap.SOI.overlaps <- separate(data = remap.SOI.overlaps, col = "name", into = c
 # head(remap.SOI.overlaps)
 
 ## Export SOIs file in tsv format
-remap.SOI.overlap.file <- file.path(
+outfiles["SOI overlaps with peaks from ReMap (tsv)"] <- file.path(
   result.dir.path["ReMap"], 
   paste(sep = "", parameters$query, "_SOIs_ReMap_overlaps", ".tsv"))
 
 write.table(x = remap.SOI.overlaps,
-              file = remap.SOI.overlap.file,
+              file = outfiles["SOI overlaps with peaks from ReMap (tsv)"],
               quote = FALSE,
               sep = "\t",
               row.names = FALSE,
@@ -1820,19 +1822,128 @@ write.table(x = remap.SOI.overlaps,
 
 ```
 
+```{r annotate_sois_with_remap}
+
+# names(SOIs)
+# dim(SOIs)
+
+## Count the number of ReMap peaks overlapping each SOI
+peaks.per.SOI <- as.data.frame.table(table(remap.SOI.overlaps$rsid))
+names(peaks.per.SOI) <- c("refsnp_id", "ReMap.nb.peaks")
+# head(peaks.per.SOI)
+# head(SOIs)
+SOIs.annotations <- merge(x = SOIs, 
+                          y = peaks.per.SOI,
+                          all.x = TRUE,
+                          by = "refsnp_id")
+
+## Count the number of unique TFs whose peaks overlap each SOI 
+## Beware, one ReMap TF might overlap the same SNP with several peaks, 
+## if there are different datasets with this TF
+## (e.g. in different tissue / cell types) 
+
+remap.SNP.TF <- unique(remap.SOI.overlaps[, c("rsid", "TF")])
+TFs.per.SOI <-  as.data.frame.table(table(remap.SNP.TF$rsid))
+names(TFs.per.SOI) <- c("refsnp_id", "ReMap.nb.TFs")
+# names(SOIs.annotations)
+# names(TFs.per.SOI)
+SOIs.annotations <- merge(x = SOIs.annotations, 
+                          y = TFs.per.SOI,
+                          all.x = TRUE,
+                          by = "refsnp_id")
+# View(SOIs.annotations)
+
+## Concatenate the names of the factors whose peaks overlap each SOI
+TFs.per.SOI <- t(as.data.frame(as.list(
+  by(data = remap.SNP.TF$TF, 
+     INDICES = remap.SNP.TF$rsid, 
+     FUN = paste, collapse = "; "))))
+TFs.per.SOI[is.na(TFs.per.SOI)] <- "" ## Replace NA values by empty string
+# head(TFs.per.SOI)
+colnames(TFs.per.SOI) <- "ReMap.TFs"
+# class(TFs.per.SOI)
+# View(TFs.per.SOI)
+# names(SOIs)
+# head(TFs.per.SOI)
+
+SOIs.annotations <- merge(x = SOIs.annotations, y = TFs.per.SOI,
+                          by.x = "refsnp_id", by.y = "row.names")
+# View(SOIs.annotations)
+# head(SOIs.annotations)
+
+outfiles["SOI annotations with ReMap and varscan (tsv)"] <-
+  file.path(
+    result.dir.path["rSNPs"],
+    paste(sep = "", parameters$query, "_SNPs_varscan_remap", ".tsv"))
+write.table(x = SOIs.annotations, 
+            file = outfiles["SOI annotations with ReMap and varscan (tsv)"],
+            sep = "\t", row.names = FALSE)
+
+
+```
+
+```{r annotate_sois_with_varscan}
+
+## Count the number of candidate rSNPs overlapping each SOI
+rSNPs.per.SOI <- as.data.frame.table(table(varscan$var_id))
+names(rSNPs.per.SOI) <- c("refsnp_id", "varscan.nb.motifs")
+# head(rSNPs.per.SOI)
+SOIs.annotations <- merge(x = SOIs, 
+                          y = peaks.per.SOI,
+                          by = "refsnp_id")
+
+## Concatenate the names of the factors whose peaks overlap each SOI
+TFs.per.SOI <- t(as.data.frame(as.list(
+  by(data = remap.SOI.overlaps$TF, 
+     INDICES = remap.SOI.overlaps$rsid, 
+     FUN = paste, collapse = ";"))))
+TFs.per.SOI[is.na(TFs.per.SOI)] <- "" ## Replace NA values by empty string
+# class(TFs.per.SOI)
+# View(TFs.per.SOI)
+# names(SOIs)
+
+SOIs.annotations <- merge(x = SOIs.annotations, y = TFs.per.SOI,
+                          by.x = "refsnp_id", by.y = "row.names")
+# View(SOIs.annotations)
+
+
+```
+
 
 
 ```{r remapTF, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Transcription factors (TFs) enriched in ChIP-seq regions overlapping with the haplotype blocks of SNPs of interest (SOIs).** "), out.width = "80%", fig.width=8, fig.height=6}
 
-enriched.TFs <- sort(table(remap.SOI.overlaps$TF), decreasing = FALSE)
-barplot(enriched.TFs,
-        main = "TFs enriched in ChIP-seq peaks",
-        las = 2, 
+SNPs.per.ReMap.TF <- sort(table(remap.SOI.overlaps$TF), decreasing = TRUE)
+
+max.tf <- min(20, length(SNPs.per.ReMap.TF))
+if (length(SNPs.per.ReMap.TF) > max.tf) {
+  par(mfrow = c(1,2)) 
+  par(mar = c(5.1, 5.1, 4.1, 1.1))
+  barplot(rev(SNPs.per.ReMap.TF),
+          main = "Overlaps between SNPs\nand TF peaks from ReMap" ,
+          xlab = "Number of overlaps with SOIs",
+          ylab = "Remap Transcription Factors",
+          names = NA,
+          las = 1, 
+          cex.names = 0.7, 
+          col = "#37A3F3", 
+          border = "#05245F",
+          horiz = TRUE,
+          panel.first = grid()
+        )
+  
+}
+
+barplot(rev(SNPs.per.ReMap.TF[1:max.tf]),
+        main = "Top-ranking TFs for SNP overlap",
+        las = 1, 
         cex.names = 0.7, 
         col = "#37A3F3", 
         border = "#05245F",
         horiz = TRUE
-        )
+)
+
+par(mfrow = c(1,1)) 
 ```
 
 
@@ -1883,7 +1994,7 @@ tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 ## Compute Average Profile of ChIP peaks binding to TSS region
 ## Confidence interval estimated by bootstrap method 
 ## is also supported for characterizing ChIP binding profiles.
-message("Compute th average profile of ChIP-seq peaks binding to TSS region")
+message("Compute the average profile of ChIP-seq peaks binding to TSS region")
 plotAvgProf(tagMatrix, xlim = c(-3000, 3000),
              conf = 0.95, resample = 1000,
             xlab = "Genomic Region (5'->3')", ylab = "Read Count Frequency")
@@ -2430,6 +2541,14 @@ kable(as.data.frame(workflowSummary), caption = "Statiscal results of workflow s
 
 ```
 
+## Output files
+
+```{r output_files}
+
+kable(as.data.frame(outfiles), caption = "Output files.",
+      col.names = "File path")
+
+```
 
 
 ## Libraries and versions0
