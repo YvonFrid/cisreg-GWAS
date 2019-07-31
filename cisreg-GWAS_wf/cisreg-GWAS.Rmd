@@ -1824,16 +1824,18 @@ write.table(x = remap.SOI.overlaps,
 
 ```{r annotate_sois_with_remap}
 
+#### Annotate SOIs with ReMap results ####
+
 # names(SOIs)
 # dim(SOIs)
 
 ## Count the number of ReMap peaks overlapping each SOI
-peaks.per.SOI <- as.data.frame.table(table(remap.SOI.overlaps$rsid))
-names(peaks.per.SOI) <- c("refsnp_id", "ReMap.nb.peaks")
+remap.peaks.per.SOI <- as.data.frame.table(table(remap.SOI.overlaps$rsid))
+names(remap.peaks.per.SOI) <- c("refsnp_id", "ReMap.nb.peaks")
 # head(peaks.per.SOI)
 # head(SOIs)
 SOIs.annotations <- merge(x = SOIs, 
-                          y = peaks.per.SOI,
+                          y = remap.peaks.per.SOI,
                           all.x = TRUE,
                           by = "refsnp_id")
 
@@ -1841,73 +1843,109 @@ SOIs.annotations <- merge(x = SOIs,
 ## Beware, one ReMap TF might overlap the same SNP with several peaks, 
 ## if there are different datasets with this TF
 ## (e.g. in different tissue / cell types) 
-
 remap.SNP.TF <- unique(remap.SOI.overlaps[, c("rsid", "TF")])
-TFs.per.SOI <-  as.data.frame.table(table(remap.SNP.TF$rsid))
-names(TFs.per.SOI) <- c("refsnp_id", "ReMap.nb.TFs")
+remap.nb.TFs.per.SOI <-  as.data.frame.table(table(remap.SNP.TF$rsid))
+names(remap.nb.TFs.per.SOI) <- c("refsnp_id", "ReMap.nb.TFs")
 # names(SOIs.annotations)
-# names(TFs.per.SOI)
+# names(remap.SNP.TF)
 SOIs.annotations <- merge(x = SOIs.annotations, 
-                          y = TFs.per.SOI,
+                          y = remap.nb.TFs.per.SOI,
                           all.x = TRUE,
                           by = "refsnp_id")
 # View(SOIs.annotations)
 
 ## Concatenate the names of the factors whose peaks overlap each SOI
-TFs.per.SOI <- t(as.data.frame(as.list(
+remap.TFs.per.SOI <- t(as.data.frame(as.list(
   by(data = remap.SNP.TF$TF, 
      INDICES = remap.SNP.TF$rsid, 
      FUN = paste, collapse = "; "))))
-TFs.per.SOI[is.na(TFs.per.SOI)] <- "" ## Replace NA values by empty string
+remap.TFs.per.SOI[is.na(remap.TFs.per.SOI)] <- "" ## Replace NA values by empty string
 # head(TFs.per.SOI)
-colnames(TFs.per.SOI) <- "ReMap.TFs"
+colnames(remap.TFs.per.SOI) <- "ReMap.TF.names"
 # class(TFs.per.SOI)
 # View(TFs.per.SOI)
 # names(SOIs)
 # head(TFs.per.SOI)
 
-SOIs.annotations <- merge(x = SOIs.annotations, y = TFs.per.SOI,
-                          by.x = "refsnp_id", by.y = "row.names")
+SOIs.annotations <- merge(x = SOIs.annotations, 
+                          y = remap.TFs.per.SOI,
+                          all.x = TRUE,
+                          by.x = "refsnp_id", 
+                          by.y = "row.names")
 # View(SOIs.annotations)
 # head(SOIs.annotations)
+
+```
+
+
+```{r annotate_sois_with_varscan}
+
+#### Annotate SOIs with variation-scan results ####
+
+
+## Count the number of unique TFs whose peaks overlap each SOI 
+## Beware, one ReMap TF might overlap the same SNP with several peaks, 
+## if there are different datasets with this TF
+## (e.g. in different tissue / cell types) 
+varscan.SNP.TF <- unique(varscan.jaspar.merged[, c("var_id", "name")])
+names(varscan.SNP.TF) <-  c("refsnp_id", "varscan.TF")
+# head(varscan.SNP.TF)
+nb.varscan.TFs.per.SOI <-  as.data.frame.table(table(varscan.SNP.TF$refsnp_id))
+names(nb.varscan.TFs.per.SOI) <-  c("refsnp_id", "varscan.TF.nb")
+# names(SOIs.annotations)
+# names(nb.varscan.TFs.per.SOI)
+SOIs.annotations <- merge(x = SOIs.annotations, 
+                          y = nb.varscan.TFs.per.SOI,
+                          all.x = TRUE,
+                          by = "refsnp_id")
+## Replace NA values by 0 for the count of varscan TFs
+SOIs.annotations$varscan.TF.nb <- as.vector(SOIs.annotations$varscan.TF.nb)
+SOIs.annotations[is.na(SOIs.annotations$varscan.TF.nb), "varscan.TF.nb"] <- 0
+
+# View(SOIs.annotations)
+
+## Concatenate the names of the factors whose peaks overlap each SOI
+varscan.TFs.per.SOI <- t(as.data.frame(as.list(
+  by(data = varscan.SNP.TF$varscan.TF, 
+     INDICES = varscan.SNP.TF$refsnp_id, 
+     FUN = paste, collapse = "; "))))
+varscan.TFs.per.SOI[is.na(varscan.TFs.per.SOI)] <- "" ## Replace NA values by empty string
+colnames(varscan.TFs.per.SOI) <- "varscan.TFs"
+# View(varscan.TFs.per.SOI)
+# colnames(varscan.TFs.per.SOI)
+# head(varscan.TFs.per.SOI)
+
+
+SOIs.annotations <- merge(x = SOIs.annotations, 
+                          y = varscan.TFs.per.SOI,
+                          all.x = TRUE,
+                          by.x = "refsnp_id", 
+                          by.y = "row.names")
+## Replace NA values by ""
+SOIs.annotations$varscan.TFs <- as.vector(SOIs.annotations$varscan.TFs)
+SOIs.annotations[is.na(SOIs.annotations$varscan.TFs), "varscan.TFs"] <- ""
+# View(SOIs.annotations)
+# head(SOIs.annotations)
+
+
+
+```
+
+```{r export_SOI_annotations}
+
+#### Export SOI annotations with varscan and ReMap ####
 
 outfiles["SOI annotations with ReMap and varscan (tsv)"] <-
   file.path(
     result.dir.path["rSNPs"],
     paste(sep = "", parameters$query, "_SNPs_varscan_remap", ".tsv"))
-write.table(x = SOIs.annotations, 
+write.table(x = SOIs.annotations, quote = FALSE,
             file = outfiles["SOI annotations with ReMap and varscan (tsv)"],
-            sep = "\t", row.names = FALSE)
+            sep = "\t", row.names = FALSE, col.names = TRUE)
 
 
 ```
 
-```{r annotate_sois_with_varscan}
-
-## Count the number of candidate rSNPs overlapping each SOI
-rSNPs.per.SOI <- as.data.frame.table(table(varscan$var_id))
-names(rSNPs.per.SOI) <- c("refsnp_id", "varscan.nb.motifs")
-# head(rSNPs.per.SOI)
-SOIs.annotations <- merge(x = SOIs, 
-                          y = peaks.per.SOI,
-                          by = "refsnp_id")
-
-## Concatenate the names of the factors whose peaks overlap each SOI
-TFs.per.SOI <- t(as.data.frame(as.list(
-  by(data = remap.SOI.overlaps$TF, 
-     INDICES = remap.SOI.overlaps$rsid, 
-     FUN = paste, collapse = ";"))))
-TFs.per.SOI[is.na(TFs.per.SOI)] <- "" ## Replace NA values by empty string
-# class(TFs.per.SOI)
-# View(TFs.per.SOI)
-# names(SOIs)
-
-SOIs.annotations <- merge(x = SOIs.annotations, y = TFs.per.SOI,
-                          by.x = "refsnp_id", by.y = "row.names")
-# View(SOIs.annotations)
-
-
-```
 
 
 
@@ -2551,7 +2589,7 @@ kable(as.data.frame(outfiles), caption = "Output files.",
 ```
 
 
-## Libraries and versions0
+## Libraries and versions
 
 ```{r session_info}
 session_info()
