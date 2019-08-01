@@ -123,6 +123,7 @@ parameters <- list(
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   query =  "EFO_0008407", # tuberculosis
+  # query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
   population = "AFR",
   r2 = 0.8,
@@ -2235,10 +2236,10 @@ bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapie
 # JvH 209-07-27: YVON, plutôt que de collecter geneInfo avec le vecteur redondant des gènes associés à chaque SNP, puis de filtrer les valeurs uniques, il me semble plus logique de lancer la requête geneInfo <- getBM avec un vecteur de valeurs uniques pour les IDs ensembl de gènes.
 
 ## Select the Ensembl Gene IDs
-geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
-geneIDs.unique <- grep(pattern = "^ENSG", x = geneIDs.unique, value = TRUE)
-# length(geneIDs.unique)
-nb.genes <- length(geneIDs.unique)
+rSNPs.geneIDs.unique <- as.vector(sort(unique(snpInfo$ensembl_gene_stable_id)))
+rSNPs.geneIDs.unique <- grep(pattern = "^ENSG", x = rSNPs.geneIDs.unique, value = TRUE)
+# length(rSNPs.geneIDs.unique)
+nb.genes <- length(rSNPs.geneIDs.unique)
 message("Gettting information about ", nb.genes, " genes in Ensembl.")
 
 ## Get information about all genes
@@ -2251,10 +2252,10 @@ geneInfo <- getBM(attributes = c('chromosome_name',
 #                                 'go_id', ## Yvon, je supprime go_id, car il provoque une multiplication des annotations (je suppose que c'est parce qu'un gène appartient à plusieurs classes GO)
                                  'description'), 
                   filters =  "ensembl_gene_id", 
-                  values = geneIDs.unique, 
+                  values = rSNPs.geneIDs.unique, 
                   mart = bioMartConnection)
 
-#length(geneIDs.unique)
+#length(rSNPs.geneIDs.unique)
 # dim(geneInfo)
 # View(geneInfo)
 # names(geneInfo)
