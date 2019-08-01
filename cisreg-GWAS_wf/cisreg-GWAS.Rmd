@@ -135,7 +135,7 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-  RSAT.rest = TRUE, ## If TRUE, use RSAT REST interface to predict rSNPs
+  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
@@ -196,9 +196,9 @@ cran.libraries.to.install <-
     "httr",
     "xml2",
     "RCurl",
-    "data.table" #,
+    "data.table",
     # "gProfileR",
-    # "DOSE"
+    "DOSE"
   )     
 
 
@@ -313,6 +313,12 @@ GWASstudiesRestOutput <- fromJSON(
 ## Add the nameof the trait to the parameters
 parameters$trait <- GWASstudiesRestOutput$trait
 
+
+outfiles["Parameters"] <- file.path(parameters$result.dir, "parameters.tsv")
+write.table(t(as.data.frame(parameters)), file = outfiles["Parameters"], 
+            quote = FALSE, row.names = TRUE, col.names = FALSE, sep= "\t")
+message("Parameters saved in file\t", outfiles["Parameters"])
+
 ## Generate a table displaying the parameters for the report
 kable(t(as.data.frame(parameters))[,1], 
       col.names = c("Parameter value"))
@@ -337,7 +343,7 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 ## Flow chart of the workflow
 
 
-```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Annotation pipeline of genetic variants.** "), out.width = "100%", fig.width=12}
+```{r fig.cap=paste(sep="", "**Figure ", (fig.nb <- fig.nb +1), ". Annotation pipeline of genetic variants.** "), out.width = "100%", fig.width=12}
 DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
@@ -1527,6 +1533,7 @@ varscan$X.ac_motif <- gsub(pattern = "_", ".", varscan$X.ac_motif)
 
 ## Count the number of results (SNP - motif pairs) reported by variation-scan
 nbVarscanResults <- nrow(varscan)
+message("Number of SNP-TF interactions reported by variation-scan: ", nbVarscanResults)
 workflowSummary["variation-scan: SNP-motif pairs returned by variation-scan"] <- nbVarscanResults
 
 ## Count the number of distinct motifs from Jaspar reported by variation-scan
@@ -1538,6 +1545,7 @@ workflowSummary["variation-scan: Number of TFBM altered by the SOIs"] <- varscan
 varscan.nb.snps <- length(unique(varscan$var_id))
 message("Number of SNPs detected by variation-scan: ", varscan.nb.snps)
 workflowSummary["variation-scan: predicted rSNPs"] <- varscan.nb.snps
+
 ```
 
 
