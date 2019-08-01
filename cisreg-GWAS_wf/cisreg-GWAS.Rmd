@@ -1632,14 +1632,12 @@ par(mfrow = c(1,1))
 #varscan.jaspar.merged$best_pval <- -log10(varscan.jaspar.merged$best_pval)
 
 
-varscan.jaspar.merged.signif <-  subset(varscan.jaspar.merged, pval_ratio >= 100)
-
-ggplot(varscan.jaspar.merged.signif, aes(label, var_id)) + geom_tile(aes(fill = -log10(best_pval)),
+ggplot(varscan.jaspar.merged, aes(label, var_id)) + geom_tile(aes(fill = -log10(best_pval)),
      colour = "white") + 
      labs(x='Motifs', y = 'SNPs')+
       theme_bw()+
       guides(fill = guide_legend(title = "-log10(P-value)"))+
-  ggtitle("Heatmap of rSNPs predicted by variation-scan (Pval-ratio > 100)") +
+  ggtitle("Heatmap of rSNPs predicted by variation-scan") +
       #theme(legend.position="none")+
       theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
@@ -1724,6 +1722,8 @@ grid(col = "#DDDDDD", lty = "solid")
 #par(mar = c(5.1, 5/1, 4.1, 2.1))
 par(mfrow=c(1,1))
 ```
+
+
 
 ## Annotation of SNPs with Chip-Seq peaks from ReMap
 
@@ -2687,13 +2687,7 @@ if (nrow(rSNPs.info) == 0) {
 ```
 
 
-## Workflow summary
 
-```{r workflow_summary}
-
-kable(as.data.frame(workflowSummary), caption = "Statiscal results of workflow summary.")
-
-```
 
 ## Output files
 
