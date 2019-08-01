@@ -1,5 +1,5 @@
 ---
-knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = 'cisreg_GWAS_report2.html') })
+# knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = 'cisreg_GWAS_report2.html') })
 title: "Detection of  regulatory SNPs in GWAS studies"
 author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden '
 date: "`r Sys.Date()`"
@@ -95,7 +95,7 @@ knitr::opts_chunk$set(
   fig.width = 7, 
   fig.height = 5, 
   fig.align = "center", 
-#  fig.path = paste(sep = "", "figures/", parameters$query, "_"),
+#  fig.path = file.path("figures", paste0(parameters$query, "_")),
   size = "tiny", 
   warning = FALSE, 
   results = TRUE, 
@@ -161,11 +161,11 @@ dir.create(parameters$data.dir, showWarnings = FALSE, recursive = TRUE)
 ## Define result directory for the current EFO 
 ## by concatenating the output dir and the query ID
 parameters$result.dir = file.path(parameters$output.dir, parameters$query)
-message("Result directory\t", parameters$result.dir)
+message("Results directory\t", parameters$result.dir)
 dir.create(parameters$result.dir, showWarnings = FALSE, recursive = TRUE)
 
 parameters$figure.dir = file.path(parameters$result.dir, "figures")
-message("Result directory\t", parameters$figure.dir)
+message("Figures directory\t", parameters$figure.dir)
 dir.create(parameters$figure.dir, showWarnings = FALSE, recursive = TRUE)
 
 ## Set the figures path for the current markdown report
@@ -173,6 +173,13 @@ knitr::opts_chunk$set(
   fig.path = 
     file.path(parameters$figure.dir, 
               paste0(parameters$query, "_")))
+
+### FOR DEBUG
+knitr::opts_chunk$set(
+  fig.path = 
+    file.path(parameters$result.dir, 
+              paste0("figure_", parameters$query, "_")))
+### END DEBUG
 
 
 ## Initialise a vector to summarize the results
@@ -693,7 +700,6 @@ workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 
 ```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". **A. ** Disease-associated SNPs per chromosome. **B. ** Genomic context of disease-associated SNPs from GWAS catalog.** "), out.width="50%", fig.width=6, fig.height=8}
-
 
 par(mfrow = c(1,2)) 
 #par.ori <- par(no.readonly = TRUE)
@@ -2030,7 +2036,7 @@ for (i in 1:nrow(SOIs.annotations)) {
 ## Get gene features from Ensembl
 #snpInfo$ensembl_gene_stable_id
 # Specify the BioMart database and dataset to use.
-message("Opennig a connection to bioMart")
+message("Opening a connection to bioMart")
 bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") 
 
 
