@@ -1,4 +1,5 @@
 ---
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = '~/cisreg-GWAS_results/cisreg_GWAS_report.html') })
 title: "Detection of  regulatory SNPs in GWAS studies"
 author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan
   & Jacques van Helden '
@@ -116,20 +117,20 @@ for (file in R.files) {
 ## Define user-specified parameters for the analyses
 ## Parameters
 parameters <- list(
-  working.dir = getwd(),
-  output.dir = "~/cisreg-GWAS_results",
-  #query =  "EFO_0001068", # malaria
+  query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  query =  "EFO_0008407", # tuberculosis
   # query =  "EFO_0008407", # tuberculosis
+  trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "AFR",
+  population = "AFR",  ## BEWARE, the population should be adapted to the query !
+  # population = "EUR",  ## BEWARE, the population should be adapted to the query !
+  working.dir = getwd(),
+  output.dir = "~/cisreg-GWAS_results",
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
-  include.LD = "AFR", # additional SNPs in LD with Lead SNPs in XGR package
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
@@ -140,6 +141,7 @@ parameters <- list(
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
+  min.genes = 3,
   jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
   remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
@@ -180,9 +182,11 @@ workflowSummary <- vector()
 
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
+#### Load CRAN packages (install them if required) ####
 message("Loading required libraries")
 cran.libraries.to.install <- 
-  c("dplyr",   
+  c("yaml",
+    "dplyr",   
     "devtools",
     "ggplot2", 
     "gridExtra",
@@ -197,11 +201,23 @@ cran.libraries.to.install <-
     "xml2",
     "RCurl",
     "data.table",
-    #"gProfileR",
+    # "gProfileR",
     "DOSE"
- 
   )     
 
+
+message("Loading CRAN libraries")
+for (lib in cran.libraries.to.install) {
+  if (require(lib, character.only = TRUE, quietly = TRUE)) {
+    message("\tLoaded library\t", lib)
+  } else {
+    message("Installing CRAN library\t", lib)
+    install.packages(lib, dependencies = TRUE)
+  }
+  require(lib, character.only = TRUE, quietly = TRUE)
+}
+
+#### Load Bioconductor packages (install them if required) ####
 bioconductor.libraries.to.install <- c(
   "biomaRt",
   "GenomicRanges",
@@ -215,19 +231,7 @@ bioconductor.libraries.to.install <- c(
   #"FunciSNP",
   "TissueEnrich",
   "grImport2"
-
 )
-
-message("Loading CRAN libraries")
-for (lib in cran.libraries.to.install) {
-  if (require(lib, character.only = TRUE, quietly = TRUE)) {
-    message("\tLoaded library\t", lib)
-  } else {
-    message("Installing CRAN library\t", lib)
-    install.packages(lib, dependencies = TRUE)
-  }
-  require(lib, character.only = TRUE, quietly = TRUE)
-}
 
 message("Loading Bioconductor libraries")
 for (lib in bioconductor.libraries.to.install) {
@@ -246,6 +250,8 @@ for (lib in bioconductor.libraries.to.install) {
   }
 #   require(lib, character.only = TRUE, quietly = TRUE)
 }
+
+#### Load some specific R packages from github with devtools ####
 
 ## For github libraries we need to know the account for each package -> we encode this as a named vector
 github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
@@ -308,12 +314,21 @@ GWASstudiesRestOutput <- fromJSON(
   content_type("application/json"), 
   simplifyDataFrame = FALSE)
 
-
+## Add the nameof the trait to the parameters
 parameters$trait <- GWASstudiesRestOutput$trait
+
 
 ## Generate a table displaying the parameters for the report
 kable(t(as.data.frame(parameters))[,1], 
       col.names = c("Parameter value"))
+
+
+## Export parameters to a yaml file in the result directory, for traceability and reproducibility
+outfiles["Parameters (yaml)"] <- file.path(parameters$result.dir, "parameters.yaml")
+write_yaml(x = parameters, 
+           file = outfiles["Parameters (yaml)"], fileEncoding = "UTF-8")
+message("Parameters saved in file\t", outfiles["Parameters (yaml)"])
+
 
 ```
 
@@ -335,7 +350,7 @@ This report summarises the results of **cisreg-GWAS**, an automatic workflow to 
 ## Flow chart of the workflow
 
 
-```{r fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Annotation pipeline of genetic variants.** "), out.width = "100%", fig.width=12}
+```{r fig.cap=paste(sep="", "**Figure ", (fig.nb <- fig.nb +1), ". Annotation pipeline of genetic variants.** "), out.width = "100%", fig.width=12}
 DiagrammeR::grViz("flowchart/cisreg-GWAS.dot")
 ```
 
@@ -1297,7 +1312,7 @@ eTerm <- c(snpList,
                         "EF_disease",
                         "EF_phenotype", 
                         "EF_bp"), 
-           include.LD = parameters$include.LD,
+           include.LD = parameters$population,
            LD.r2 = parameters$r2,
            size.range = c(10, 2000),
            RData.location = "http://galahad.well.ox.ac.uk/bigdata")
@@ -1386,7 +1401,6 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 if (parameters$RSAT.rest) {
   
   #### RSAT variation-info ####
-  
   # Create the vector of SOIs
   SOI.string <- paste(collapse = ",", SOIs$refsnp_id)
   # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
@@ -1416,6 +1430,8 @@ if (parameters$RSAT.rest) {
     result.dir.path["RSAT"],
     paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
   download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
+  message("RSAT variation-info result saved to file\n\t", 
+          outfiles["RSAT variation-info (varBed)"])
   # system(paste("open", result.dir.path["RSAT"]))
   
   #### RSAT variation-seq ####s
@@ -1440,6 +1456,8 @@ if (parameters$RSAT.rest) {
     paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
   download.file(url = varSeq.URL, destfile = outfiles["RSAT retrieve-variation-seq (varSeq)"])
     # system(paste("open", result.dir.path["RSAT"]))
+  message("RSAT retrieve-variation-seq result saved to file\n\t", 
+          outfiles["RSAT retrieve-variation-seq (varSeq)"])
 
   #### RSAT variation-scan ####
   
@@ -1452,7 +1470,7 @@ if (parameters$RSAT.rest) {
                     m_string = parameters$motifDB.URL,
                     m_string_type = "url",
                     m_format =  "transfac"),
-                  top = 2,
+#                  top = 2,
                   uth_pval = parameters$RSAT.varscan.pval,
                   lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
                   add_headers("Accept" = "application/json"))
@@ -1475,7 +1493,10 @@ if (parameters$RSAT.rest) {
     result.dir.path["RSAT"],
     paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
   download.file(url = varscan.URL, destfile = outfiles["RSAT variation-scan (tsv)"])
-  system(paste("open", result.dir.path["RSAT"]))
+  message("RSAT variation-scan result saved to file\n\t", 
+          outfiles["RSAT variation-scan (tsv)"])
+
+  # system(paste("open", result.dir.path["RSAT"]))
 }
 
 ```
@@ -1485,11 +1506,15 @@ if (parameters$RSAT.rest) {
 ```{r importing_variascan_results}
 
 ## Importing variation-scan result
-varscanFile <- file.path(
-  result.dir.path["RSAT"],  
-  paste0(parameters$query, "_varscan_web.txt"))
-# system(paste("open ", varscanFile))
-
+if (parameters$RSAT.rest) {
+  varscanFile <- outfiles["RSAT variation-scan (tsv)"] 
+} else {
+  ## Load variation-scan results obtained from RSAT Web interface
+  varscanFile <- file.path(
+    result.dir.path["RSAT"],  
+    paste0(parameters$query, "_varscan_web.txt"))
+  # system(paste("open ", varscanFile))
+}
 ## Load variation-scan results
 ## Note: this is a temporary solution, since variation-scan should be invoked via REST Web services 
 variationScan.ori <- read.delim(file =  varscanFile,
@@ -1515,6 +1540,7 @@ varscan$X.ac_motif <- gsub(pattern = "_", ".", varscan$X.ac_motif)
 
 ## Count the number of results (SNP - motif pairs) reported by variation-scan
 nbVarscanResults <- nrow(varscan)
+message("Number of SNP-TF interactions reported by variation-scan: ", nbVarscanResults)
 workflowSummary["variation-scan: SNP-motif pairs returned by variation-scan"] <- nbVarscanResults
 
 ## Count the number of distinct motifs from Jaspar reported by variation-scan
@@ -1526,6 +1552,7 @@ workflowSummary["variation-scan: Number of TFBM altered by the SOIs"] <- varscan
 varscan.nb.snps <- length(unique(varscan$var_id))
 message("Number of SNPs detected by variation-scan: ", varscan.nb.snps)
 workflowSummary["variation-scan: predicted rSNPs"] <- varscan.nb.snps
+
 ```
 
 
@@ -2586,6 +2613,9 @@ if (nrow(rSNPs.info) == 0) {
 We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
 
 ```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
+
+#### Gene enrichment analysis with DOSE::DisGeNET ####
+
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping enrichDGN() ")
   
@@ -2593,12 +2623,24 @@ if (nrow(rSNPs.info) == 0) {
   
   # Select the GOI
   geneList <- na.omit(rSNPs.info$entrezgene_id)
+  rSNPS.nb.genes <- length(geneList)
   
-  ## Checking the enrichment gene-disease associations in DisGeNET
-  edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
-  
-  ## Barplot of enrichment gene-disease associations from DisGeNET
-  barplot(edo)
+  if (rSNPS.nb.genes == 0) {
+    message("Not a single gene is associated to the candidate rSNPs - skipping gene enrichment analysis")
+    
+  } else if (rSNPS.nb.genes < parameters$min.genes) {
+    message("The number of genes associated to the candidate rSNPs (", rSNPS.nb.genes, ")",
+    " is lower than the user-specified threshold (", parameters$min.genes, "). ", 
+    "Skipping gene enrichment analysis")
+    
+  } else {
+    
+    ## Checking the enrichment gene-disease associations in DisGeNET
+    edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
+    
+    ## Barplot of enrichment gene-disease associations from DisGeNET
+    barplot(edo)
+  }
 }
 
 ```
@@ -2612,13 +2654,16 @@ if (nrow(rSNPs.info) == 0) {
   
 } else {
   
-  ## convert gene ID to Symbol
-  edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+  if (exists("edo")) {
   
-  
-  ## Circular network of the linkages of genes and biological concepts
-  
-  cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+    ## convert gene ID to Symbol
+    edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+    
+    
+    ## Circular network of the linkages of genes and biological concepts
+    
+    cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+  }
 }
 
 ```
@@ -2630,7 +2675,9 @@ if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping emapplot() ")
   
 } else {
-  emapplot(edo)
+  if (exists("edo")) {
+    emapplot(edo)
+  }
 }
 ```
 
@@ -2640,7 +2687,9 @@ if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping heatplot() ")
   
 } else {
-  heatplot(edox, foldChange=geneList)
+  if (exists("edo")) {
+    heatplot(edox, foldChange=geneList)
+  }
 }
 
 ```
@@ -2652,36 +2701,43 @@ The below bar charts shown the tissue-specific gene enrichment.
 
 ```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. ")}
 
+message("Tissue-specific gene enrichment analysis")
+
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping tissue-specific gene enrichment. ")
     
   } else {
-    # Select the associated genes with the rSNPs
+    
+  ## Select the tenes associated with the rSNPs
   inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
-  gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
-                geneIdType=SymbolIdentifier())
-  output <- teEnrichment(inputGenes = gs)
   
-  seEnrichmentOutput <- output[[1]]
-  enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-  enrichmentOutput$Tissue <- row.names(enrichmentOutput)
-  
-  
-  ggplot(enrichmentOutput,
-         aes(x=reorder(Tissue,-Log10PValue),
-             y=Log10PValue,
-             label = Tissue.Specific.Genes,
-             fill = Tissue))+
-    geom_bar(stat = 'identity')+
-    labs(x='', y = '-LOG10(P-Adjusted)')+
-    theme_bw()+
-    theme(legend.position="none")+
-    theme(plot.title = element_text(hjust = 0.5,size = 20),
-          axis.title = element_text(size=15))+
-    theme(axis.text.x = element_text(angle = 45, 
-                                     vjust = 1, hjust = 1),
-          panel.grid.major= element_blank(),
-          panel.grid.minor = element_blank())
+  if (length(inputGenes)) {
+    
+    gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
+                  geneIdType=SymbolIdentifier())
+    output <- teEnrichment(inputGenes = gs)
+    
+    seEnrichmentOutput <- output[[1]]
+    enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+    enrichmentOutput$Tissue <- row.names(enrichmentOutput)
+    
+    
+    ggplot(enrichmentOutput,
+           aes(x=reorder(Tissue,-Log10PValue),
+               y=Log10PValue,
+               label = Tissue.Specific.Genes,
+               fill = Tissue))+
+      geom_bar(stat = 'identity')+
+      labs(x='', y = '-LOG10(P-Adjusted)')+
+      theme_bw()+
+      theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 20),
+            axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 45, 
+                                       vjust = 1, hjust = 1),
+            panel.grid.major= element_blank(),
+            panel.grid.minor = element_blank())
+  }
 }
 
 ```
