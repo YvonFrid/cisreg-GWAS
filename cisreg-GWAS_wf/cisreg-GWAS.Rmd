@@ -1,8 +1,7 @@
 ---
-knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/cisreg-GWAS_results/", output_file = 'cisreg_GWAS_report.html') })
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = 'cisreg_GWAS_report2.html') })
 title: "Detection of  regulatory SNPs in GWAS studies"
-author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan
-  & Jacques van Helden '
+author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden '
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
@@ -10,7 +9,7 @@ output:
     code_folding: hide
     fig_caption: yes
     highlight: zenburn
-    self_contained: no
+    self_contained: yes
     theme: cerulean
     toc: yes
     toc_depth: 3
@@ -119,9 +118,9 @@ for (file in R.files) {
 parameters <- list(
   # query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
-  #query = "HP_0100806", # sepsis
+  query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  query =  "EFO_0008407", # tuberculosis
+  #query =  "EFO_0008407", # tuberculosis
   trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
   # population = "AFR",  ## BEWARE, the population should be adapted to the query !
@@ -137,7 +136,7 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
+  RSAT.rest = TRUE, ## If TRUE, use RSAT REST interface to predict rSNPs
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
@@ -854,26 +853,26 @@ kable(head(LdSNPs), caption = paste0(
 
 
 
-```{r ld_snp_plot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". SNPs in linkage disequilibrium (LD).** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r ld_snp_plot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". SNPs in linkage disequilibrium (LD).** "), out.width = "80%", fig.width=5, fig.height=8}
 
 # Draw a barplot of SNPs in LD
-nb.ld.snps <- table(factor(LdSNPs$variation1))
+nb.ld.snps <- sort(table(as.vector(LdSNPs$variation1)))
 
-barplot(as.vector(nb.ld.snps),
-        horiz = F,
+barplot(nb.ld.snps,
+        horiz = TRUE,
         cex.axis = 1,
         cex.lab = 1,
         las = 1, 
         main = "SNPs in linkage disequilibrium",
-        xlab = "DA-SNPs",
-        ylab = "LD SNPs",
+        xlab = "LD SNPs",
+#        ylab = "DA SNPs",
         cex.names = 0.8,
         col = "#006699")
 
 ```
 
 
-In this section, we gathering the informations about the DA and LD SNPs from Ensembl using the R `biomaRt` package.
+In this section, we gather the informations about the DA and LD SNPs from Ensembl using the R `biomaRt` package.
 
 ```{r biomart_SNP_annotation}
 ## Get SNP annotations from  biomaRt
@@ -1310,15 +1309,16 @@ message("Running enrichment analysis (xEnricherSNPs) for diseasess")
 snpList <- SOIs$refsnp_id
 
 # Run xEnricherSNPs
-eTerm <- c(snpList, 
-           ontology = c("EF", 
-                        "EF_disease",
-                        "EF_phenotype", 
-                        "EF_bp"), 
-           include.LD = parameters$population,
-           LD.r2 = parameters$r2,
-           size.range = c(10, 2000),
-           RData.location = "http://galahad.well.ox.ac.uk/bigdata")
+eTerm <- xEnricherSNPs(
+  snpList, 
+  ontology = c("EF", 
+               "EF_disease",
+               "EF_phenotype", 
+               "EF_bp"), 
+  include.LD = parameters$population,
+  LD.r2 = parameters$r2,
+  size.range = c(10, 2000),
+  RData.location = "http://galahad.well.ox.ac.uk/bigdata")
 
 
 # View enrichment results
