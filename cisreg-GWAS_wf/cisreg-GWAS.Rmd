@@ -1,5 +1,5 @@
 ---
-knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = '~/cisreg-GWAS_results/cisreg_GWAS_report.html') })
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_dir = "~/cisreg-GWAS_results/", output_file = 'cisreg_GWAS_report.html') })
 title: "Detection of  regulatory SNPs in GWAS studies"
 author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan
   & Jacques van Helden '
@@ -117,15 +117,15 @@ for (file in R.files) {
 ## Define user-specified parameters for the analyses
 ## Parameters
 parameters <- list(
-  query =  "EFO_0001068", # malaria
+  # query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  # query =  "EFO_0008407", # tuberculosis
+  query =  "EFO_0008407", # tuberculosis
   trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "AFR",  ## BEWARE, the population should be adapted to the query !
-  # population = "EUR",  ## BEWARE, the population should be adapted to the query !
+  # population = "AFR",  ## BEWARE, the population should be adapted to the query !
+  population = "EUR",  ## BEWARE, the population should be adapted to the query !
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   r2 = 0.8,
@@ -168,8 +168,11 @@ parameters$figure.dir = file.path(parameters$result.dir, "figures")
 message("Result directory\t", parameters$figure.dir)
 dir.create(parameters$figure.dir, showWarnings = FALSE, recursive = TRUE)
 
-knitr::opts_chunk$set(fig.path = paste(
-  sep = "", parameters$figure.dir, parameters$query, "_"))
+## Set the figures path for the current markdown report
+knitr::opts_chunk$set(
+  fig.path = 
+    file.path(parameters$figure.dir, 
+              paste0(parameters$query, "_")))
 
 
 ## Initialise a vector to summarize the results
@@ -2743,6 +2746,17 @@ if (nrow(rSNPs.info) == 0) {
 ```
 
 
+
+
+## Result symmary
+
+```{r result_summary}
+
+kable(as.data.frame(workflowSummary), 
+      caption = "Summary of the results.",
+      col.names = "Results")
+
+```
 
 
 ## Output files
