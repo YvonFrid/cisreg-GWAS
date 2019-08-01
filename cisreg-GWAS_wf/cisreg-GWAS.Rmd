@@ -111,20 +111,21 @@ for (file in R.files) {
 ```
 
   
+
 ```{r parameters, echo=FALSE}
 
 ## Define user-specified parameters for the analyses
 ## Parameters
 parameters <- list(
-  # query =  "EFO_0001068", # malaria
+  query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
-  query = "HP_0100806", # sepsis
+  # query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query =  "EFO_0008407", # tuberculosis
   trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
   # population = "AFR",  ## BEWARE, the population should be adapted to the query !
-  population = "EUR",  ## BEWARE, the population should be adapted to the query !
+  population = "AFR",  ## BEWARE, the population should be adapted to the query !
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   r2 = 0.8,
@@ -136,7 +137,7 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-  RSAT.rest = TRUE, ## If TRUE, use RSAT REST interface to predict rSNPs
+  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
