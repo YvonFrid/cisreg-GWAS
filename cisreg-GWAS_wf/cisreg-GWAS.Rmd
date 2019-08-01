@@ -1,4 +1,5 @@
 ---
+knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = '~/cisreg-GWAS_results/cisreg_GWAS_report.html') })
 title: "Detection of  regulatory SNPs in GWAS studies"
 author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan
   & Jacques van Helden '
@@ -116,15 +117,17 @@ for (file in R.files) {
 ## Define user-specified parameters for the analyses
 ## Parameters
 parameters <- list(
-  working.dir = getwd(),
-  output.dir = "~/cisreg-GWAS_results",
-  # query =  "EFO_0001068", # malaria
+  query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
-  query =  "EFO_0008407", # tuberculosis
+  # query =  "EFO_0008407", # tuberculosis
+  trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "EUR",  ## BEWARE, the population should be adapted to the query !
+  population = "AFR",  ## BEWARE, the population should be adapted to the query !
+  # population = "EUR",  ## BEWARE, the population should be adapted to the query !
+  working.dir = getwd(),
+  output.dir = "~/cisreg-GWAS_results",
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
@@ -138,10 +141,10 @@ parameters <- list(
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
+  min.genes = 3,
   jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
-  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz",
-  min.genes = 3
+  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
 )
 
 
