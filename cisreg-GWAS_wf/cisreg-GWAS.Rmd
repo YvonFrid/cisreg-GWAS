@@ -230,7 +230,7 @@ bioconductor.libraries.to.install <- c(
   "ReactomePA",
   "enrichplot",
   #"rGREAT",
-  "XGR",
+  "XGR",  ## For xEnrichSNPs and related graph representations
   #"FunciSNP",
   "TissueEnrich",
   "grImport2"
