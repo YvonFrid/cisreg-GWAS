@@ -128,7 +128,6 @@ parameters <- list(
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
-  include.LD = "AFR", # additional SNPs in LD with Lead SNPs in XGR package
   update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
   flowchart.formats = c("pdf", "png"), # List of formats to generate
   flowchart.format = "pdf", # Format for insertion in the report,
@@ -183,7 +182,8 @@ workflowSummary <- vector()
 #### Load CRAN packages (install them if required) ####
 message("Loading required libraries")
 cran.libraries.to.install <- 
-  c("dplyr",   
+  c("yaml",
+    "dplyr",   
     "devtools",
     "ggplot2", 
     "gridExtra",
@@ -315,14 +315,17 @@ GWASstudiesRestOutput <- fromJSON(
 parameters$trait <- GWASstudiesRestOutput$trait
 
 
-outfiles["Parameters"] <- file.path(parameters$result.dir, "parameters.tsv")
-write.table(t(as.data.frame(parameters)), file = outfiles["Parameters"], 
-            quote = FALSE, row.names = TRUE, col.names = FALSE, sep= "\t")
-message("Parameters saved in file\t", outfiles["Parameters"])
-
 ## Generate a table displaying the parameters for the report
 kable(t(as.data.frame(parameters))[,1], 
       col.names = c("Parameter value"))
+
+
+## Export parameters to a yaml file in the result directory, for traceability and reproducibility
+outfiles["Parameters (yaml)"] <- file.path(parameters$result.dir, "parameters.yaml")
+write_yaml(x = parameters, 
+           file = outfiles["Parameters (yaml)"], fileEncoding = "UTF-8")
+message("Parameters saved in file\t", outfiles["Parameters (yaml)"])
+
 
 ```
 
@@ -1306,7 +1309,7 @@ eTerm <- c(snpList,
                         "EF_disease",
                         "EF_phenotype", 
                         "EF_bp"), 
-           include.LD = parameters$include.LD,
+           include.LD = parameters$population,
            LD.r2 = parameters$r2,
            size.range = c(10, 2000),
            RData.location = "http://galahad.well.ox.ac.uk/bigdata")
