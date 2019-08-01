@@ -141,7 +141,8 @@ parameters <- list(
   RSAT.varscan.pval.ratio = 100,
   jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
   motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
-  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
+  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz",
+  min.genes = 3
 )
 
 
@@ -2606,6 +2607,9 @@ if (nrow(rSNPs.info) == 0) {
 We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
 
 ```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
+
+#### Gene enrichment analysis with DOSE::DisGeNET ####
+
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping enrichDGN() ")
   
@@ -2613,12 +2617,24 @@ if (nrow(rSNPs.info) == 0) {
   
   # Select the GOI
   geneList <- na.omit(rSNPs.info$entrezgene_id)
+  rSNPS.nb.genes <- length(geneList)
   
-  ## Checking the enrichment gene-disease associations in DisGeNET
-  edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
-  
-  ## Barplot of enrichment gene-disease associations from DisGeNET
-  barplot(edo)
+  if (rSNPS.nb.genes == 0) {
+    message("Not a single gene is associated to the candidate rSNPs - skipping gene enrichment analysis")
+    
+  } else if (rSNPS.nb.genes < parameters$min.genes) {
+    message("The number of genes associated to the candidate rSNPs (", rSNPS.nb.genes, ")",
+    " is lower than the user-specified threshold (", parameters$min.genes, "). ", 
+    "Skipping gene enrichment analysis")
+    
+  } else {
+    
+    ## Checking the enrichment gene-disease associations in DisGeNET
+    edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
+    
+    ## Barplot of enrichment gene-disease associations from DisGeNET
+    barplot(edo)
+  }
 }
 
 ```
@@ -2632,13 +2648,16 @@ if (nrow(rSNPs.info) == 0) {
   
 } else {
   
-  ## convert gene ID to Symbol
-  edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+  if (exists("edo")) {
   
-  
-  ## Circular network of the linkages of genes and biological concepts
-  
-  cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+    ## convert gene ID to Symbol
+    edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+    
+    
+    ## Circular network of the linkages of genes and biological concepts
+    
+    cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+  }
 }
 
 ```
@@ -2650,7 +2669,9 @@ if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping emapplot() ")
   
 } else {
-  emapplot(edo)
+  if (exists("edo")) {
+    emapplot(edo)
+  }
 }
 ```
 
@@ -2660,7 +2681,9 @@ if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping heatplot() ")
   
 } else {
-  heatplot(edox, foldChange=geneList)
+  if (exists("edo")) {
+    heatplot(edox, foldChange=geneList)
+  }
 }
 
 ```
@@ -2672,36 +2695,43 @@ The below bar charts shown the tissue-specific gene enrichment.
 
 ```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. ")}
 
+message("Tissue-specific gene enrichment analysis")
+
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping tissue-specific gene enrichment. ")
     
   } else {
-    # Select the associated genes with the rSNPs
+    
+  ## Select the tenes associated with the rSNPs
   inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
-  gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
-                geneIdType=SymbolIdentifier())
-  output <- teEnrichment(inputGenes = gs)
   
-  seEnrichmentOutput <- output[[1]]
-  enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-  enrichmentOutput$Tissue <- row.names(enrichmentOutput)
-  
-  
-  ggplot(enrichmentOutput,
-         aes(x=reorder(Tissue,-Log10PValue),
-             y=Log10PValue,
-             label = Tissue.Specific.Genes,
-             fill = Tissue))+
-    geom_bar(stat = 'identity')+
-    labs(x='', y = '-LOG10(P-Adjusted)')+
-    theme_bw()+
-    theme(legend.position="none")+
-    theme(plot.title = element_text(hjust = 0.5,size = 20),
-          axis.title = element_text(size=15))+
-    theme(axis.text.x = element_text(angle = 45, 
-                                     vjust = 1, hjust = 1),
-          panel.grid.major= element_blank(),
-          panel.grid.minor = element_blank())
+  if (length(inputGenes)) {
+    
+    gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
+                  geneIdType=SymbolIdentifier())
+    output <- teEnrichment(inputGenes = gs)
+    
+    seEnrichmentOutput <- output[[1]]
+    enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+    enrichmentOutput$Tissue <- row.names(enrichmentOutput)
+    
+    
+    ggplot(enrichmentOutput,
+           aes(x=reorder(Tissue,-Log10PValue),
+               y=Log10PValue,
+               label = Tissue.Specific.Genes,
+               fill = Tissue))+
+      geom_bar(stat = 'identity')+
+      labs(x='', y = '-LOG10(P-Adjusted)')+
+      theme_bw()+
+      theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 20),
+            axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 45, 
+                                       vjust = 1, hjust = 1),
+            panel.grid.major= element_blank(),
+            panel.grid.minor = element_blank())
+  }
 }
 
 ```
