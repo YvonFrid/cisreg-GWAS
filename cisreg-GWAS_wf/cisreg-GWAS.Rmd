@@ -118,14 +118,13 @@ for (file in R.files) {
 parameters <- list(
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
-  #query =  "EFO_0001068", # malaria
+  # query =  "EFO_0001068", # malaria
   #query = "EFO_0001360", # type ii diabetes mellitus
   #query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   query =  "EFO_0008407", # tuberculosis
-  # query =  "EFO_0008407", # tuberculosis
   ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "AFR",
+  population = "EUR",  ## BEWARE, the population should be adapted to the query !
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
@@ -136,7 +135,7 @@ parameters <- list(
   force.download = FALSE, # if TRUE, files are downloaded even if already present
   #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
   GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
+  RSAT.rest = TRUE, ## If TRUE, use RSAT REST interface to predict rSNPs
   RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
   RSAT.varscan.pval = 1e-4,
   RSAT.varscan.pval.ratio = 100,
@@ -180,6 +179,7 @@ workflowSummary <- vector()
 
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
+#### Load CRAN packages (install them if required) ####
 message("Loading required libraries")
 cran.libraries.to.install <- 
   c("dplyr",   
@@ -196,12 +196,24 @@ cran.libraries.to.install <-
     "httr",
     "xml2",
     "RCurl",
-    "data.table",
-    #"gProfileR",
-    "DOSE"
- 
+    "data.table" #,
+    # "gProfileR",
+    # "DOSE"
   )     
 
+
+message("Loading CRAN libraries")
+for (lib in cran.libraries.to.install) {
+  if (require(lib, character.only = TRUE, quietly = TRUE)) {
+    message("\tLoaded library\t", lib)
+  } else {
+    message("Installing CRAN library\t", lib)
+    install.packages(lib, dependencies = TRUE)
+  }
+  require(lib, character.only = TRUE, quietly = TRUE)
+}
+
+#### Load Bioconductor packages (install them if required) ####
 bioconductor.libraries.to.install <- c(
   "biomaRt",
   "GenomicRanges",
@@ -215,19 +227,7 @@ bioconductor.libraries.to.install <- c(
   #"FunciSNP",
   "TissueEnrich",
   "grImport2"
-
 )
-
-message("Loading CRAN libraries")
-for (lib in cran.libraries.to.install) {
-  if (require(lib, character.only = TRUE, quietly = TRUE)) {
-    message("\tLoaded library\t", lib)
-  } else {
-    message("Installing CRAN library\t", lib)
-    install.packages(lib, dependencies = TRUE)
-  }
-  require(lib, character.only = TRUE, quietly = TRUE)
-}
 
 message("Loading Bioconductor libraries")
 for (lib in bioconductor.libraries.to.install) {
@@ -246,6 +246,8 @@ for (lib in bioconductor.libraries.to.install) {
   }
 #   require(lib, character.only = TRUE, quietly = TRUE)
 }
+
+#### Load some specific R packages from github with devtools ####
 
 ## For github libraries we need to know the account for each package -> we encode this as a named vector
 github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
@@ -308,7 +310,7 @@ GWASstudiesRestOutput <- fromJSON(
   content_type("application/json"), 
   simplifyDataFrame = FALSE)
 
-
+## Add the nameof the trait to the parameters
 parameters$trait <- GWASstudiesRestOutput$trait
 
 ## Generate a table displaying the parameters for the report
@@ -1386,7 +1388,6 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 if (parameters$RSAT.rest) {
   
   #### RSAT variation-info ####
-  
   # Create the vector of SOIs
   SOI.string <- paste(collapse = ",", SOIs$refsnp_id)
   # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
@@ -1416,6 +1417,8 @@ if (parameters$RSAT.rest) {
     result.dir.path["RSAT"],
     paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
   download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
+  message("RSAT variation-info result saved to file\n\t", 
+          outfiles["RSAT variation-info (varBed)"])
   # system(paste("open", result.dir.path["RSAT"]))
   
   #### RSAT variation-seq ####s
@@ -1440,6 +1443,8 @@ if (parameters$RSAT.rest) {
     paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
   download.file(url = varSeq.URL, destfile = outfiles["RSAT retrieve-variation-seq (varSeq)"])
     # system(paste("open", result.dir.path["RSAT"]))
+  message("RSAT retrieve-variation-seq result saved to file\n\t", 
+          outfiles["RSAT retrieve-variation-seq (varSeq)"])
 
   #### RSAT variation-scan ####
   
@@ -1452,7 +1457,7 @@ if (parameters$RSAT.rest) {
                     m_string = parameters$motifDB.URL,
                     m_string_type = "url",
                     m_format =  "transfac"),
-                  top = 2,
+#                  top = 2,
                   uth_pval = parameters$RSAT.varscan.pval,
                   lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
                   add_headers("Accept" = "application/json"))
@@ -1475,7 +1480,10 @@ if (parameters$RSAT.rest) {
     result.dir.path["RSAT"],
     paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
   download.file(url = varscan.URL, destfile = outfiles["RSAT variation-scan (tsv)"])
-  system(paste("open", result.dir.path["RSAT"]))
+  message("RSAT variation-scan result saved to file\n\t", 
+          outfiles["RSAT variation-scan (tsv)"])
+
+  # system(paste("open", result.dir.path["RSAT"]))
 }
 
 ```
@@ -1485,11 +1493,15 @@ if (parameters$RSAT.rest) {
 ```{r importing_variascan_results}
 
 ## Importing variation-scan result
-varscanFile <- file.path(
-  result.dir.path["RSAT"],  
-  paste0(parameters$query, "_varscan_web.txt"))
-# system(paste("open ", varscanFile))
-
+if (parameters$RSAT.rest) {
+  varscanFile <- outfiles["RSAT variation-scan (tsv)"] 
+} else {
+  ## Load variation-scan results obtained from RSAT Web interface
+  varscanFile <- file.path(
+    result.dir.path["RSAT"],  
+    paste0(parameters$query, "_varscan_web.txt"))
+  # system(paste("open ", varscanFile))
+}
 ## Load variation-scan results
 ## Note: this is a temporary solution, since variation-scan should be invoked via REST Web services 
 variationScan.ori <- read.delim(file =  varscanFile,
