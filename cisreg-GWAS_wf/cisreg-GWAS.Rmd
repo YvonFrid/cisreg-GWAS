@@ -1,24 +1,24 @@
 ---
-# knit: (function(inputFile, encoding) { rmarkdown::render(inputFile, encoding = encoding, output_file = 'cisreg_GWAS_report2.html') })
+#knit: (function(inputFile, encoding = "UTF-8") { rmarkdown::render(inputFile, encoding = encoding, output_file = 'cisreg_GWAS_report2.html', output_dir = "cisreg_GWAS_report_2019-08") })
 title: "Detection of  regulatory SNPs in GWAS studies"
 author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz Khan & Jacques van Helden '
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
-  html_document:
-    code_folding: hide
-    fig_caption: yes
-    highlight: zenburn
-    self_contained: no
-    theme: cerulean
-    toc: yes
-    toc_depth: 3
-    toc_float: yes
   pdf_document:
     fig_caption: yes
     highlight: zenburn
     toc: yes
     toc_depth: 3
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    highlight: zenburn
+    self_contained: yes
+    theme: cerulean
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -171,6 +171,7 @@ knitr::opts_chunk$set(
   ## Maybe related to these reported issue:
   ##     https://github.com/rstudio/rmarkdown/issues/429
   ##     https://github.com/rstudio/rmarkdown/issues/587
+  fig.path = "figures/",
 #  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
 #  fig.path = file.path("figures", paste0(parameters$query, "_")),
   size = "tiny", 
@@ -856,7 +857,7 @@ kable(head(LdSNPs), caption = paste0(
 
 
 
-```{r ld_snp_plot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". SNPs in linkage disequilibrium (LD).** "), out.width = "50%", fig.width=5, fig.height=8}
+```{r ld_snp_plot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". SNPs in linkage disequilibrium (LD).** "), out.width = "40%", fig.width=5, fig.height=8}
 
 # Draw a barplot of SNPs in LD
 nb.ld.snps <- sort(table(as.vector(LdSNPs$variation1)))
@@ -1392,11 +1393,11 @@ variation-tools is the subset tools of RSAT [@turatsinze_using_2008; @nguyen_rsa
 
 The input data of variation-tools is a list of the SOIs. The prediction of regulatory variant by variation-tools is will done by the following steps:
 
-1) *variation-info*: relies on the Ensembl genetic variation information (i.e. Human variants installed in the Metazoa server). This tool will retrieve the information of the variants matching the rsIDs or the information of the variants located in the genomic loci. The output  is provided in a format named varBed file, with each row giving Ensembl genetic variation information for each SOI.
+1) *variation-info* : relies on the Ensembl genetic variation information (i.e. Human variants installed in the Metazoa server). This tool will retrieve the information of the variants matching the rsIDs or the information of the variants located in the genomic loci. The output  is provided in a format named varBed file, with each row giving Ensembl genetic variation information for each SOI.
 
-2) *retrieve-variation-seq*: retrieves the sequence surrounding the variant, and produces one sequence for each allele. The tool can take as input a varBed file, and for organisms with Ensembl annotated variants. The output is provided in a format named varSeq, with each row giving one allele with its surrounding sequence. Each variant has a specific internal ID to accommodate several variants with various alleles in the same file.
+2) *retrieve-variation-seq* : retrieves the sequence surrounding the variant, and produces one sequence for each allele. The tool can take as input a varBed file, and for organisms with Ensembl annotated variants. The output is provided in a format named varSeq, with each row giving one allele with its surrounding sequence. Each variant has a specific internal ID to accommodate several variants with various alleles in the same file.
 
-3) *variation-scan*: scanning of the sequence of alleles of each SOI (in varSeq format) with a given PSSM  and compares the scores and p-values between alleles to assess the putative effect on TF binding. PSSM are used to assess the binding specificity of a TF, this affinity is calculated as a weight score (Ws) described by Hertz GZ and Stormo GD [@hertz_identifying_1999]. *variation-scan* compares the obtained Ws (Ws difference = Ws_Allele1 - Ws_Alelle2) and the P-value (P-value ratio = P-value_Allele1 / P-value_Allele2) of each of the alleles, position by position throughout the scanning window.
+3) *variation-scan* : scanning of the sequence of alleles of each SOI (in varSeq format) with a given PSSM  and compares the scores and p-values between alleles to assess the putative effect on TF binding. PSSM are used to assess the binding specificity of a TF, this affinity is calculated as a weight score (Ws) described by Hertz GZ and Stormo GD [@hertz_identifying_1999]. *variation-scan* compares the obtained Ws (Ws difference = Ws_Allele1 - Ws_Alelle2) and the P-value (P-value ratio = P-value_Allele1 / P-value_Allele2) of each of the alleles, position by position throughout the scanning window.
 
 **Ws = ln( P(S|M))/P(S/B)**
 
@@ -2730,7 +2731,7 @@ if (nrow(rSNPs.info) == 0) {
 
 The below bar charts shown the tissue-specific gene enrichment.
 
-```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (−Log10(P−Value)) values. ")}
+```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (-Log10(P-Value)) values. ")}
 
 message("Tissue-specific gene enrichment analysis")
 
