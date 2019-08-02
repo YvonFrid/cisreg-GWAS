@@ -9,7 +9,7 @@ output:
     code_folding: hide
     fig_caption: yes
     highlight: zenburn
-    self_contained: yes
+    self_contained: no
     theme: cerulean
     toc: yes
     toc_depth: 3
@@ -87,14 +87,14 @@ ptm <- proc.time()
 ## Parameters
 parameters <- list(
   # query =  "EFO_0001068", # malaria
-  query =  "EFO_0008407", # tuberculosis
-  # query = "HP_0100806", # sepsis
+  # query =  "EFO_0008407", # tuberculosis
+  query = "HP_0100806", # sepsis
   #query = "EFO_0000249", # Alzheimer's disease
   #query = "EFO_0001360", # type ii diabetes mellitus
   trait = NA,
   ld.pop.prefix = "1000GENOMES:phase_3:",
+  population = "EUR",  ## BEWARE, the population should be adapted to the query !
   # population = "AFR",  ## BEWARE, the population should be adapted to the query !
-  population = "AFR",  ## BEWARE, the population should be adapted to the query !
   working.dir = getwd(),
   output.dir = "~/cisreg-GWAS_results",
   r2 = 0.8,
@@ -137,18 +137,12 @@ parameters$figure.dir = file.path(parameters$result.dir, "figures")
 message("Figures directory\t", parameters$figure.dir)
 dir.create(parameters$figure.dir, showWarnings = FALSE, recursive = TRUE)
 
+## JvH 2019-08-02: I swapped the knitr_setup and parameteres chunks in order to be able using parameters in the knitr setup. This however does not fix thee problem of not found figures.  
 ## Set the figures path for the current markdown report
 # knitr::opts_chunk$set(
 #   fig.path = 
 #     file.path(parameters$figure.dir, 
 #               paste0(parameters$query, "_")))
-
-### FOR DEBUG
-# knitr::opts_chunk$set(
-#   fig.path = 
-#     file.path(parameters$result.dir, 
-#               paste0("figure_", parameters$query, "_")))
-### END DEBUG
 
 
 ## Initialise a vector to summarize the results
@@ -157,7 +151,7 @@ workflowSummary <- vector()
 ```
 
 
-```{r setup, include=FALSE, size="huge"}
+```{r knitr_setup, include=FALSE, size="huge"}
 message("Loading knitr library")
 if (!require("knitr", quietly = TRUE)) {
   message("Installing knitr library")
@@ -172,7 +166,12 @@ knitr::opts_chunk$set(
   fig.width = 7, 
   fig.height = 5, 
   fig.align = "center", 
-  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
+  encoding = "UTF-8",
+  ## PROBLEM
+  ## Maybe related to these reported issue:
+  ##     https://github.com/rstudio/rmarkdown/issues/429
+  ##     https://github.com/rstudio/rmarkdown/issues/587
+#  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
 #  fig.path = file.path("figures", paste0(parameters$query, "_")),
   size = "tiny", 
   warning = FALSE, 
@@ -654,8 +653,6 @@ kable(as.data.frame(workflowSummary),
 #View(studiesPerSNP)
 
 ```
-
-
 
 
 
@@ -2040,6 +2037,7 @@ for (i in 1:nrow(SOIs.annotations)) {
 
 ```{r SOI_annotate_genes}
 #### add gene information to SOI annotations ####
+message("Adding gene information to SOI annotations")
 
 ## Get gene features from Ensembl
 #snpInfo$ensembl_gene_stable_id
@@ -2165,23 +2163,29 @@ promoter <- getPromoters(
   downstream = 3000)
 
 
-# BED file of SOI overlapped with the ReMap catalog
+# BED file of SOIs overlapped by ReMap peaks
 remap.SOI.bed.peak <- remap.SOI.overlaps[, c("seqnames", "start", "end")]
+# dim(remap.SOI.bed.peak)
 
 # Create a GRanges object of the ChIP-seq peak overlapped with the SOIs haplotype blocks.
 remap.SOI.peak.gr <- with(remap.SOI.bed.peak,
                    GRanges( seqnames = Rle(seqnames),
                             ranges   = IRanges(start =  start, end =  end),
                             strand   = Rle("*")))
- 
+# length(remap.SOI.peak.gr)
+
 message("Creating a remap.SOI.peak matrix data..")
 tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 
-
+# View(tagMatrix)
+# class(tagMatrix)
+# sum(tagMatrix)
+# ncol(tagMatrix)
+# 
 
 # Heatmap of ChIP binding to TSS regions
 
-#message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
+# message("Plotting a heatmap of ChIP-seq binding to TSS regions..")
 
 #tagHeatmap(tagMatrix, xlim = c(-3000, 3000), color = "blue")
 
@@ -2193,15 +2197,22 @@ tagMatrix <- getTagMatrix(remap.SOI.peak.gr, windows = promoter)
 ## Compute Average Profile of ChIP peaks binding to TSS region
 ## Confidence interval estimated by bootstrap method 
 ## is also supported for characterizing ChIP binding profiles.
-message("Compute the average profile of ChIP-seq peaks binding to TSS region")
-plotAvgProf(tagMatrix, xlim = c(-3000, 3000),
-             conf = 0.95, resample = 1000,
-            xlab = "Genomic Region (5'->3')", ylab = "Read Count Frequency")
 
-# plotAvgProf2(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000,
-#              xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
-
-#plotAvgProf(tagMatrix, xlim=c(-3000, 3000), conf = 0.95, resample = 1000)
+if (is.null(ncol(tagMatrix))) {
+  
+  message("\n\tWARNING: ChIpSeeker:getTagMatrix() returned an invalid tagMatrix\n\tskipping avrage profile of ChIP-seeq peaks binding to TSS regions\n")
+} else {
+  message("Computing the average profile of ChIP-seq peaks binding to TSS regions")
+  plotAvgProf(tagMatrix, 
+              xlim = c(-3000, 3000),
+              conf = 0.95, resample = 1000,
+              xlab = "Genomic Region (5'->3')", ylab = "Read Count Frequency")
+  
+  # plotAvgProf2(remap.SOI.peak.gr, TxDb=txdb, upstream=3000, downstream=3000,
+  #              xlab="Genomic Region (5'->3')", ylab = "Read Count Frequency")
+  
+  #plotAvgProf(tagMatrix, xlim=c(-3000, 3000), conf = 0.95, resample = 1000)
+}
 
 ```
 
@@ -2272,8 +2283,10 @@ write.table(x = varscan.with.peaks,
 
 
 ```{r gene_info}
+### JvH 2019-08-02: YVON, ceci n'est plus nécessaire puisqu'on a déjà collecté l'info pour tous les SOIs dans un bloc précédent. Tu pourrais le remplacer par une sélection du sous-ensemble du tableau d'annotation des SOIs. 
 
-#### Get gene features from Ensembl ####
+#### Get gene features from Ensembl for the candidate rSNPs ####
+message("Getting gene information for candidate rSNPs")
 #snpInfo$ensembl_gene_stable_id
 # Specify the BioMart database and dataset to use.
 bioMartConnection <- useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl") 
@@ -2609,7 +2622,7 @@ if (nrow(rSNPs.info) == 0) {
                                  strand   = Rle("*")))
   
   geneAnno <- annotatePeak(rSNPs.gene.gr, #tssRegion=c(-3000, 3000),
-                           TxDb=txdb, annoDb="org.Hs.eg.db")
+                           TxDb=txdb, annoDb = "org.Hs.eg.db")
   
   print(geneAnno)
   
