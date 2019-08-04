@@ -5,6 +5,11 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -14,11 +19,6 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -80,8 +80,7 @@ ptm <- proc.time()
 ```
 
 
-
-```{r parameters, echo=FALSE, results=FALSE, warning=FALSE}
+```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
 ## Define user-specified parameters for the analyses
 ## Parameters
@@ -97,7 +96,7 @@ parameters <- list(
   population = "AFR",  ## BEWARE, the population should be adapted to the query !
   # population = "AFR",  ## BEWARE, the population should be adapted to the query !
   working.dir = getwd(),
-  output.dir = "~/cisreg-GWAS_results",
+  output.dir = file.path(Sys.getenv("HOME"), "cisreg-GWAS_results"),
   r2 = 0.8,
   ld.distance = 200,
   max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
@@ -172,8 +171,8 @@ knitr::opts_chunk$set(
   ## Maybe related to these reported issue:
   ##     https://github.com/rstudio/rmarkdown/issues/429
   ##     https://github.com/rstudio/rmarkdown/issues/587
-  fig.path = "figures/",
-#  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
+#  fig.path = "figures/",
+  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
 #  fig.path = file.path("figures", paste0(parameters$query, "_")),
   size = "tiny", 
   warning = FALSE, 
@@ -210,7 +209,7 @@ cran.libraries.to.install <-
     "httr",
     "xml2",
     "RCurl",
-    "data.table",
+    "data.table"
     # "gProfileR"
   )     
 
