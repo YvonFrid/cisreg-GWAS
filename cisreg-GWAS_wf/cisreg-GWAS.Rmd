@@ -1129,7 +1129,7 @@ text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 0.7
 
 ## LD groups
 
-We compute the coordinates of each LD group.s
+We compute the coordinates of each LD groups
 
 
 ```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "100%", fig.width=9, fig.height=4.5}
