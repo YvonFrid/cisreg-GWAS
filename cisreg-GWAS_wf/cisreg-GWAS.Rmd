@@ -1412,7 +1412,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 
 ```{r rsat_rest_api_R}
-
+#### Run RSAT variation tools to detectpredict regulatory variants ####
 
 
 if (parameters$RSAT.rest) {
@@ -1423,14 +1423,15 @@ if (parameters$RSAT.rest) {
   # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
   
   ## Submit a query to variation-info via the REST interface
-  message("\tRetrieving information on variants from RSAT REST Web services")
+  message("\tRetrieving information on ", length(SOIs$refsnp_id), " variants from RSAT REST Web services")
   varInfo.time <- system.time(
     varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
                     body = list(i_string = SOI.string,
                                 i_string_type = 'text'))
   )
   # View(varInfo)
-  message("Time to run RSAT variation-info\n", varInfo.time)
+  message("\tElapsed time to get variation info from RSAT REST: ", 
+          signif(digits=3, varInfo.time["elapsed"]), "s")
   
   ## Extract the content from the REST response
   varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
@@ -1455,9 +1456,13 @@ if (parameters$RSAT.rest) {
   
   # ## Build the API request for retrieve-variation-seq and submit it
   message("\tRetrieving the sequences surrounding variants from RSAT REST Web services")
-  varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
-                 body = list(i_string = varInfo.server.path,
-                             i_string_type = 'piping'))
+  varSeq.time <- system.time( 
+    varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+                   body = list(i_string = varInfo.server.path,
+                               i_string_type = 'piping'))
+  )
+  message("\tElapsed time to get variation sequences from RSAT REST: ", 
+          signif(digits=3, varSeq.time["elapsed"]), "s")
   
   ## Parse the content returned from the server
   varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
@@ -1477,23 +1482,27 @@ if (parameters$RSAT.rest) {
           outfiles["RSAT retrieve-variation-seq (varSeq)"])
 
   #### RSAT variation-scan ####
-  stop("RSAT variation-scan seems to have a problem. Please submit the analysis via thee web site")
+  stop("RSAT variation-scan seems to have a problem. Please submit the analysis via the web site")
   
   ## Build the API request for Variation-scan and submit it
   message("Scanning variant alleles with motifs via RSAT REST services")
-  varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
-                  body = list(
-                    i_string = varSeq.server.path,
-                    i_string_type = 'piping',
-                    m_string = parameters$motifDB.URL,
-                    m_string_type = "url",
-                    m_format =  "transfac"),
-#                  top = 2,
-                  uth_pval = parameters$RSAT.varscan.pval,
-                  lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
-                  add_headers("Accept" = "application/json"))
-  #                add_headers("Accept" = "text/plain"))
+  varScan.time <- system.time(
+    varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
+                    body = list(
+                      i_string = varSeq.server.path,
+                      i_string_type = 'piping',
+                      m_string = parameters$motifDB.URL,
+                      m_string_type = "url",
+                      m_format =  "transfac"),
+                    #                  top = 2,
+                    uth_pval = parameters$RSAT.varscan.pval,
+                    lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
+                    add_headers("Accept" = "application/json"))
+    #                add_headers("Accept" = "text/plain"))
+  )
   
+  message("\tElapsed time to get variation sequences from RSAT REST: ", 
+          signif(digits=3, varScan.time["elapsed"]), "s")
   # var <- content(varscan, "text", encoding = "UTF-8")
   # var <- fromJSON(var)
   
