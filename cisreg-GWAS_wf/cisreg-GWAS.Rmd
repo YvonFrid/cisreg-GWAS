@@ -81,41 +81,45 @@ ptm <- proc.time()
 
 
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
-
-## Define user-specified parameters for the analyses
-## Parameters
-parameters <- list(
-  query =  "EFO_0001068", # malaria
-  # query =  "EFO_0008407", # tuberculosis
-  # query = "HP_0100806", # sepsis
-  # query = "EFO_0000249", # Alzheimer's disease
-  # query = "EFO_0000692" # schizophrenia
-  # query = "EFO_0001360", # type ii diabetes mellitus
-  trait = NA,
-  ld.pop.prefix = "1000GENOMES:phase_3:",
-  population = "EUR",  ## BEWARE, the population should be adapted to the query !
-  # population = "AFR",  ## BEWARE, the population should be adapted to the query !
-  working.dir = getwd(),
-  output.dir = file.path(Sys.getenv("HOME"), "cisreg-GWAS_results"),
-  r2 = 0.8,
-  ld.distance = 200,
-  max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
-  update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
-  flowchart.formats = c("pdf", "png"), # List of formats to generate
-  flowchart.format = "pdf", # Format for insertion in the report,
-  force.download = FALSE, # if TRUE, files are downloaded even if already present
-  #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-  GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-  RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
-  RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
-  RSAT.varscan.pval = 1e-4,
-  RSAT.varscan.pval.ratio = 100,
-  min.genes = 3,
-  jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
-  motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
-  remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
-)
-
+if (TRUE) {
+  getwd()  
+  parameters <- yaml::read_yaml("parameters_tuberculosis.yaml")
+  
+} else {
+  ## Define user-specified parameters for the analyses
+  ## Parameters
+  parameters <- list(
+    query =  "EFO_0001068", # malaria
+    # query =  "EFO_0008407", # tuberculosis
+    # query = "HP_0100806", # sepsis
+    # query = "EFO_0000249", # Alzheimer's disease
+    # query = "EFO_0000692" # schizophrenia
+    # query = "EFO_0001360", # type ii diabetes mellitus
+    trait = NA,
+    ld.pop.prefix = "1000GENOMES:phase_3:",
+    population = "AFR",  ## BEWARE, the population should be adapted to the query !
+    # population = "AFR",  ## BEWARE, the population should be adapted to the query !
+    working.dir = getwd(),
+    output.dir = file.path(Sys.getenv("HOME"), "cisreg-GWAS_results"),
+    r2 = 0.8,
+    ld.distance = 200,
+    max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
+    update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
+    flowchart.formats = c("pdf", "png"), # List of formats to generate
+    flowchart.format = "pdf", # Format for insertion in the report,
+    force.download = FALSE, # if TRUE, files are downloaded even if already present
+    #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
+    GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
+    RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
+    RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+    RSAT.varscan.pval = 1e-4,
+    RSAT.varscan.pval.ratio = 100,
+    min.genes = 3,
+    jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
+    motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
+    remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
+  )
+}
 
 fig.nb <- 0 ## Initialize figure counter
 
