@@ -152,6 +152,8 @@ workflowSummary <- vector()
 ```
 
 
+
+
 ```{r knitr_setup, include=FALSE, size="huge"}
 message("Loading knitr library")
 if (!require("knitr", quietly = TRUE)) {
@@ -1263,7 +1265,7 @@ plot(ldGroup.info$nb.SNPs, ldGroup.info$size/1000,
      xlab = "SNPs per LD block", ylab = "LD block size (kb)",
      panel.first = grid())
 
-
+#dim(ldGroup.info)
 ## Draw a barplot with the number of SNPs per LD block (one block per DA SNP)
 ldGroup.snpNb <- ldGroup.info$nb.SNPs
 names(ldGroup.snpNb) <- ldGroup.info$DA.SNP
@@ -1854,6 +1856,9 @@ remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, SOIsBed.gr))
 nbremap.SOI.overlaps <- nrow(remap.SOI.overlaps)
 message("Number of overlaps between SOIs and ReMap peaks: ", nbremap.SOI.overlaps)
 workflowSummary["ReMap: overlaps between SOIs and ReMap peaks"] <- nbremap.SOI.overlaps
+nb.SOI.remap <- length(unique(remap.SOI.overlaps$rsid))
+workflowSummary["ReMap: co-localized SOIs with ChIP-seq peak"] <-
+  nb.SOI.remap
 
 ## Split the ReMap peakset ID in order to obtain separate columns with the
 ## 1. GEO series
@@ -2287,6 +2292,16 @@ write.table(x = varscan.with.peaks,
               col.names = TRUE)
 # system(paste("open", result.dir.path["rSNPs"]))
 
+
+# A subset of candidate rSNPs
+candidate.rSNPs <- varscan.with.peaks[, c("seqnames", "var_id", "best_variant",  "worst_variant", "X.ac_motif", "remap.tf.name", "pval_ratio")]
+
+write.table(x = candidate.rSNPs,
+              file = outfiles["candidate rSNPs"],
+              quote = FALSE,
+              sep = "\t",
+              row.names = FALSE,
+              col.names = TRUE)
 ```
 
 
@@ -2427,7 +2442,7 @@ if (nrow(rSNPs.info) == 0) {
   
   
   A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_pval),
-                                                                colour = "white") + scale_fill_gradient(low = "white",
+                                                                colour = "white") + scale_fill_gradient(low = "orange",
                                                                                                         high = "steelblue")+
     labs(x='', y = '')+
     theme_bw()+
@@ -2567,7 +2582,7 @@ if (nrow(varscan.with.peaks) == 0) {
   B <- ggplot(data=tissue, aes(x=Tissue, y=N, fill=name)) +
     geom_bar(stat="identity", position=position_dodge(), color="black") +
     theme_bw() +
-    labs(x='Tissue', y = 'Frequency')+
+    labs(x='tissue/cell', y = 'Frequency')+
     guides(fill = guide_legend(title = "TFs"))+
     theme(legend.title = element_text(size=10),
           legend.text = element_text(size=8))+

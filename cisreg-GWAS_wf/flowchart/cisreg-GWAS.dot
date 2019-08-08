@@ -72,7 +72,27 @@ preformating2  [shape="record", style="rounded,filled", fillcolor="#EEFFDD", lab
 	 style="filled", 
 	 fillcolor="#FFEEDD",
 	 label="{LD SNPs \n in coding regions}"]
+	 
+	 efo [shape = "cylinder", 
+	 style = "rounded,filled", 
+	 fillcolor = "#D6EEFA", 
+	 label = "Experimental factor ontology (EFO)", 
+	 URL = "https://www.ebi.ac.uk/efo/"];
+	 
+	 
+	 xgr [shape="record", 
+	 style="rounded,filled", 
+	 fillcolor="#EEFFDD", 
+	 label="{xEnricherSNPs (R package) | enrichment of SNP-trait}"]
 		
+efo -> xgr
+SOI -> xgr
+xgr -> snpTrait
+
+snpTrait [shape="record", 
+	 style="filled", 
+	 fillcolor="#FFEEDD",
+	 label="{EFO SNP-trait}"]
 
 SOI -> SOIsGRange
 SOI -> rsid
