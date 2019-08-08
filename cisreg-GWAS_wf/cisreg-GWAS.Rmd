@@ -5,6 +5,11 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -14,11 +19,6 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -81,72 +81,94 @@ ptm <- proc.time()
 
 
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
-if (TRUE) {
-  getwd()  
-  parameters <- yaml::read_yaml("parameters_tuberculosis.yaml")
-  
-} else {
-  ## Define user-specified parameters for the analyses
-  ## Parameters
-  parameters <- list(
-    query =  "EFO_0001068", # malaria
-    # query =  "EFO_0008407", # tuberculosis
-    # query = "HP_0100806", # sepsis
-    # query = "EFO_0000249", # Alzheimer's disease
-    # query = "EFO_0000692" # schizophrenia
-    # query = "EFO_0001360", # type ii diabetes mellitus
-    trait = NA,
-    ld.pop.prefix = "1000GENOMES:phase_3:",
-    population = "AFR",  ## BEWARE, the population should be adapted to the query !
-    # population = "AFR",  ## BEWARE, the population should be adapted to the query !
-    working.dir = getwd(),
-    output.dir = file.path(Sys.getenv("HOME"), "cisreg-GWAS_results"),
-    r2 = 0.8,
-    ld.distance = 200,
-    max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
-    update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
-    flowchart.formats = c("pdf", "png"), # List of formats to generate
-    flowchart.format = "pdf", # Format for insertion in the report,
-    force.download = FALSE, # if TRUE, files are downloaded even if already present
-    #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
-    GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
-    RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
-    RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
-    RSAT.varscan.pval = 1e-4,
-    RSAT.varscan.pval.ratio = 100,
-    min.genes = 3,
-    jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
-    motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
-    remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
-  )
+
+parameter.file <- "parameters/malaria.yaml"
+# parameter.file <- "parameters/tuberculosis.yaml"
+
+parameters <- yaml::read_yaml(parameter.file)
+parmaters$file <- parameter.file
+
+# 
+# } else {
+#   ## Define user-specified parameters for the analyses
+#   ## Parameters
+#   parameters <- list(
+#     query =  "EFO_0001068", # malaria
+#     # query =  "EFO_0008407", # tuberculosis
+#     # query = "HP_0100806", # sepsis
+#     # query = "EFO_0000249", # Alzheimer's disease
+#     # query = "EFO_0000692" # schizophrenia
+#     # query = "EFO_0001360", # type ii diabetes mellitus
+#     trait = NA,
+#     ld.pop.prefix = "1000GENOMES:phase_3:",
+#     population = "AFR",  ## BEWARE, the population should be adapted to the query !
+#     # population = "AFR",  ## BEWARE, the population should be adapted to the query !
+#     r2 = 0.8,
+#     ld.distance = 200,
+#     max.ld.per.snp = 500, # ignore LDs for a given tag SNP if there are more too many of them
+#     update.flowcharts = TRUE, # Update the flowcharts with graphviz dot
+#     flowchart.formats = c("pdf", "png"), # List of formats to generate
+#     flowchart.format = "pdf", # Format for insertion in the report,
+#     force.download = FALSE, # if TRUE, files are downloaded even if already present
+#     #ensemblmart = useMart(biomart = "ENSEMBL_MART_ENSEMBL", dataset = "hsapiens_gene_ensembl"),
+#     GWAS.REST = FALSE, # If TRUE, use the REST interface of the GWAS catalog to retrieve the associations (much slower than the download, so we do not recmmend it)
+#     RSAT.rest = FALSE, ## If TRUE, use RSAT REST interface to predict rSNPs
+#     RSAT.rest.root = "http://rsat-tagc.univ-mrs.fr/rsat/rest/",
+#     RSAT.varscan.pval = 1e-4,
+#     RSAT.varscan.pval.ratio = 100,
+#     min.genes = 3,
+#     jaspar.rest.root = "http://jaspar.genereg.net/api/v1/",
+#     motifDB.URL = "http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt",
+#     remapUrl =  "http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz"
+#   )
+# }
+
+## Initialize figure counter
+fig.nb <- 0 
+
+
+#### Check if directories were specified as parameters. and if not define them ####
+ 
+## List of directories
+if (is.null(parameters$dir)) {
+  parameters$dir <- list()
 }
 
-fig.nb <- 0 ## Initialize figure counter
 
-message("\tWorking directory: ", parameters$working.dir)
+## Define working directories if they were not specified in the yaml file
+if (is.null(parameters$dir$base)) {
+  parameters$dir$base <- getwd()
+}
+message("\tWorking directory: ", parameters$dir$base)
+
+## Output directory
+if (is.null(parameters$dir$output)) {
+  parameters$dir$output <- file.path(Sys.getenv("HOME"), "cisreg-GWAS_results")
+}
+message("\tOutput directory: ", parameters$dir$output)
 
 
 ## Define a data dir for the data downloaded from other sources
-parameters$data.dir = file.path(parameters$output.dir, "data")
-message("Data directory\t", parameters$data.dir)
-dir.create(parameters$data.dir, showWarnings = FALSE, recursive = TRUE)
+parameters$dir$data = file.path(parameters$dir$output, "data")
+message("Data directory\t", parameters$dir$data)
+dir.create(parameters$dir$data, showWarnings = FALSE, recursive = TRUE)
 
 ## Define result directory for the current EFO 
 ## by concatenating the output dir and the query ID
-parameters$result.dir = file.path(parameters$output.dir, parameters$query)
-message("Results directory\t", parameters$result.dir)
-dir.create(parameters$result.dir, showWarnings = FALSE, recursive = TRUE)
+parameters$dir$results = file.path(parameters$dir$output, parameters$query$ID)
+message("\tResults directory\t", parameters$dir$results)
+dir.create(parameters$dir$results, showWarnings = FALSE, recursive = TRUE)
 
-parameters$figure.dir = file.path(parameters$result.dir, "figures")
-message("Figures directory\t", parameters$figure.dir)
-dir.create(parameters$figure.dir, showWarnings = FALSE, recursive = TRUE)
+parameters$dir$figures = file.path(parameters$dir$results, "figures")
+message("\tFigures directory\t", parameters$dir$figures)
+dir.create(parameters$dir$figures, showWarnings = FALSE, recursive = TRUE)
 
 ## JvH 2019-08-02: I swapped the knitr_setup and parameteres chunks in order to be able using parameters in the knitr setup. This however does not fix thee problem of not found figures.  
 ## Set the figures path for the current markdown report
 # knitr::opts_chunk$set(
 #   fig.path = 
-#     file.path(parameters$figure.dir, 
-#               paste0(parameters$query, "_")))
+#     file.path(parameters$dir$figures, 
+#               paste0(parameters$query$ID, "_")))
 
 
 ## Initialise a vector to summarize the results
@@ -171,13 +193,7 @@ knitr::opts_chunk$set(
   fig.height = 5, 
   fig.align = "center", 
   encoding = "UTF-8",
-  ## PROBLEM
-  ## Maybe related to these reported issue:
-  ##     https://github.com/rstudio/rmarkdown/issues/429
-  ##     https://github.com/rstudio/rmarkdown/issues/587
-#  fig.path = "figures/",
-  fig.path = file.path(parameters$figure.dir, paste0(parameters$query, "_")),
-#  fig.path = file.path("figures", paste0(parameters$query, "_")),
+  fig.path = file.path(parameters$dir$figures, paste0(parameters$query$ID, "_")),
   size = "tiny", 
   warning = FALSE, 
   results = TRUE, 
@@ -288,7 +304,7 @@ for (lib in names(github.libraries.to.install)) {
 
 ```{r output_directories}
 
-message("Creating output sub-directories for disease\t", parameters$query)
+message("Creating output sub-directories for disease\t", parameters$query$ID)
 
 # Result directory (export result tables)
 result.subdir <- c(TagSNPs = "TagSNPs",
@@ -298,12 +314,12 @@ result.subdir <- c(TagSNPs = "TagSNPs",
                  RSAT = "RSAT",
 #                 JASPAR = "JASPAR",
                  rSNPs = "rSNPs")
-result.dir.path <- file.path(parameters$result.dir, result.subdir)
+result.dir.path <- file.path(parameters$dir$results, result.subdir)
 names(result.dir.path) <- names(result.subdir) ## entry names were lost with the file.paths
 
-result.dir.path["JASPAR"] <- file.path(parameters$data.dir, "JASPAR")
+result.dir.path["JASPAR"] <- file.path(parameters$dir$data, "JASPAR")
 
-for (dir in c(parameters$result.dir, result.dir.path)) {
+for (dir in c(parameters$dir$results, result.dir.path)) {
   message("\t", dir)
   dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 }
@@ -320,7 +336,7 @@ outfiles <- vector()
 message("Identifying the disease of interest")
 diseaseURL <- paste(sep = "/", 
                     "http://www.ebi.ac.uk/gwas/rest/api/efoTraits", 
-                    parameters$query)
+                    parameters$query$ID)
 
 GWASstudiesRestOutput <- fromJSON(
   diseaseURL, 
@@ -328,7 +344,7 @@ GWASstudiesRestOutput <- fromJSON(
   simplifyDataFrame = FALSE)
 
 ## Add the nameof the trait to the parameters
-parameters$trait <- GWASstudiesRestOutput$trait
+parameters$query$trait <- GWASstudiesRestOutput$trait
 
 
 ## Generate a table displaying the parameters for the report
@@ -337,7 +353,7 @@ kable(t(as.data.frame(parameters))[,1],
 
 
 ## Export parameters to a yaml file in the result directory, for traceability and reproducibility
-outfiles["Parameters (yaml)"] <- file.path(parameters$result.dir, "parameters.yaml")
+outfiles["Parameters (yaml)"] <- file.path(parameters$dir$results, "parameters.yaml")
 write_yaml(x = parameters, 
            file = outfiles["Parameters (yaml)"], fileEncoding = "UTF-8")
 message("Parameters saved in file\t", outfiles["Parameters (yaml)"])
@@ -391,7 +407,7 @@ We define as **Disease-Associated SNPs SNPs** or **DA SNPs** the SNPs (coding or
 ## NOTE: this method is much slower than the direct download (chink below) 
 ## and returns incomplete results (less associations than via the download) so by default we do not use it. 
 
-if (parameters$GWAS.REST) {
+if (parameters$GWAS_catalog$REST) {
   ## Retrieving the trait-variant associations from GWAS catalog
   message("Retrieving information from GWAS catalog via REST interface")
   
@@ -399,14 +415,14 @@ if (parameters$GWAS.REST) {
   gwascatalog.studies.urlrest <- paste(
     sep = "", 
     "https://www.ebi.ac.uk/gwas/rest/api/efoTraits/", 
-    parameters$query, "/studies")
+    parameters$query$ID, "/studies")
   message("GWAS catalog studies link\t", gwascatalog.studies.urlrest)
   gwascatalog.disease.url <- paste(
     sep = "", 
-    "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
+    "https://www.ebi.ac.uk/gwas/search?query=", parameters$query$ID)
   message("GWAS catalog link\t", gwascatalog.disease.url)
   # gwascatalog.table.url <- paste(
-  #   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
+  #   sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22", parameters$query$ID, "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
   # message("GWAS TSV table\t", gwascatalog.table.url)
   GWASstudiesRestOutput <- fromJSON(
     gwascatalog.studies.urlrest, 
@@ -420,7 +436,7 @@ if (parameters$GWAS.REST) {
   nbStudies <- nrow(GWASstudiesRestOutput[["_embedded"]]$studies)
   message("\tGWAS catalog contains ", 
           nbStudies, 
-          " studies for trait ", parameters$trait)
+          " studies for trait ", parameters$query$trait)
   
   ## Get the URLs of the studies
   SNPstudyLinks <- unlist(GWASstudiesRestOutput[["_embedded"]]$studies$`_links`$snps)
@@ -457,7 +473,7 @@ if (parameters$GWAS.REST) {
   ## Export the GWAS-SNP associations
   outfiles["GWAS-SNP associations (REST)"] <- file.path(
     result.dir.path["Ensembl"],
-    paste(sep = "", parameters$query, "_gwas-catalog_REST", ".tsv"))
+    paste(sep = "", parameters$query$ID, "_gwas-catalog_REST", ".tsv"))
   
   write.table(x = gwas.results, file = outfiles["GWAS-SNP associations (REST)"] , 
               quote = FALSE, row.names = FALSE, col.names = TRUE, sep = "\t")
@@ -505,25 +521,25 @@ message("Downloading informations of disease-associated SNPs from GWAS catalog")
 
 ## URL to the primary GWAS page for the query disease
 gwascatalog.disease.url <- paste0(
-  "https://www.ebi.ac.uk/gwas/search?query=", parameters$query)
+  "https://www.ebi.ac.uk/gwas/search?query=", parameters$query$ID)
 message("GWAS catalog link\t", gwascatalog.disease.url)
 
 gwascatalog.table.url <- paste0(
   "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
-  parameters$query, 
+  parameters$query$ID, 
   "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 message("URL to downmoad info from GWAS catalog\t", gwascatalog.table.url)
 
 
 query.url <- paste(sep = "", "https://www.ebi.ac.uk/gwas/api/search/downloads?q=text:%22",
-                   parameters$query,
+                   parameters$query$ID,
                    "%22&pvalfilter=&orfilter=&betafilter=&datefilter=&genomicfilter=&traitfilter[]=&genotypingfilter[]=&dateaddedfilter=&efo=true&facet=association")
 
-#gwas.file <- paste(sep = "", 'gwas_catalog_', parameters$query,'.tsv')
+#gwas.file <- paste(sep = "", 'gwas_catalog_', parameters$query$ID,'.tsv')
 
 outfiles["GWAS-SNP associations (GWAS downlaod)"] <- file.path(
   result.dir.path["Ensembl"],
-  paste(sep = "", parameters$query, "_gwas-catalog_download", ".tsv"))
+  paste(sep = "", parameters$query$ID, "_gwas-catalog_download", ".tsv"))
 
 
 
@@ -531,7 +547,7 @@ download.file(url = query.url,
               destfile = outfiles["GWAS-SNP associations (GWAS downlaod)"], 
               method = 'auto')
 message("\tDownloaded ", 
-        parameters$query, "-associated GWAS in file\t", 
+        parameters$query$ID, "-associated GWAS in file\t", 
         outfiles["GWAS-SNP associations (GWAS downlaod)"])
 
 
@@ -591,9 +607,9 @@ In total, we found `r nb.DA.rsIDs` **disease-associated (DA) SNPs** from GWAS ca
 
 ## Getting information about DA SNPs from BioMart
 
-The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(nb.DA.rsIDs)` SNPs associated to `r parameters$trait`.
+The barplots shows the number of DA-SNPs per chromosome and the  genomic context of the `r length(nb.DA.rsIDs)` SNPs associated to `r parameters$query$trait`.
 
-The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to `r parameters$trait`.
+The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to `r parameters$query$trait`.
 
 
 
@@ -602,7 +618,7 @@ The barplot shows the genomic context of the `r nb.DA.rsIDs` SNPs associated to 
 # Find the genomic tag SNPs informations
 message("Analysing genomic context for ", nb.DA.rsIDs, " disease-associated SNPs.")
 
-if (parameters$GWAS.REST) {
+if (parameters$GWAS_catalog$REST) {
   tagSNPsInfo <- gwas.results[, c("rsId", "functionalClass")]
   Context <- tagSNPsInfo$functionalClass
 } else {
@@ -763,7 +779,7 @@ for (i in 1:length(valid.DA.snp.ID)) {
   
   ## Generate the URL to address a query to ENSEMBL via their REST interface
   ldURL <- paste0("http://rest.ensembl.org/ld/human/", current.rsID, "/",
-                 parameters$ld.pop.prefix, parameters$population,
+                 parameters$query$ld.pop.prefix, parameters$query$population,
                  "?content-type=application/json",
                  "&r2=", parameters$r2, 
                  "&window_size=", as.character(parameters$ld.distance))
@@ -795,7 +811,7 @@ for (i in 1:length(valid.DA.snp.ID)) {
   #                   variation2 = current.rsID,
   #                   r2 = 1,
   #                   d_prime = 1,
-  #                   population = parameters$population
+  #                   population = parameters$query$population
   #                 ))
   
   ldGroups[[current.rsID]] <- c(current.rsID, as.vector(currentLdSNPs$variation2))
@@ -1014,7 +1030,7 @@ SOIsBed.gr <- with(SOIsBed,
 ## Export rsIDs of SOIs in txt format
 outfiles["SOI IDs (txt)"] <- file.path(
   result.dir.path["SOIs"], 
-  paste(sep = "", parameters$query, "_SOI_IDs", ".txt"))
+  paste(sep = "", parameters$query$ID, "_SOI_IDs", ".txt"))
 
 write.table(x = SOIs$refsnp_id,
               file = outfiles["SOI IDs (txt)"],
@@ -1027,7 +1043,7 @@ write.table(x = SOIs$refsnp_id,
 ## Export SOIs in BED format
 outfiles["SOI coordinates (bed)"] <- file.path(
   result.dir.path["SOIs"], 
-  paste(sep = "", parameters$query, "_SOIs", ".bed"))
+  paste(sep = "", parameters$query$ID, "_SOIs", ".bed"))
 
 write.table(x = SOIsBed,
               file = outfiles["SOI coordinates (bed)"],
@@ -1041,7 +1057,7 @@ write.table(x = SOIsBed,
 ## Export SOIs file in tsv format
 outfiles["SOI descriptions (tsv)"] <- file.path(
   result.dir.path["SOIs"], 
-  paste(sep = "", parameters$query, "_SOIs", ".tsv"))
+  paste(sep = "", parameters$query$ID, "_SOIs", ".tsv"))
 
 write.table(x = SOIs,
               file = outfiles["SOI descriptions (tsv)"],
@@ -1158,7 +1174,7 @@ self.LD <- is.na(LD.SNP.coord$variation1)
 LD.SNP.coord[self.LD, "variation1"] <- as.vector(LD.SNP.coord[self.LD, "snp"])
 LD.SNP.coord[self.LD, "r2"] <- 1
 LD.SNP.coord[self.LD, "d_prime"] <- 1
-LD.SNP.coord[self.LD, "population"] <- parameters$population
+LD.SNP.coord[self.LD, "population"] <- parameters$query$population
 # LD.SNP.coord[self.LD, ]
 
 
@@ -1333,7 +1349,7 @@ eTerm <- xEnricherSNPs(
                "EF_disease",
                "EF_phenotype", 
                "EF_bp"), 
-  include.LD = parameters$population,
+  include.LD = parameters$query$population,
   LD.r2 = parameters$r2,
   size.range = c(10, 2000),
   RData.location = "http://galahad.well.ox.ac.uk/bigdata")
@@ -1450,7 +1466,7 @@ if (parameters$RSAT.rest) {
   ## Download variation info result and store it to a local file
   outfiles["RSAT variation-info (varBed)"] <- file.path(
     result.dir.path["RSAT"],
-    paste(sep = "", parameters$query, "_SOIs_info", ".varbed"))
+    paste(sep = "", parameters$query$ID, "_SOIs_info", ".varbed"))
   download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
   message("RSAT variation-info result saved to file\n\t", 
           outfiles["RSAT variation-info (varBed)"])
@@ -1479,7 +1495,7 @@ if (parameters$RSAT.rest) {
   ## Download variation info result and store it to a local file
   outfiles["RSAT retrieve-variation-seq (varSeq)"] <- file.path(
     result.dir.path["RSAT"],
-    paste(sep = "", parameters$query, "_SOIs_seq", ".varSeq"))
+    paste(sep = "", parameters$query$ID, "_SOIs_seq", ".varSeq"))
   download.file(url = varSeq.URL, destfile = outfiles["RSAT retrieve-variation-seq (varSeq)"])
     # system(paste("open", result.dir.path["RSAT"]))
   message("RSAT retrieve-variation-seq result saved to file\n\t", 
@@ -1522,7 +1538,7 @@ if (parameters$RSAT.rest) {
   ## Download variation info result and store it to a local file
   outfiles["RSAT variation-scan (tsv)"] <- file.path(
     result.dir.path["RSAT"],
-    paste(sep = "", parameters$query, "_SOIs_var", ".tsv"))
+    paste(sep = "", parameters$query$ID, "_SOIs_var", ".tsv"))
   download.file(url = varscan.URL, destfile = outfiles["RSAT variation-scan (tsv)"])
   message("RSAT variation-scan result saved to file\n\t", 
           outfiles["RSAT variation-scan (tsv)"])
@@ -1543,7 +1559,7 @@ if (parameters$RSAT.rest) {
   ## Load variation-scan results obtained from RSAT Web interface
   varscanFile <- file.path(
     result.dir.path["RSAT"],  
-    paste0(parameters$query, "_varscan_web.txt"))
+    paste0(parameters$query$ID, "_varscan_web.txt"))
   # system(paste("open ", varscanFile))
 }
 ## Load variation-scan results
@@ -1800,10 +1816,10 @@ message("Downloading the ReMap catalog.")
 ## Specify the files containing bed peak catalogue in two formats`
 ## - bed: downloaded from ReMap
 ## - Rdata: exported with this script after the first loading, in order to accelerate subsequent loadins
-remapBedFile <-  paste(sep = "", parameters$data.dir, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
+remapBedFile <-  paste(sep = "", parameters$dir$data, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
 
 # Define the path to saving .Rda file
-remapRdataFile <- file.path(parameters$data.dir,
+remapRdataFile <- file.path(parameters$dir$data,
                       paste(sep = "", "remap2018_all_macs2_hg38_v1_2", ".Rdata"))
 
 
@@ -1878,7 +1894,7 @@ remap.SOI.overlaps <- separate(data = remap.SOI.overlaps, col = "name", into = c
 ## Export SOIs file in tsv format
 outfiles["SOI overlaps with peaks from ReMap (tsv)"] <- file.path(
   result.dir.path["ReMap"], 
-  paste(sep = "", parameters$query, "_SOIs_ReMap_overlaps", ".tsv"))
+  paste(sep = "", parameters$query$ID, "_SOIs_ReMap_overlaps", ".tsv"))
 
 write.table(x = remap.SOI.overlaps,
               file = outfiles["SOI overlaps with peaks from ReMap (tsv)"],
@@ -2115,7 +2131,7 @@ SOIs.annotations <- SOIs.annotations[order(SOIs.annotations$remap.inter.varscan.
 outfiles["SOI annotations with ReMap and varscan (tsv)"] <-
   file.path(
     result.dir.path["rSNPs"],
-    paste(sep = "", parameters$query, "_SNPs_varscan_remap", ".tsv"))
+    paste(sep = "", parameters$query$ID, "_SNPs_varscan_remap", ".tsv"))
 message("Exporting SOI annotations to table\n", outfiles["SOI annotations with ReMap and varscan (tsv)"] )
 write.table(x = SOIs.annotations, quote = FALSE,
             file = outfiles["SOI annotations with ReMap and varscan (tsv)"],
@@ -2288,7 +2304,7 @@ message("Number of TFs: ", nb.TFs)
 ## Export the rSNPs file in tsv format
 outfiles["candidate rSNPs"] <- file.path(
   result.dir.path["rSNPs"], 
-  paste(sep = "", parameters$query, "_rSNPs", ".tsv"))
+  paste(sep = "", parameters$query$ID, "_rSNPs", ".tsv"))
 
 write.table(x = varscan.with.peaks,
               file = outfiles["candidate rSNPs"],
@@ -2527,7 +2543,7 @@ if (nrow(rSNPs.info) == 0) {
 ```{r grImport2_import_svg, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Logos for TFBSM affected by the rSNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 ## We used the `grImport2` package for R imports the TFBSM SVG images directly into R.
 
-# logoDir <- paste0("~/cisreg-GWAS_results/", parameters$query, "/JASPARlogo/")
+# logoDir <- paste0("~/cisreg-GWAS_results/", parameters$query$ID, "/JASPARlogo/")
 # 
 # logoList <- list.files(path = logoDir, 
 #                        pattern = ".svg", 
