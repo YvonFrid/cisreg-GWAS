@@ -1,0 +1,27 @@
+query: EFO_0008407
+trait: tuberculosis
+ld.pop.prefix: '1000GENOMES:phase_3:'
+population: EUR
+working.dir: /Users/jvanheld/cisreg-GWAS_bof/cisreg-GWAS/cisreg-GWAS_wf
+output.dir: /Users/jvanheld/cisreg-GWAS_results
+r2: 0.8
+ld.distance: 200.0
+max.ld.per.snp: 500.0
+update.flowcharts: yes
+flowchart.formats:
+- pdf
+- png
+flowchart.format: pdf
+force.download: no
+GWAS.REST: no
+RSAT.rest: no
+RSAT.rest.root: http://rsat-tagc.univ-mrs.fr/rsat/rest/
+RSAT.varscan.pval: 0.0001
+RSAT.varscan.pval.ratio: 100.0
+min.genes: 3.0
+jaspar.rest.root: http://jaspar.genereg.net/api/v1/
+motifDB.URL: http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt
+remapUrl: http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz
+data.dir: /Users/jvanheld/cisreg-GWAS_results/data
+result.dir: /Users/jvanheld/cisreg-GWAS_results/EFO_0001068
+figure.dir: /Users/jvanheld/cisreg-GWAS_results/EFO_0001068/figures
