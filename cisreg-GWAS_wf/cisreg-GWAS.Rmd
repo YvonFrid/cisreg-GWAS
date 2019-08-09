@@ -86,7 +86,11 @@ parameter.file <- "parameters/malaria.yaml"
 # parameter.file <- "parameters/tuberculosis.yaml"
 
 parameters <- yaml::read_yaml(parameter.file)
-parmaters$file <- parameter.file
+
+## Include the file name in the parameters in order to export them 
+## in the result directory (all parameters are exported to a yaml file 
+## for the sake of traecability)
+parameters$file <- parameter.file
 
 # 
 # } else {
@@ -346,6 +350,22 @@ GWASstudiesRestOutput <- fromJSON(
 ## Add the nameof the trait to the parameters
 parameters$query$trait <- GWASstudiesRestOutput$trait
 
+## Specify the files containing bed peak catalogue in two formats`
+## - bed: downloaded from ReMap
+## - Rdata: exported with this script after the first loading, in order to accelerate subsequent loadins
+
+## If not specified in user-provided parameters, locate the ReMap bed file in the data directory
+if (is.null(parameters$remap$BedFile)) {
+  parameters$remap$BedFile <-  
+    file.path(parameters$dir$data, "remap2018_all_macs2_hg38_v1_2.bed.gz")
+}
+
+## If not specified in user-provided parameters, locate the ReMap Rdata file in the data directory
+if (is.null(parameters$remap$BedFile)) {
+  parameters$remap$parameters$remap$remap$RdataFile <- 
+    file.path(parameters$dir$data, "remap2018_all_macs2_hg38_v1_2.Rdata")
+}
+
 
 ## Generate a table displaying the parameters for the report
 kable(t(as.data.frame(parameters))[,1], 
@@ -354,7 +374,7 @@ kable(t(as.data.frame(parameters))[,1],
 
 ## Export parameters to a yaml file in the result directory, for traceability and reproducibility
 outfiles["Parameters (yaml)"] <- file.path(parameters$dir$results, "parameters.yaml")
-write_yaml(x = parameters, 
+yaml::write_yaml(x = parameters, 
            file = outfiles["Parameters (yaml)"], fileEncoding = "UTF-8")
 message("Parameters saved in file\t", outfiles["Parameters (yaml)"])
 
@@ -781,8 +801,8 @@ for (i in 1:length(valid.DA.snp.ID)) {
   ldURL <- paste0("http://rest.ensembl.org/ld/human/", current.rsID, "/",
                  parameters$query$ld.pop.prefix, parameters$query$population,
                  "?content-type=application/json",
-                 "&r2=", parameters$r2, 
-                 "&window_size=", as.character(parameters$ld.distance))
+                 "&r2=", parameters$ensembl_LD$r2, 
+                 "&window_size=", as.character(parameters$ensembl_LD$ld.distance))
   message("\t\t", ldURL)
 
   newLdSNPs <- fromJSON(ldURL, simplifyDataFrame = TRUE, flatten = TRUE)
@@ -826,9 +846,9 @@ for (i in 1:length(valid.DA.snp.ID)) {
    
   # View(ldSNPs)
   nbNewSNPIDs <- length(newLdSNpIDs)
-  if (nbNewSNPIDs > parameters$max.ld.per.snp) {
+  if (nbNewSNPIDs > parameters$ensembl_LD$max.ld.per.snp) {
     message("\t\tWarning: number of LD for tag SNP ", current.rsID, " (", nbNewSNPIDs,
-            ") exceeds limit (", parameters$max.ld.per.snp, "). ",
+            ") exceeds limit (", parameters$ensembl_LD$max.ld.per.snp, "). ",
             "\n\tLD SNPs are ignored for this Tag SNP. ")
   } else if (length(newLdSNpIDs) > 0) {
     LDsnpIDs <- append(LDsnpIDs, newLdSNpIDs)
@@ -874,8 +894,8 @@ message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 # Kable
 kable(head(LdSNPs), caption = paste0(
   "Top of the table describing the variants in linkage disequilibrium (LD) with disease-associated (DA) SNPs. ",
-  " Min r2 = ", parameters$r2, ".", 
-  "Max window size = ", parameters$ld.distance, " kb. "))
+  " Min r2 = ", parameters$ensembl_LD$r2, ".", 
+  "Max window size = ", parameters$ensembl_LD$ld.distance, " kb. "))
 
 ```
 
@@ -1350,7 +1370,7 @@ eTerm <- xEnricherSNPs(
                "EF_phenotype", 
                "EF_bp"), 
   include.LD = parameters$query$population,
-  LD.r2 = parameters$r2,
+  LD.r2 = parameters$ensembl_LD$r2,
   size.range = c(10, 2000),
   RData.location = "http://galahad.well.ox.ac.uk/bigdata")
 
@@ -1435,7 +1455,7 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 #### Run RSAT variation tools to detectpredict regulatory variants ####
 
 
-if (parameters$RSAT.rest) {
+if (parameters$RSAT$rest) {
   
   #### RSAT variation-info ####
   # Create the vector of SOIs
@@ -1445,7 +1465,7 @@ if (parameters$RSAT.rest) {
   ## Submit a query to variation-info via the REST interface
   message("\tRetrieving information on ", length(SOIs$refsnp_id), " variants from RSAT REST Web services")
   varInfo.time <- system.time(
-    varInfo <- POST(file.path(parameters$RSAT.rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
+    varInfo <- POST(file.path(parameters$RSAT$rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
                     body = list(i_string = SOI.string,
                                 i_string_type = 'text'))
   )
@@ -1477,7 +1497,7 @@ if (parameters$RSAT.rest) {
   # ## Build the API request for retrieve-variation-seq and submit it
   message("\tRetrieving the sequences surrounding variants from RSAT REST Web services")
   varSeq.time <- system.time( 
-    varSeq <- POST(file.path(parameters$RSAT.rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
+    varSeq <- POST(file.path(parameters$RSAT$rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
                    body = list(i_string = varInfo.server.path,
                                i_string_type = 'piping'))
   )
@@ -1507,16 +1527,16 @@ if (parameters$RSAT.rest) {
   ## Build the API request for Variation-scan and submit it
   message("Scanning variant alleles with motifs via RSAT REST services")
   varScan.time <- system.time(
-    varscan <- POST(file.path(parameters$RSAT.rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
+    varscan <- POST(file.path(parameters$RSAT$rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
                     body = list(
                       i_string = varSeq.server.path,
                       i_string_type = 'piping',
-                      m_string = parameters$motifDB.URL,
+                      m_string = parameters$jaspar$motifDB.URL,
                       m_string_type = "url",
                       m_format =  "transfac"),
                     #                  top = 2,
-                    uth_pval = parameters$RSAT.varscan.pval,
-                    lth_pval_ratio = parameters$RSAT.varscan.pval.ratio,
+                    uth_pval = parameters$RSAT$varscan.pval,
+                    lth_pval_ratio = parameters$RSAT$varscan.pval.ratio,
                     add_headers("Accept" = "application/json"))
     #                add_headers("Accept" = "text/plain"))
   )
@@ -1553,7 +1573,7 @@ if (parameters$RSAT.rest) {
 ```{r importing_variascan_results}
 
 ## Importing variation-scan result
-if (parameters$RSAT.rest) {
+if (parameters$RSAT$rest) {
   varscanFile <- outfiles["RSAT variation-scan (tsv)"] 
 } else {
   ## Load variation-scan results obtained from RSAT Web interface
@@ -1813,37 +1833,27 @@ The principle of the test is to measure the significance of the intersection bet
 ```{r load_remap_data}
 message("Downloading the ReMap catalog.")
 
-## Specify the files containing bed peak catalogue in two formats`
-## - bed: downloaded from ReMap
-## - Rdata: exported with this script after the first loading, in order to accelerate subsequent loadins
-remapBedFile <-  paste(sep = "", parameters$dir$data, "/remap2018_all_macs2_hg38_v1_2.bed.gz")
-
-# Define the path to saving .Rda file
-remapRdataFile <- file.path(parameters$dir$data,
-                      paste(sep = "", "remap2018_all_macs2_hg38_v1_2", ".Rdata"))
-
-
 ## Load ReMap peaks from Rdata file if it is there (faster loading)
-if (file.exists(remapRdataFile)) {
+if (file.exists(parameters$remap$remap$RdataFile)) {
   message("Loading ReMap peaks from Rdata file.")
   # Load the ReMap Rdata file
-  system.time({load(remapRdataFile)})
+  system.time({load(parameters$remap$remap$RdataFile)})
 } else {
 
   # Downloading the ReMap peak data 
-  #download.file(parameters$remapUrl, destfile = remapBedFile, method = "libcurl")
-  if (file.exists(remapBedFile)) {
+  #download.file(parameters$remap$URL, destfile = parameters$remap$BedFile, method = "libcurl")
+  if (file.exists(parameters$remap$BedFile)) {
     message("Remap bed file already exists, skipping download. ")
-    message("\t", remapBedFile)
+    message("\t", parameters$remap$BedFile)
   } else {
     message("Downloading the ReMap catalog")
-    system.time({download.file(parameters$remapUrl, 
-                               dest = remapBedFile, method = "libcurl") })
+    system.time({download.file(parameters$remap$URL, 
+                               dest = parameters$remap$BedFile, method = "libcurl") })
   }
 
   ## Load the bed files
   message("Loading ReMap peaks from bed file")
-  system.time({remap.data <- fread(file = remapBedFile) })
+  system.time({remap.data <- fread(file = parameters$remap$BedFile) })
   
   ## Convert the bed peaks into a grange object
   message("Converting ReMap peaks into grange objects")
@@ -1856,7 +1866,7 @@ if (file.exists(remapRdataFile)) {
   
   # Save the remap data Grange format in Rda format
   message ("Saving ReMap file in Rda format")
-  system.time({  save(remapCatalog.gr, file = remapRdataFile) })
+  system.time({  save(remapCatalog.gr, file = parameters$remap$remap$RdataFile) })
 }
 
 
