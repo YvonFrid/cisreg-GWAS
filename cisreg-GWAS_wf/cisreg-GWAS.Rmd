@@ -5,11 +5,6 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -19,6 +14,11 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -82,8 +82,8 @@ ptm <- proc.time()
 
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
-parameter.file <- "parameters/malaria.yaml"
-# parameter.file <- "parameters/tuberculosis.yaml"
+# parameter.file <- "parameters/malaria.yaml"
+parameter.file <- "parameters/tuberculosis.yaml"
 
 parameters <- yaml::read_yaml(parameter.file)
 
@@ -361,8 +361,8 @@ if (is.null(parameters$remap$BedFile)) {
 }
 
 ## If not specified in user-provided parameters, locate the ReMap Rdata file in the data directory
-if (is.null(parameters$remap$BedFile)) {
-  parameters$remap$parameters$remap$remap$RdataFile <- 
+if (is.null(parameters$remap$RdataFile)) {
+  parameters$remap$RdataFile <- 
     file.path(parameters$dir$data, "remap2018_all_macs2_hg38_v1_2.Rdata")
 }
 
@@ -1470,7 +1470,7 @@ if (parameters$RSAT$rest) {
                                 i_string_type = 'text'))
   )
   # View(varInfo)
-  message("\tElapsed time to get variation info from RSAT REST: ", 
+  message("\tElapsed time to get variation-info results from RSAT REST: ", 
           signif(digits=3, varInfo.time["elapsed"]), "s")
   
   ## Extract the content from the REST response
@@ -1488,14 +1488,14 @@ if (parameters$RSAT$rest) {
     result.dir.path["RSAT"],
     paste(sep = "", parameters$query$ID, "_SOIs_info", ".varbed"))
   download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
-  message("RSAT variation-info result saved to file\n\t", 
+  message("\tRSAT variation-info result saved to file\n\t", 
           outfiles["RSAT variation-info (varBed)"])
   # system(paste("open", result.dir.path["RSAT"]))
   
   #### RSAT variation-seq ####s
   
   # ## Build the API request for retrieve-variation-seq and submit it
-  message("\tRetrieving the sequences surrounding variants from RSAT REST Web services")
+  message("\n\tRetrieving the sequences surrounding variants from RSAT REST Web services")
   varSeq.time <- system.time( 
     varSeq <- POST(file.path(parameters$RSAT$rest.root, "retrieve-variation-seq", "Homo_sapiens", "GRCh38"),
                    body = list(i_string = varInfo.server.path,
@@ -1518,14 +1518,14 @@ if (parameters$RSAT$rest) {
     paste(sep = "", parameters$query$ID, "_SOIs_seq", ".varSeq"))
   download.file(url = varSeq.URL, destfile = outfiles["RSAT retrieve-variation-seq (varSeq)"])
     # system(paste("open", result.dir.path["RSAT"]))
-  message("RSAT retrieve-variation-seq result saved to file\n\t", 
+  message("\tRSAT retrieve-variation-seq result saved to file\n\t", 
           outfiles["RSAT retrieve-variation-seq (varSeq)"])
 
   #### RSAT variation-scan ####
   stop("RSAT variation-scan seems to have a problem. Please submit the analysis via the web site")
   
   ## Build the API request for Variation-scan and submit it
-  message("Scanning variant alleles with motifs via RSAT REST services")
+  message("\n\tScanning variant alleles with motifs via RSAT REST services")
   varScan.time <- system.time(
     varscan <- POST(file.path(parameters$RSAT$rest.root, "variation-scan", "Homo_sapiens", "GRCh38"),
                     body = list(
@@ -1831,16 +1831,17 @@ The principle of the test is to measure the significance of the intersection bet
 
 
 ```{r load_remap_data}
-message("Downloading the ReMap catalog.")
+message("Loading the ReMap catalog.")
 
 ## Load ReMap peaks from Rdata file if it is there (faster loading)
-if (file.exists(parameters$remap$remap$RdataFile)) {
+if (file.exists(parameters$remap$RdataFile)) {
   message("Loading ReMap peaks from Rdata file.")
   # Load the ReMap Rdata file
-  system.time({load(parameters$remap$remap$RdataFile)})
+  system.time({load(parameters$remap$RdataFile)})
+  
 } else {
 
-  # Downloading the ReMap peak data 
+  ## Evaluate if the ReMap peak data have prevciously been downloaded in bed format, and if not, download them 
   #download.file(parameters$remap$URL, destfile = parameters$remap$BedFile, method = "libcurl")
   if (file.exists(parameters$remap$BedFile)) {
     message("Remap bed file already exists, skipping download. ")
@@ -1853,7 +1854,9 @@ if (file.exists(parameters$remap$remap$RdataFile)) {
 
   ## Load the bed files
   message("Loading ReMap peaks from bed file")
-  system.time({remap.data <- fread(file = parameters$remap$BedFile) })
+  system.time({
+    remap.data <- fread(file = parameters$remap$BedFile) 
+    })
   
   ## Convert the bed peaks into a grange object
   message("Converting ReMap peaks into grange objects")
@@ -1866,7 +1869,9 @@ if (file.exists(parameters$remap$remap$RdataFile)) {
   
   # Save the remap data Grange format in Rda format
   message ("Saving ReMap file in Rda format")
-  system.time({  save(remapCatalog.gr, file = parameters$remap$remap$RdataFile) })
+  system.time({  
+    save(remapCatalog.gr, file = parameters$remap$RdataFile) 
+    })
 }
 
 
@@ -2704,9 +2709,9 @@ if (nrow(rSNPs.info) == 0) {
   if (rSNPS.nb.genes == 0) {
     message("Not a single gene is associated to the candidate rSNPs - skipping gene enrichment analysis")
     
-  } else if (rSNPS.nb.genes < parameters$min.genes) {
+  } else if (rSNPS.nb.genes < parameters$enrich$min.genes) {
     message("The number of genes associated to the candidate rSNPs (", rSNPS.nb.genes, ")",
-    " is lower than the user-specified threshold (", parameters$min.genes, "). ", 
+    " is lower than the user-specified threshold (", parameters$enrich$min.genes, "). ", 
     "Skipping gene enrichment analysis")
     
   } else {
