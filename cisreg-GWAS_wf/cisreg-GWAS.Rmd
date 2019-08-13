@@ -82,8 +82,8 @@ ptm <- proc.time()
 
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
-# parameter.file <- "parameters/malaria.yaml"
-parameter.file <- "parameters/tuberculosis.yaml"
+parameter.file <- "parameters/malaria.yaml"
+#parameter.file <- "parameters/tuberculosis.yaml"
 
 parameters <- yaml::read_yaml(parameter.file)
 
@@ -747,10 +747,11 @@ barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE),
         main = "A",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 0.8,
+        cex.axis = 1.5,
+         cex.lab = 1.5,
         horiz = TRUE,
         col = "#BBDDFF",
-        cex.names = 0.7, 
+        cex.names = 1.5, 
         las = 1)
 
 df <- sort(table(tagSNPsInfo$CONTEXT),  decreasing = FALSE)
@@ -758,15 +759,15 @@ max.context <- length(df)
 x <- barplot(height = df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(df)*1.1),
-        cex.axis = 1,
+        cex.axis = 1.5,
         main = "B",
          xlab = "SNPs",
-        cex.lab = 1,
+        cex.lab = 1.5,
         horiz = TRUE, 
         col = "#DBDDFF",
-        cex.names = 0.7, 
+        cex.names = 1.5, 
         las = 1)
-text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 0.7, pos = 4)
+text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 1.5, pos = 4)
 #par(par.ori)
 
 par(mfrow = c(1,1)) 
@@ -1103,10 +1104,11 @@ barplot(height = sort(table(snpInfo$chr_name), decreasing = FALSE),
         main = "A",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 1,
+        cex.axis = 1.5,
+         cex.lab = 1.5,
         horiz = TRUE,
         col = "#006699",
-        cex.names = 1, 
+        cex.names = 1.5, 
         las = 1)
 
 ## Barplot with the distribution of SNPs in different types 
@@ -1117,15 +1119,15 @@ max.context <- length(ld.df)
 x <- barplot(height = ld.df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(ld.df)*1.1),
-        cex.axis = 1,
+        cex.axis = 1.5,
         main = "B",
         xlab = "SNPs",
-        cex.lab = 1,
+        cex.lab = 1.5,
         horiz = T, 
         col = "#006699",
-        cex.names = 1, 
+        cex.names = 1.5, 
         las = 1)
-text(x = ld.df[1:max.context], y = x, labels = ld.df[1:max.context], cex = 0.7, pos = 4)
+text(x = ld.df[1:max.context], y = x, labels = ld.df[1:max.context], cex = 1.5, pos = 4)
 
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
 par(mar = c(5.1, 5.1, 3.1, 2.1))
@@ -1134,10 +1136,11 @@ barplot(height = sort(table(SOIs$chr_name), decreasing = FALSE),
         main = "C",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 1,
+        cex.axis = 1.5,
+         cex.lab = 1.5,
         horiz = TRUE,
         col = "#ffcc99",
-        cex.names = 1, 
+        cex.names = 1.5, 
         las = 1)
 #box()
 
@@ -1149,15 +1152,15 @@ max.context <- length(soi.df)
 x <- barplot(height = soi.df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(soi.df)*1.1),
-        cex.axis = 1,
+        cex.axis = 1.5,
         main = "D",
         xlab = "SNPs",
-        cex.lab = 1,
+        cex.lab = 1.5,
         horiz = T, 
         col = "#ffcc99",
-        cex.names = 1, 
+        cex.names = 1.5, 
         las = 1)
-text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 0.7, pos = 4)
+text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 1.5, pos = 4)
 #box()
 ```
 
@@ -1296,8 +1299,13 @@ par(mfrow = c(1,2))
 ## Draw a plot with LD block sizes: kilobases versus nb of SNPs
 plot(ldGroup.info$nb.SNPs, ldGroup.info$size/1000, 
      main = "LD block sizes",
-     las = 1, col = "blue",
-     xlab = "SNPs per LD block", ylab = "LD block size (kb)",
+     las = 1, 
+     cex.names = 1.5,
+     cex.axis = 1.5,
+     cex.lab = 1.5,
+     col = "blue",
+     xlab = "SNPs per LD block", 
+     ylab = "LD block size (kb)",
      panel.first = grid())
 
 
@@ -1312,14 +1320,14 @@ y <- barplot(
   horiz = TRUE, 
   xlim = c(0, max(snps.per.ldblock)*1.1),
   las = 1, 
-  cex.names = 0.8,
+  cex.names = 1,
   col = "#0D5F05",
   #main = "Number of SNPs in LD per SOI",
   xlab = "SNPs per LD block",
   #ylab = "Disease-associated SNPs",
   cex.axis = 1,
-  cex.lab = 1)
-text(x = snps.per.ldblock[1:max.snps], y = y, labels = snps.per.ldblock[1:max.snps], pos = 4)
+  cex.lab = 1.5)
+text(x = snps.per.ldblock[1:max.snps], y = y, labels = snps.per.ldblock[1:max.snps], pos = 4, cex = 1.5)
 
 par(par.ori)
 ```
@@ -1534,7 +1542,7 @@ if (parameters$RSAT$rest) {
                       m_string = parameters$jaspar$motifDB.URL,
                       m_string_type = "url",
                       m_format =  "transfac"),
-                    #                  top = 2,
+                      top_matrices = 1000,
                     uth_pval = parameters$RSAT$varscan.pval,
                     lth_pval_ratio = parameters$RSAT$varscan.pval.ratio,
                     add_headers("Accept" = "application/json"))
@@ -1711,10 +1719,10 @@ if (max.motifs > length(SNPs.per.motif)) {
 ## Plot the SNPs per motif for the top-ranking motifs only, in order to see the labels
 par(mar = c(9.1, 8.1, 4.1, 2.1))
 barplot(SNPs.per.motif[1:max.motifs],
-        main = "SNPs per mmotif\nTop-ranking motifs",
+        main = "SNPs per motif\nTop-ranking motifs",
         xlab = "Number of predicted rSNPs",
         ylab = NA,
-        las = 2, cex.names = 0.8, 
+        las = 2, cex.names = 0.75, 
         col = "#37A3F3", border = "#05245F",
         horiz = TRUE)
 par(mar = c(5.1, 5/1, 4.1, 2.1))
@@ -2587,7 +2595,8 @@ if (nrow(varscan.with.peaks) == 0) {
     dplyr::group_by(var_id, label) %>% 
     dplyr::summarise(N = n()) 
   
-  A <- ggplot(snp.tf, aes(label, var_id)) + geom_tile(aes(fill = N)) +
+  A <- ggplot(snp.tf, aes(label, var_id)) + 
+    geom_tile(aes(fill = label)) +
     labs(x='TFs', y = 'rSNPs') +
     theme_bw()+
     guides(fill = guide_legend(title = "TFs"))+
@@ -2634,12 +2643,13 @@ if (nrow(varscan.with.peaks) == 0) {
     dplyr::summarise(N = n()) 
   
   C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-    geom_tile(aes(fill = var_id)) +
+    geom_tile(aes(fill = hgnc_symbol)) +
     labs(x='Genes', y = 'rSNPs') +
     theme_bw()+
-    guides(fill = FALSE) +
+    #guides(fill = FALSE) +
     #ggtitle("rSNPs and associated genes") +
     #theme(legend.position="none")+
+    guides(fill = guide_legend(title = "Genes"))+
     theme(plot.title = element_text(hjust = 0.5, size = 10),axis.title = element_text(size=10))+
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
   
