@@ -27,6 +27,8 @@ GWAS_catalog:
    
 ## Regulatory sequence analysis tools
 RSAT:
+  species: "Homo_sapiens"
+  assembly: "GRCh38"
   rest: no
   rest.root: http://rsat-tagc.univ-mrs.fr/rsat/rest/
   varscan.pval: 0.0001
