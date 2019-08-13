@@ -2,7 +2,7 @@ digraph {
 
 	subgraph cluster_0 {
 		color = "#0066BB";
-		bgcolor = "#EEEEEE";
+		bgcolor = "";
 		
 	## General properties of the graph (font, color, ...)
 	graph [fontname="ArialBlack",fontsize="14", label="rSNP-GWAS pipeline" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2"];
