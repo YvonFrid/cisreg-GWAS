@@ -14,9 +14,20 @@
 #' @param rest.root="http://rsat-tagc.univ-mrs.fr/rsat/rest/" URL of the root of RSAT REST web services
 #' @param outFile=NULL If not null, save the result in the specified file
 #' @examples 
+#' 
 #' ## Get info for a vector of query IDs
 #' ids <- c("rs554219", "rs1542725", "SNP195", "rs1859961", "rs7895676", "rs6983267")
 #' snp.info <- RsatVariationInfoRest(query = ids, queryType = "text")
+#' 
+#' ## Extract thge information from the result
+#' names(snp.info)
+#' 
+#' ## Show the data frame with SNP coordinates
+#' snp.info$resultTable
+#' 
+#' ## Print the execution time
+#' snp.info$time
+#' 
 RsatVariationInfoRest <- function(query,
                                   queryType = "text",
                                   format = "id",
@@ -30,47 +41,65 @@ RsatVariationInfoRest <- function(query,
                                   ) {
   
   message("Sending variation-info query to RSAT REST services")
+  message("\tREST root: ", rest.root)
+  message("\tQuery type: ", queryType)
   
   ## Build a query string by concatenating the query IDs
   if (queryType == "text") {
     queryString <- paste(collapse = ",", query)
-    message("Query type: vector of ", length(query), " IDs")
+    message("\tQuery: contains ", length(query), " IDs")
     string.type <- "text"
   }
 
   ## Submit a query to variation-info via the REST interface
-  varInfo.time <- system.time(
-    varInfo <- POST(file.path(rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
+  runtime <- system.time(
+    rest.result <- POST(file.path(rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
                     body = list(i_string = queryString,
                                 i_string_type = queryType))
   )
   
-  # View(varInfo)
+  # View(rest.result)
   message("\tElapsed time to get variation-info results from RSAT REST: ", 
-          signif(digits=3, varInfo.time["elapsed"]), "s")
+          signif(digits=3, runtime["elapsed"]), "s")
   
   ## Extract the content from the REST response
-  varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-  # class(varInfo.content)
+  content <- httr::content(rest.result, as = "text", encoding = "UTF-8")
+  # class(content)
   
   ## Parse the JSON content
-  varinfo.fromJSON <- fromJSON(varInfo.content)
-  # names(varinfo.fromJSON)
-  varInfo.URL <- varinfo.fromJSON$result_url
-  varInfo.server.path <- varinfo.fromJSON$result_path
+  fromJSON <- fromJSON(content)
+  # names(fromJSON)
+  URL <- fromJSON$result_url
+  server.path <- fromJSON$result_path
+  
+  ## Extract the result table from the JSON output
+  resultTable <- StringToDataFrame(x = fromJSON$output)
   
   ## Download variation info result and store it to a local file if specified
   if (!is.null(outFile)) {
-    download.file(url = varInfo.URL, destfile = outFile)
+    download.file(url = URL, destfile = outFile)
     message("\tRSAT variation-info result saved to file\n\t", outFile)
   }
   
   ## Return the relevant information
   result <- list(
-    restResult = varInfo,
-    URL = varInfo.URL,
-    server.path = varInfo.server.path,
-    resultTable = varinfo.fromJSON
+    ## Report all the parameter values in the result, for the sake of traceability
+    parameters = list(
+      query = query,
+      queryType = queryType,
+      format = format,
+      species = species,
+      assembly = assembly,
+      release = release,
+      variationTypes = variationTypes,
+      idColumn = idColumn,
+      rest.root = rest.root,
+      outFile = outFile),
+    restResult = rest.result,
+    URL = URL,
+    server.path = server.path,
+    time = runtime,
+    resultTable = resultTable
   )
   return(result)
 }
