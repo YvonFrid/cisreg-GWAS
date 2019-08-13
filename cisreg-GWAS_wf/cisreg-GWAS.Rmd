@@ -83,7 +83,7 @@ ptm <- proc.time()
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
 ## Specify a YAML file containing the parameters
-parameter.file <- "parameters/malaria.yaml"
+#parameter.file <- "parameters/malaria.yaml"
 parameter.file <- "parameters/tuberculosis.yaml"
 
 
