@@ -12,3 +12,11 @@ cisreg-GWAS_files
 *.log
 *.out
 *.toc
+.RDataTmp
+.RDataTmp1
+.Rhistory[Conflit]
+cisreg-GWAS.pdf
+figures
+cisreg-GWAS.html
+.Rhistory[Conflit]
+.Rhistory[Conflit]

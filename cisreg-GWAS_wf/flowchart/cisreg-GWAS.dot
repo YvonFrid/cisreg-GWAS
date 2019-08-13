@@ -1,12 +1,15 @@
 digraph {
 
 	subgraph cluster_0 {
-		 color="#0066BB";
-	 	 label="";
-	 	 
-	graph [fontname="ArialBlack",fontsize="70", label="cisreg-GWAS analysis pipeline" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2", rankdir=TB];
-	edge [fontname="ArialMT",fontsize="40",labelfontname="ArialMT",labelfontsize="40", arrowsize="0.5", color="#666666"];
-	node [fontname="ArialMT",fontsize="40",shape=record,height="0.2", color="#666666"];
+		color = "#0066BB";
+		bgcolor = "#EEEEEE";
+		
+	## General properties of the graph (font, color, ...)
+	graph [fontname="ArialBlack",fontsize="14", label="rSNP-GWAS pipeline" labelloc="t", fontcolor="#0066BB", nodesep="0.1", ranksep="0.2"];
+	edge [fontname="ArialMT",fontsize="10",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
+	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
+
+	
 
 
 		
@@ -32,7 +35,7 @@ digraph {
 
 		subgraph cluster_4 {
 		color = "#0066BB";
-		bgcolor = "#C0C0C0";
+		bgcolor = "#E6E6FA";
 		label  =  "Ensembl";
 		style = "rounded";
 
@@ -116,7 +119,7 @@ rsid [shape = "",
   ## RSAT
 	subgraph cluster_5 {
 		color = "#0066BB";
-		bgcolor = "#C0C0C0";
+		bgcolor = "#E6E6FA";
 		label  =  "RSAT vartools";
 		style = "rounded";
 	
@@ -191,7 +194,7 @@ variation_scan -> rsat2
 		  	## REMAP
 subgraph cluster_3 {
 		color = "#0066BB";
-		bgcolor = "#C0C0C0";
+		bgcolor = "#E6E6FA";
 		label  =  "ReMap";
 		style = "rounded";
 				
