@@ -67,7 +67,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Exercise
+## A small example
 
 
 ```{r parameters}
@@ -91,7 +91,10 @@ Let us imagine that a given functional class (e.g. lung diseases) contains $m=`r
 
 
 
-## The hypergeometric distribution
+## Computing the p-value wiht different discrete distributions
+
+
+### The hypergeometric distribution
 
 
 ```{r hypergeometric_distribution}
@@ -125,7 +128,7 @@ lines(X[X >= x],
       lwd = 3, col ="red")
 ```
 
-## Binomial approximation
+### Binomial approximation
 
 
 An alternative to the hypergeomztric is to estiamte the prior probability ($p$) to draw by chance a gene that belongs to the functional class, and use it as probability of success the binomial distribution. 
@@ -164,6 +167,23 @@ lines(X[X >= x],
       lwd = 3, col ="red")
   
 ```
+
+
+### Poisson distribution
+
+TO DO
+
+- explain the principle of the Poisson approximation for the binomial
+
+## Multi-testing corrections
+
+TO DO
+
+- explain the general problem of multiple testing
+- compute E-value
+- estimate FDR
+
+
 
 
 
