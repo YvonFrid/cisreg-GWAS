@@ -5,6 +5,11 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -14,11 +19,6 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -80,11 +80,13 @@ ptm <- proc.time()
 ```
 
 
+
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
 ## Specify a YAML file containing the parameters
 #parameter.file <- "parameters/malaria.yaml"
 parameter.file <- "parameters/tuberculosis.yaml"
+#parameter.file <- "parameters/sepsis.yaml"
 
 
 ## Load paramters from a YAML file
@@ -750,11 +752,11 @@ barplot(height = sort(table(DA.snpInfo$chr_name), decreasing = FALSE),
         main = "A",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 1.5,
-         cex.lab = 1.5,
+        cex.axis = 1,
+         cex.lab = 1,
         horiz = TRUE,
         col = "#BBDDFF",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
 
 df <- sort(table(tagSNPsInfo$CONTEXT),  decreasing = FALSE)
@@ -762,13 +764,13 @@ max.context <- length(df)
 x <- barplot(height = df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(df)*1.1),
-        cex.axis = 1.5,
+        cex.axis = 1,
         main = "B",
          xlab = "SNPs",
-        cex.lab = 1.5,
+        cex.lab = 1,
         horiz = TRUE, 
         col = "#DBDDFF",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
 text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 1.5, pos = 4)
 #par(par.ori)
@@ -917,8 +919,9 @@ barplot(nb.ld.snps,
         las = 1, 
         main = "SNPs in linkage disequilibrium",
         xlab = "LD SNPs",
+        xlim = c(0, max(nb.ld.snps)*1.1),
 #        ylab = "DA SNPs",
-        cex.names = 0.8,
+        cex.names = 0.6,
         col = "#006699")
 
 ```
@@ -1303,9 +1306,9 @@ par(mfrow = c(1,2))
 plot(ldGroup.info$nb.SNPs, ldGroup.info$size/1000, 
      main = "LD block sizes",
      las = 1, 
-     cex.names = 1.5,
-     cex.axis = 1.5,
-     cex.lab = 1.5,
+     cex.names = 1,
+     cex.axis = 1,
+     cex.lab = 1,
      col = "blue",
      xlab = "SNPs per LD block", 
      ylab = "LD block size (kb)",
@@ -1329,8 +1332,8 @@ y <- barplot(
   xlab = "SNPs per LD block",
   #ylab = "Disease-associated SNPs",
   cex.axis = 1,
-  cex.lab = 1.5)
-text(x = snps.per.ldblock[1:max.snps], y = y, labels = snps.per.ldblock[1:max.snps], pos = 4, cex = 1.5)
+  cex.lab = 1)
+text(x = snps.per.ldblock[1:max.snps], y = y, labels = snps.per.ldblock[1:max.snps], pos = 4, cex = 1)
 
 par(par.ori)
 ```
@@ -1364,7 +1367,7 @@ We identify `r nrow(ldGroup.info)`  groups of SNPs in linkage disequilibrium (LD
 
 ## Enrichment of SOIs set for Experimental Factor Ontology (EFO)
 
-We used the `xEnricherSNPs()` function (`XGR package`, [@fang_xgr_2016]) to analyse the enrichment of SNPs for all the traits mapped to EFO in the GWAS catalogues.
+We used the `xEnricherSNPs()` function (`XGR package`, [@fang_xgr_2016]) to analyse the enrichment of SNPs for all the traits mapped to EFO in the GWAS catalog.
 
 
 ```{r SNPs_EFO_enrichment, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment of the set of SOIs for the Experiment Factor Ontology (EFO), analysed with the XGR package.** "), out.width = "80%", fig.width=8, fig.height=4.5, eval=FALSE}
@@ -1405,14 +1408,14 @@ enrichSNPsResults <- xEnrichViewer(
 #View(enrichSNPsResults)
 # visualises enrichment results using a barplot.
 
-par(mfrow = c(1,2))
+#par(mfrow = c(1,2))
 
 bp.fc <- xEnrichBarplot(
   eTerm, top_num = 20, 
   displayBy = "fc", 
   FDR.cutoff = 0.05, 
   bar.label = TRUE,
-  bar.label.size = 3, 
+  bar.label.size = 3.5, 
   bar.color = "yellow-orange",
   bar.width = 0.8, 
   wrap.width = NULL, 
@@ -1425,7 +1428,7 @@ bp.adjp <- xEnrichBarplot(
   displayBy = "adjp", 
   FDR.cutoff = 0.05, 
   bar.label = TRUE,
-  bar.label.size = 3, 
+  bar.label.size = 5, 
   bar.color = "yellow-orange",
   bar.width = 0.8, 
   wrap.width = NULL, 
@@ -1434,8 +1437,6 @@ bp.adjp <- xEnrichBarplot(
 print(bp.adjp)
 
 par(mfrow = c(1,1))
-
-
 
 ```
 
@@ -1737,7 +1738,9 @@ barplot(SNPs.per.motif[1:max.motifs],
         main = "SNPs per motif\nTop-ranking motifs",
         xlab = "Number of predicted rSNPs",
         ylab = NA,
-        las = 2, cex.names = 0.75, 
+        las = 2, 
+        cex.names = 0.8, 
+        cex.axis = 1,
         col = "#37A3F3", border = "#05245F",
         horiz = TRUE)
 par(mar = c(5.1, 5/1, 4.1, 2.1))
@@ -2207,7 +2210,8 @@ if (length(SNPs.per.ReMap.TF) > max.tf) {
 barplot(rev(SNPs.per.ReMap.TF[1:max.tf]),
         main = "Top-ranking TFs for SNP overlap",
         las = 1, 
-        cex.names = 0.7, 
+        cex.names = 1.3, 
+        cex.axis = 1.5,
         col = "#37A3F3", 
         border = "#05245F",
         horiz = TRUE
@@ -2658,7 +2662,7 @@ if (nrow(varscan.with.peaks) == 0) {
     dplyr::summarise(N = n()) 
   
   C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-    geom_tile(aes(fill = hgnc_symbol)) +
+    geom_tile(aes(fill = var_id)) +
     labs(x='Genes', y = 'rSNPs') +
     theme_bw()+
     #guides(fill = FALSE) +
