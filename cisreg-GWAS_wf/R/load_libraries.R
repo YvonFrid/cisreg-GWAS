@@ -36,7 +36,7 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
                             "XGR",  ## For xEnrichSNPs and related graph representations
                             #"FunciSNP",
                             "TissueEnrich",
-                            "grImport2",
+                            # "grImport2",
                             "DOSE"),
                           github.libraries.to.install = c("ReMapEnrich" = "remap-cisreg"),
                           install.if.required = TRUE) {
