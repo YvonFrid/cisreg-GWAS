@@ -120,7 +120,7 @@ rsid [shape = "",
 	subgraph cluster_5 {
 		color = "#0066BB";
 		bgcolor = "#E6E6FA";
-		label  =  "RSAT vartools";
+		label  =  "RSAT Variation-tools";
 		style = "rounded";
 	
 	## variation-info

@@ -1,0 +1,46 @@
+## Query trait (disease) + genome project and population for the linkage disequilibrium
+query: 
+  ID: HP_0100806     ## Mandatory: unambiguous disease ID (must be supported in the GWAS catalog)
+  trait:  malaria     ## Trait name (optional if not provided, will be obtained based on query ID)
+  ld.pop.prefix: '1000GENOMES:phase_3:' ## genome project used as reference for the LD SNPs
+  population: EUR     ## Population to extract LD SNPs
+
+## Ensembl REST queries for Linkage disequilibrium
+ensembl_LD:
+  r2: 0.8
+  ld.distance: 200.0
+  max.ld.per.snp: 500.0
+
+flowcharts:
+  update: yes
+  formats:
+  - pdf
+  - png
+  format: pdf
+
+force.download: no
+
+
+## GWAS catalog
+GWAS_catalog:
+   REST: no
+   
+## Regulatory sequence analysis tools
+RSAT:
+  species: "Homo_sapiens"
+  assembly: "GRCh38"
+  rest: no
+  rest.root: http://rsat-tagc.univ-mrs.fr/rsat/rest/
+  varscan.pval: 0.0001
+  varscan.pval.ratio: 100.0
+  
+## Gene enrichment analysis
+enrich:
+  min.genes: 3.0
+  
+## JASPAR parameters (TFBM database)
+jaspar:
+  rest.root: http://jaspar.genereg.net/api/v1/
+  motifDB.URL: http://jaspar.genereg.net/download/CORE/JASPAR2018_CORE_vertebrates_non-redundant_pfms_transfac.txt
+remap:
+  URL: http://pedagogix-tagc.univ-mrs.fr/remap/download/remap2018/hg38/MACS/remap2018_all_macs2_hg38_v1_2.bed.gz
