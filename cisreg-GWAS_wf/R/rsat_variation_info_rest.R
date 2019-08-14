@@ -48,7 +48,6 @@ RsatVariationInfoRest <- function(query,
   if (queryType == "text") {
     queryString <- paste(collapse = ",", query)
     message("\tQuery: contains ", length(query), " IDs")
-    string.type <- "text"
   }
 
   ## Submit a query to variation-info via the REST interface
@@ -57,23 +56,37 @@ RsatVariationInfoRest <- function(query,
                     body = list(i_string = queryString,
                                 i_string_type = queryType))
   )
+  # View(rest.result)
+  
   
   # View(rest.result)
-  message("\tElapsed time to get variation-info results from RSAT REST: ", 
-          signif(digits=3, runtime["elapsed"]), "s")
+  message("\tvariation-info\tTotal runtime on server side: ", 
+          signif(digits = 3, rest.result$times[["total"]]), "s")
+  message("\tvariation-info\tElapsed time on client side: ", 
+          signif(digits = 3, runtime["elapsed"]), "s")
+  
+  ## If HTTP returned an error, stop and report the error message
+  if (httr::http_error(rest.result)) {
+    message("ERROR in RsatVariationInfoRest()\n\t",
+            httr::content(rest.result, as = "parsed", encoding = "UTF-8")$message, 
+            "\n\t", 
+            httr::content(rest.result, as = "parsed", encoding = "UTF-8")$errors)
+    stop(paste(collapse = "\n\t", httr::http_status(rest.result)))
+  }
+  
   
   ## Extract the content from the REST response
-  content <- httr::content(rest.result, as = "text", encoding = "UTF-8")
+  result.content <- httr::content(rest.result, as = "text", encoding = "UTF-8")
   # class(content)
   
   ## Parse the JSON content
-  fromJSON <- fromJSON(content)
+  result.fromJSON <- fromJSON(result.content)
   # names(fromJSON)
-  URL <- fromJSON$result_url
-  server.path <- fromJSON$result_path
+  URL <- result.fromJSON$result_url
+  server.path <- result.fromJSON$result_path
   
   ## Extract the result table from the JSON output
-  resultTable <- StringToDataFrame(x = fromJSON$output)
+  resultTable <- StringToDataFrame(x = result.fromJSON$output)
   
   ## Download variation info result and store it to a local file if specified
   if (!is.null(outFile)) {
