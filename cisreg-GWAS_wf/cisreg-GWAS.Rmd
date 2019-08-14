@@ -220,92 +220,8 @@ for (file in R.files) {
   
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
-#### Load CRAN packages (install them if required) ####
-message("Loading required libraries")
-cran.libraries.to.install <- 
-  c("yaml",
-    "dplyr",   
-    "devtools",
-    "ggplot2", 
-    "gridExtra",
-    "cowplot",
-    "scales",
-    "tidyr",
-    #"VSE",
-    "DiagrammeR",
-    "VennDiagram",
-    "jsonlite",
-    "httr",
-    "xml2",
-    "RCurl",
-    "data.table"
-    # "gProfileR"
-  )     
 
-
-message("Loading CRAN libraries")
-for (lib in cran.libraries.to.install) {
-  if (require(lib, character.only = TRUE, quietly = TRUE)) {
-    message("\tLoaded library\t", lib)
-  } else {
-    message("Installing CRAN library\t", lib)
-    install.packages(lib, dependencies = TRUE)
-  }
-  require(lib, character.only = TRUE, quietly = TRUE)
-}
-
-#### Load Bioconductor packages (install them if required) ####
-bioconductor.libraries.to.install <- c(
-  "biomaRt",
-  "GenomicRanges",
-  "ChIPpeakAnno",
-  "ChIPseeker",
-  "TxDb.Hsapiens.UCSC.hg38.knownGene",
-  "ReactomePA",
-  "enrichplot",
-  #"rGREAT",
-  "XGR",  ## For xEnrichSNPs and related graph representations
-  #"FunciSNP",
-  "TissueEnrich",
-  "grImport2",
-  "DOSE"
-)
-
-message("Loading Bioconductor libraries")
-for (lib in bioconductor.libraries.to.install) {
-  if (!require(lib, character.only = TRUE, quietly = TRUE)) {
-    #   message("\tLoaded library\t", lib)
-    # } else {
-    message("Installing Bioconductor library\t", lib)
-    if (!("BiocManager" %in% rownames(installed.packages()))) {
-      install.packages("BiocManager")
-    } 
-    
-        BiocManager::install(lib, dependencies = TRUE, ask = FALSE)
-    if (!require(lib, character.only = TRUE, quietly = TRUE)) {
-      stop("Could not install and load package ", lib)
-    }
-  }
-#   require(lib, character.only = TRUE, quietly = TRUE)
-}
-
-#### Load some specific R packages from github with devtools ####
-
-## For github libraries we need to know the account for each package -> we encode this as a named vector
-github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
-message("Loading github libraries")
-for (lib in names(github.libraries.to.install)) {
-  if (require(lib, character.only = TRUE, quietly = TRUE)) {
-    message("\tLoaded library\t", lib)
-  } else {
-    library(devtools)
-    message("Installing github library\t", lib)
-    github.path <- paste(sep = "/", github.libraries.to.install[lib], lib)
-    install_github(github.path, dependencies = TRUE)
-    #    install_github(github.path, dependencies = TRUE, force = TRUE)
-  }
-  require(lib, character.only = TRUE, quietly = TRUE)
-}
+LoadLibraries(install.if.required = TRUE))
 
 ```
 
@@ -1483,37 +1399,12 @@ if (parameters$RSAT$rest) {
     species = parameters$RSAT$species, 
     assembly = parameters$RSAT$assembly, 
     outFile = outfiles["RSAT variation-info (varBed)"])
-  
-  # # Create the vector of SOIs
-  # SOI.string <- paste(collapse = ",", SOIs$refsnp_id)
-  # # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
-  # 
-  # ## Submit a query to variation-info via the REST interface
-  # message("\tRetrieving information on ", length(SOIs$refsnp_id), " variants from RSAT REST Web services")
-  # varInfo.time <- system.time(
-  #   varInfo <- POST(file.path(parameters$RSAT$rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
-  #                   body = list(i_string = SOI.string,
-  #                               i_string_type = 'text'))
-  # )
-  # View(varInfo)
+
   
   message("\tElapsed time to get variation-info results from RSAT REST: ", 
-          signif(digits=3, varInfo$time["elapsed"]), "s")
+          signif(digits = 3, varInfo$time["elapsed"]), "s")
   
-  # ## Extract the content from the REST response
-  # varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-  # # class(varInfo.content)
-  # 
-  # ## Parse the JSON content
-  # varinfo.fromJSON <- fromJSON(varInfo.content)
-  # # names(varinfo.fromJSON)
-  # varInfo.URL <- varinfo.fromJSON$result_url
-  # varInfo.server.path <- varinfo.fromJSON$result_path
-  # 
-  # download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
-  # message("\tRSAT variation-info result saved to file\n\t", 
-  #         outfiles["RSAT variation-info (varBed)"])
-  # # system(paste("open", result.dir.path["RSAT"]))
+
   
   #### RSAT variation-seq ####s
   
@@ -1525,7 +1416,7 @@ if (parameters$RSAT$rest) {
                                i_string_type = 'piping'))
   )
   message("\tElapsed time to get variation sequences from RSAT REST: ", 
-          signif(digits=3, varSeq.time["elapsed"]), "s")
+          signif(digits = 3, varSeq.time["elapsed"]), "s")
   
   ## Parse the content returned from the server
   varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
