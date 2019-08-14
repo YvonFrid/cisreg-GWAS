@@ -1482,37 +1482,12 @@ if (parameters$RSAT$rest) {
     species = parameters$RSAT$species, 
     assembly = parameters$RSAT$assembly, 
     outFile = outfiles["RSAT variation-info (varBed)"])
-  
-  # # Create the vector of SOIs
-  # SOI.string <- paste(collapse = ",", SOIs$refsnp_id)
-  # # SOI.string <- paste(collapse = ",", SOIs$refsnp_id[1:100]) # FOR DEBUGGING
-  # 
-  # ## Submit a query to variation-info via the REST interface
-  # message("\tRetrieving information on ", length(SOIs$refsnp_id), " variants from RSAT REST Web services")
-  # varInfo.time <- system.time(
-  #   varInfo <- POST(file.path(parameters$RSAT$rest.root, "variation-info", "Homo_sapiens", "GRCh38"),
-  #                   body = list(i_string = SOI.string,
-  #                               i_string_type = 'text'))
-  # )
-  # View(varInfo)
+
   
   message("\tElapsed time to get variation-info results from RSAT REST: ", 
-          signif(digits=3, varInfo$time["elapsed"]), "s")
+          signif(digits = 3, varInfo$time["elapsed"]), "s")
   
-  # ## Extract the content from the REST response
-  # varInfo.content <- httr::content(varInfo, as = "text", encoding = "UTF-8")
-  # # class(varInfo.content)
-  # 
-  # ## Parse the JSON content
-  # varinfo.fromJSON <- fromJSON(varInfo.content)
-  # # names(varinfo.fromJSON)
-  # varInfo.URL <- varinfo.fromJSON$result_url
-  # varInfo.server.path <- varinfo.fromJSON$result_path
-  # 
-  # download.file(url = varInfo.URL, destfile = outfiles["RSAT variation-info (varBed)"])
-  # message("\tRSAT variation-info result saved to file\n\t", 
-  #         outfiles["RSAT variation-info (varBed)"])
-  # # system(paste("open", result.dir.path["RSAT"]))
+
   
   #### RSAT variation-seq ####s
   
@@ -1524,7 +1499,7 @@ if (parameters$RSAT$rest) {
                                i_string_type = 'piping'))
   )
   message("\tElapsed time to get variation sequences from RSAT REST: ", 
-          signif(digits=3, varSeq.time["elapsed"]), "s")
+          signif(digits = 3, varSeq.time["elapsed"]), "s")
   
   ## Parse the content returned from the server
   varSeq.content <- httr::content(varSeq, "text", encoding = "UTF-8")
