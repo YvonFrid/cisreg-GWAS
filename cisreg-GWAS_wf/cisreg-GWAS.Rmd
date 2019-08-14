@@ -219,7 +219,8 @@ for (file in R.files) {
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
 
-LoadLibraries(install.if.required = TRUE)
+LoadLibraries(github.libraries.to.install = NULL, 
+              install.if.required = TRUE)
 
 ```
 
