@@ -84,7 +84,8 @@ LoadLibraries <- function(cran.libraries.to.install = NULL,
   
   ## For github libraries we need to know the account for each package -> we encode this as a named vector
   if (is.null(github.libraries.to.install)) {
-    github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
+    message("Temporarily disactivating the installatoion of remap-cisreg/ReMapEnrich due to system-wise library dependency of RMySQL")
+#    github.libraries.to.install <- c("ReMapEnrich" = "remap-cisreg")
   }
   message("Loading github libraries")
   for (lib in names(github.libraries.to.install)) {
