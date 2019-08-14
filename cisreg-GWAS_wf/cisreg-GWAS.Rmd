@@ -5,11 +5,6 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -19,6 +14,11 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -84,8 +84,8 @@ ptm <- proc.time()
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
 ## Specify a YAML file containing the parameters
-#parameter.file <- "parameters/malaria.yaml"
-parameter.file <- "parameters/tuberculosis.yaml"
+parameter.file <- "parameters/malaria.yaml"
+#parameter.file <- "parameters/tuberculosis.yaml"
 #parameter.file <- "parameters/sepsis.yaml"
 
 
@@ -1385,8 +1385,6 @@ where S is a sequence segment of the same length of M, M is the PSSM, and B is t
 
 
 if (parameters$RSAT$rest) {
-  
-  
   ## Specify the file to download variation info result and store it to a local file
   outfiles["RSAT variation-info (varBed)"] <- file.path(
     result.dir.path["RSAT"],
@@ -1400,7 +1398,6 @@ if (parameters$RSAT$rest) {
     species = parameters$RSAT$species, 
     assembly = parameters$RSAT$assembly, 
     outFile = outfiles["RSAT variation-info (varBed)"])
-
   
   message("\tElapsed time to get variation-info results from RSAT REST: ", 
           signif(digits = 3, varInfo$time["elapsed"]), "s")
