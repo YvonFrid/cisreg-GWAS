@@ -5,7 +5,7 @@
 #' @param species="Homo_sapiens" species name (e.g. Homo_sapiens). Must be supported on the RSAT server. 
 #' @param assembly="GRCh38" genome assembly (e.g. GRCh38). Must be supported on the RSAT server. 
 #' @param queries=NULL a vector of variations IDs
-#' @param queryURL=NULL a string with the URL fo the query file
+#' @param queryURL=NULL a string with the URL for the query file
 #' @param queryFile=NULL a file containing the queries
 #' @param format="id" of the query. Supported: id, varBed, bed
 #' @param release=NULL Optional: Ensembl release. If not specified, the Ensmebl release is the default one of the RSAT server. 
