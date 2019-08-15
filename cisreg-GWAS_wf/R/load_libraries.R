@@ -6,6 +6,10 @@
 #' @param bioconductor.libraries.to.install a vector with names of the BioConductor libraries to instal (default list is used if not specified)
 #' @param github.libraries.to.install a named vector with the names of libraries to install from github (names of the vector elements), and the corresponding accounts (values of the vector elements)
 #' @param install.if.required=TRUE automatically install the missing libraries
+#' @examples
+#' 
+#' ## Install all the R librairies required for the cisreg-GWAS workflow
+#' LoadLibraries()
 #' 
 #' @export
 LoadLibraries <- function(cran.libraries.to.install=c("yaml",
