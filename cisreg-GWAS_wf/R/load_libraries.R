@@ -5,12 +5,12 @@
 #' @param cran.libraries.to.install a vector with the names of CRAN libraries to install (default list is used if not specified)
 #' @param bioconductor.libraries.to.install a vector with names of the BioConductor libraries to instal (default list is used if not specified)
 #' @param github.libraries.to.install a named vector with the names of libraries to install from github (names of the vector elements), and the corresponding accounts (values of the vector elements)
-#' @param install.if.required=TRUE automatically install the missing libraries
+#' @param auto.install=FALSE automatically install the missing libraries
 #' @examples
 #' 
 #' ## Load all the R librairies required for the cisreg-GWAS 
 #' ## workflow and install the missing ones
-#' LoadLibraries(install.if.required = TRUE)
+#' LoadLibraries(auto.install = TRUE)
 #' 
 #' @export
 LoadLibraries <- function(cran.libraries.to.install=c("yaml",
@@ -44,36 +44,36 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
                             # "grImport2",
                             "DOSE"),
                           github.libraries.to.install = c("ReMapEnrich" = "remap-cisreg"),
-                          install.if.required = FALSE) {
+                          auto.install = FALSE) {
   
   
   
   #### Load CRAN packages (install them if required) ####
-  message("Loading required libraries")
+  message("Loading required libraries gor cisreg-GWAS workflow")
 
-  message("Loading CRAN libraries")
+  message("\tLoading CRAN libraries")
   for (lib in cran.libraries.to.install) {
     if (require(lib, character.only = TRUE, quietly = TRUE)) {
-      message("\tLoaded library\t", lib)
+      message("\t\tLoaded library\t", lib)
     } else {
-      if (install.if.required) {
-        message("Installing CRAN library\t", lib)
+      if (auto.install) {
+        message("\t\tInstalling CRAN library\t", lib)
         install.packages(lib, dependencies = TRUE)
       } else {
-        message("missing library: ", lib)
+        message("\t\tMissing CRAN library: ", lib)
       }
     }
     require(lib, character.only = TRUE, quietly = TRUE)
   }
   
   #### Load Bioconductor packages (install them if required) ####
-  message("Loading Bioconductor libraries")
+  message("\tLoading Bioconductor libraries")
   for (lib in bioconductor.libraries.to.install) {
-    if (!require(lib, character.only = TRUE, quietly = TRUE)) {
-      #   message("\tLoaded library\t", lib)
-      # } else {
-      if (install.if.required) {
-        message("Installing Bioconductor library\t", lib)
+    if (require(lib, character.only = TRUE, quietly = TRUE)) {
+      message("\t\tLoaded library\t", lib)
+    } else {
+      if (auto.install) {
+        message("\t\tInstalling Bioconductor library\t", lib)
         if (!("BiocManager" %in% rownames(installed.packages()))) {
           install.packages("BiocManager")
         } 
@@ -83,7 +83,7 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
           stop("Could not install and load package ", lib)
         }
       } else {
-        message("missing library: ", lib)
+        message("\t\tMissing BioConductor library: ", lib)
       }
     }
     #   require(lib, character.only = TRUE, quietly = TRUE)
@@ -92,19 +92,19 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
   #### Load some specific R packages from github with devtools ####
   
   ## For github libraries we need to know the account for each package -> we encode this as a named vector
-  message("Loading github libraries")
+  message("\tLoading github libraries")
   for (lib in names(github.libraries.to.install)) {
     if (require(lib, character.only = TRUE, quietly = TRUE)) {
-      message("\tLoaded library\t", lib)
+      message("\t\tLoaded library\t", lib)
     } else {
-      if (install.if.required) {
+      if (auto.install) {
         library(devtools)
-        message("Installing github library\t", lib)
+        message("\t\tInstalling github library\t", lib)
         github.path <- paste(sep = "/", github.libraries.to.install[lib], lib)
         install_github(github.path, dependencies = TRUE)
         #    install_github(github.path, dependencies = TRUE, force = TRUE)
       } else {
-        message("missing library: ", lib)
+        message("\t\tMissing github library: ", lib)
       }
     }
     require(lib, character.only = TRUE, quietly = TRUE)
