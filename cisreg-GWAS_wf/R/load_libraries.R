@@ -8,8 +8,9 @@
 #' @param install.if.required=TRUE automatically install the missing libraries
 #' @examples
 #' 
-#' ## Install all the R librairies required for the cisreg-GWAS workflow
-#' LoadLibraries()
+#' ## Load all the R librairies required for the cisreg-GWAS 
+#' ## workflow and install the missing ones
+#' LoadLibraries(install.if.required = TRUE)
 #' 
 #' @export
 LoadLibraries <- function(cran.libraries.to.install=c("yaml",
@@ -43,7 +44,7 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
                             # "grImport2",
                             "DOSE"),
                           github.libraries.to.install = c("ReMapEnrich" = "remap-cisreg"),
-                          install.if.required = TRUE) {
+                          install.if.required = FALSE) {
   
   
   
@@ -55,9 +56,11 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
     if (require(lib, character.only = TRUE, quietly = TRUE)) {
       message("\tLoaded library\t", lib)
     } else {
-      if (install.if.required){
+      if (install.if.required) {
         message("Installing CRAN library\t", lib)
         install.packages(lib, dependencies = TRUE)
+      } else {
+        message("missing library: ", lib)
       }
     }
     require(lib, character.only = TRUE, quietly = TRUE)
@@ -79,6 +82,8 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
         if (!require(lib, character.only = TRUE, quietly = TRUE)) {
           stop("Could not install and load package ", lib)
         }
+      } else {
+        message("missing library: ", lib)
       }
     }
     #   require(lib, character.only = TRUE, quietly = TRUE)
@@ -98,6 +103,8 @@ LoadLibraries <- function(cran.libraries.to.install=c("yaml",
         github.path <- paste(sep = "/", github.libraries.to.install[lib], lib)
         install_github(github.path, dependencies = TRUE)
         #    install_github(github.path, dependencies = TRUE, force = TRUE)
+      } else {
+        message("missing library: ", lib)
       }
     }
     require(lib, character.only = TRUE, quietly = TRUE)
