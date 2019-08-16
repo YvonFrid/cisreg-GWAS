@@ -16,6 +16,7 @@
 LoadLibraries <- function(cran.libraries.to.install=c("yaml",
                                                       "dplyr",   
                                                       "devtools",
+                                                      "qqman",
                                                       "ggplot2", 
                                                       "gridExtra",
                                                       "cowplot",
