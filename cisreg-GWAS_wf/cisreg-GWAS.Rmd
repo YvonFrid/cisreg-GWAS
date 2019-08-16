@@ -717,11 +717,11 @@ par(mfrow = c(1,2))
 #par.ori <- par(no.readonly = TRUE)
 par(mar = c(5.1, 8, 9.1, 1.1))
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
-barplot(height = sort(table(valid.snps$chr_name), decreasing = FALSE),
+barplot(height = sort(table(valid.snps$REPORTED.GENE.S.), decreasing = FALSE),
         #main = "Disease-associated SNPs per chromosome",
         #main = "A",
         xlab = "SNPs",
-        ylab = "Chromosomes",
+        #ylab = "",
         cex.axis = 1,
          cex.lab = 1,
         horiz = TRUE,
