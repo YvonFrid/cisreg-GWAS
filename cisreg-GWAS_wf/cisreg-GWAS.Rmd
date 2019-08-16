@@ -678,13 +678,14 @@ gwas.manhattan$CHR <- as.numeric(sort(gwas.manhattan$CHR))
 manhattan(gwas.manhattan, 
           col = c("blue4", "orange3"),
           main = "Manhattan Plot", 
-          cex = 1, 
-          cex.axis = 1,
-          genomewideline = F)
+          annotatePval = 10e-08,
+          #cex = 1, 
+          cex.axis = 1)
 
 qq(gwas.manhattan$P, main = "Q-Q plot of GWAS p-values")
 
 par(mfrow = c(1,1)) 
+
 ```
 
 
