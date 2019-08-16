@@ -221,7 +221,9 @@ for (file in R.files) {
 
 ```{r libraries, include=FALSE,  eval=TRUE, echo=FALSE, warning=FALSE}
 
-LoadLibraries(auto.install = TRUE)
+## Note: we temporarily disable ReMapEnrich because it contains system-wise dependencies, 
+## which require admin rights to be installed.
+LoadLibraries(auto.install = TRUE, github.libraries.to.install = NULL)
 
 ```
 
