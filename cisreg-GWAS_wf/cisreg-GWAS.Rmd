@@ -5,6 +5,11 @@ author: 'Yvon Mbouamboua, Pascal Rihet, Thi-Thuy-Nga Nguyen, Andrew Parton, Aziz
 date: "`r Sys.Date()`"
 always_allow_html: yes
 output:
+  pdf_document:
+    fig_caption: yes
+    highlight: zenburn
+    toc: yes
+    toc_depth: 3
   html_document:
     code_folding: hide
     fig_caption: yes
@@ -14,11 +19,6 @@ output:
     toc: yes
     toc_depth: 3
     toc_float: yes
-  pdf_document:
-    fig_caption: yes
-    highlight: zenburn
-    toc: yes
-    toc_depth: 3
   ioslides_presentation:
     colortheme: dolphin
     fig_caption: yes
@@ -655,6 +655,36 @@ workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 ```
 
+```{r manhattan_plot}
+par(mfrow = c(1,2)) 
+DA.snps.meged <- as.data.frame(merge(x = gwas.results,
+                                    y = DA.snpInfo,
+                                    by.x = "SNPS",
+                                    by.y = "refsnp_id",
+                                    all.x = TRUE,
+                                    all.y = FALSE))
+# View(DA.snps.meged)
+
+## Select a subset data for manhattan plot
+gwas.manhattan <- data.frame(SNP = DA.snps.meged$SNPS,
+                             CHR = DA.snps.meged$chr_name,
+                             P = DA.snps.meged$P.VALUE)
+gwas.manhattan$BP <-  seq(DA.snps.meged$SNPS)
+gwas.manhattan$CHR <- as.numeric(sort(gwas.manhattan$CHR))
+
+## Draw a manhattan plot for disease-associated SNPs
+manhattan(gwas.manhattan, 
+          col = c("blue4", "orange3"),
+          main = "Manhattan Plot", 
+          cex = 1, 
+          cex.axis = 1,
+          genomewideline = F)
+
+qq(gwas.manhattan$P, main = "Q-Q plot of GWAS p-values")
+
+par(mfrow = c(1,1)) 
+```
+
 
 
 ```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),"**. **A. ** Disease-associated SNPs per chromosome. **B. ** Genomic context of disease-associated SNPs from GWAS catalog.** "), out.width="100%", fig.width=8, fig.height=6}
@@ -679,7 +709,7 @@ df <- sort(table(tagSNPsInfo$CONTEXT),  decreasing = FALSE)
 max.context <- length(df)
 x <- barplot(height = df,
         #main = "Disease-associated SNPs per chromosome",
-        xlim = c(0, max(df)*1.1),
+        xlim = c(0, max(df)*1.5),
         cex.axis = 1,
         main = "B",
          xlab = "SNPs",
@@ -688,7 +718,7 @@ x <- barplot(height = df,
         col = "#DBDDFF",
         cex.names = 1, 
         las = 1)
-text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 1.5, pos = 4)
+text(x = df[1:max.context], y = x, labels = df[1:max.context], cex = 1, pos = 4)
 #par(par.ori)
 
 par(mfrow = c(1,1)) 
