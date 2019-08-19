@@ -85,8 +85,10 @@ ptm <- proc.time()
 
 ## Specify a YAML file containing the parameters
 #parameter.file <- "parameters/malaria.yaml"
-parameter.file <- "parameters/tuberculosis.yaml"
+#parameter.file <- "parameters/tuberculosis.yaml"
 #parameter.file <- "parameters/sepsis.yaml"
+parameter.file <- "parameters/schizophrenia.yaml"
+
 
 
 ## Load paramters from a YAML file
@@ -713,15 +715,17 @@ par(mfrow = c(1,1))
 ```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),"**. (A) Disease-associated SNPs per chromosome. (B) Genomic context of disease-associated SNPs from GWAS catalog.** "), out.width="100%", fig.width=8, fig.height=6}
 
 par(mfrow = c(1,2)) 
-
+df <- sort(table(valid.snps$MAPPED_GENE),  decreasing = FALSE)
 #par.ori <- par(no.readonly = TRUE)
 par(mar = c(5.1, 8, 9.1, 1.1))
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
-barplot(height = sort(table(valid.snps$REPORTED.GENE.S.), decreasing = FALSE),
+barplot(height = df,
         #main = "Disease-associated SNPs per chromosome",
         #main = "A",
         xlab = "SNPs",
         #ylab = "",
+        xlim = c(0, max(df)*1.5),
+        #ylim = c(0, 10),
         cex.axis = 1,
          cex.lab = 1,
         horiz = TRUE,
@@ -1147,7 +1151,7 @@ text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 1.5
 
 ## LD groups
 
-We compute the coordinates of each LD group.s
+We compute the coordinates of each LD groups
 
 
 ```{r haplotype_block, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Number of SNPs in LD per SOI.** "), out.width = "100%", fig.width=9, fig.height=4.5}
@@ -1408,11 +1412,9 @@ bp.adjp <- xEnrichBarplot(
   signature = TRUE)
 print(bp.adjp)
 
-par(mfrow = c(1,1))
+#par(mfrow = c(1,1))
 
 ```
-
-
 
 
 ## RSAT variation-tools
@@ -2167,6 +2169,105 @@ par(mfrow = c(1,1))
 ```
 
 
+
+
+## Exploring tissue-specific gene enrichment associated with the SOI
+
+### Tissue-specific gene enrichment bar chart
+
+The below bar charts shown the tissue-specific gene enrichment.
+
+```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment values. The plot shows the visualization tissue-specific gene enrichment using the −Log10(P−Value) (A) and the fold-change values (B).")}
+
+message("Tissue-specific gene enrichment analysis")
+
+if (nrow(SOIs.annotations) == 0) {
+  message("The annotation of the SOIs did not return a single predicted gene. Skipping tissue-specific gene enrichment. ")
+    
+  } else {
+    
+  ## Select the tenes associated with the rSNPs
+  inputGenes <- unique(na.omit(SOIs.annotations$hgnc_symbol))
+  
+  if (length(inputGenes)) {
+    
+    gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
+                  geneIdType=SymbolIdentifier())
+    output <- teEnrichment(inputGenes = gs)
+    
+    seEnrichmentOutput <- output[[1]]
+    enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
+    enrichmentOutput$Tissue <- row.names(enrichmentOutput)
+    
+
+    A <- ggplot(enrichmentOutput,
+           aes(x=reorder(Tissue,-Log10PValue),
+               y=Log10PValue,
+               label = Tissue.Specific.Genes,
+               fill = Tissue))+
+      geom_bar(stat = 'identity')+
+      labs(x='', y = '-LOG10(P-Adjusted)')+
+      theme_bw()+
+      theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 20),
+            axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 45, 
+                                       vjust = 1, hjust = 1),
+            panel.grid.major= element_blank(),
+            panel.grid.minor = element_blank())
+    
+    
+    B <- ggplot(enrichmentOutput,
+           aes(x=reorder(Tissue,-fold.change),
+               y=fold.change,label = Tissue.Specific.Genes,
+               fill = Tissue))+
+      geom_bar(stat = 'identity')+
+      labs(x='', y = 'Fold change')+
+      theme_bw()+
+      theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 20),
+            axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 45, 
+                                       vjust = 1, hjust = 1),
+            panel.grid.major= element_blank(),
+            panel.grid.minor = element_blank())
+    
+     plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
+
+  }
+}
+
+```
+
+
+
+### Heatmap to show expression profile of tissue-specific genes
+
+In this section, we vizualise in the form of a heatmap the expression values of the tissue-specific genes identified from the input gene set.
+
+
+```{r expression_value, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Expression profile of tissue-specific genes.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene expression. The plot shows the visualization tissue-specific gene enrichment using the −Log10(P−Value) (A) and the fold-change values (B).")}
+seExp <- output[[2]][["Cerebral Cortex"]]
+exp <- setNames(data.frame(assay(seExp), row.names = rowData(seExp)[,1]), colData(seExp)[,1])
+exp$Gene <- row.names(exp)
+exp <- exp %>% gather(Tissue=1:(ncol(exp)-1))
+#View(exp)
+
+ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
+     colour = "white") + scale_fill_gradient(low = "white",
+     high = "steelblue")+
+     labs(x='', y = '')+
+      theme_bw()+
+      guides(fill = guide_legend(title = "Log2(TPM)"))+
+      #theme(legend.position="none")+
+      theme(plot.title = element_text(hjust = 0.5,size = 20),axis.title = element_text(size=15))+
+      theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+```
+
+
+
+
+
 ### Profile of ChIP-seq peaks binding to TSS regions
 
 We compute the profile ChIP-seq binding to TSS regions overlapped with the haplotype blocks of the SOIs. We are defined the flanking sequences around (by default) -3kb to +3kb . Then align the peaks that are mapping to these regions, we can to generate the tagMatrix.
@@ -2751,52 +2852,6 @@ if (nrow(rSNPs.info) == 0) {
 ```
 
 
-### Exploring tissue-specific gene enrichment results
-
-The below bar charts shown the tissue-specific gene enrichment.
-
-```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment (-Log10(P-Value)) values. ")}
-
-message("Tissue-specific gene enrichment analysis")
-
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping tissue-specific gene enrichment. ")
-    
-  } else {
-    
-  ## Select the tenes associated with the rSNPs
-  inputGenes <- unique(na.omit(rSNPs.info$hgnc_symbol))
-  
-  if (length(inputGenes)) {
-    
-    gs <- GeneSet(geneIds = inputGenes, organism = "Homo Sapiens", 
-                  geneIdType=SymbolIdentifier())
-    output <- teEnrichment(inputGenes = gs)
-    
-    seEnrichmentOutput <- output[[1]]
-    enrichmentOutput <- setNames(data.frame(assay(seEnrichmentOutput),row.names = rowData(seEnrichmentOutput)[,1]), colData(seEnrichmentOutput)[,1])
-    enrichmentOutput$Tissue <- row.names(enrichmentOutput)
-    
-    
-    ggplot(enrichmentOutput,
-           aes(x=reorder(Tissue,-Log10PValue),
-               y=Log10PValue,
-               label = Tissue.Specific.Genes,
-               fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = '-LOG10(P-Adjusted)')+
-      theme_bw()+
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, 
-                                       vjust = 1, hjust = 1),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank())
-  }
-}
-
-```
 
 
 
