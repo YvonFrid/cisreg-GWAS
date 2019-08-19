@@ -1719,32 +1719,32 @@ ggplot(varscan.jaspar.merged, aes(label, var_id)) + geom_tile(aes(fill = -log10(
 par(mfrow = c(2,2))  
 #par(mar = c(9.1, 5.1, 4.1, 2.1))
 
+
+#### Plot the distributions of P-value ####
 varscan.jaspar.merged$best_pval <- as.numeric(varscan.jaspar.merged$best_pval)
 varscan.jaspar.merged$worst_pval <- as.numeric(varscan.jaspar.merged$worst_pval)
 
-best.pval <- -log10(varscan.jaspar.merged$best_pval)
-worst.pval <- -log10(varscan.jaspar.merged$worst_pval)
-
-pval.range <- range(c(best.pval, worst.pval))
+best.sig <- -log10(varscan.jaspar.merged$best_pval)
+worst.sig <- -log10(varscan.jaspar.merged$worst_pval)
+sig.range <- range(c(best.sig, worst.sig))
 
 n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
-plot(sort(best.pval), f, type = "l", col = "blue", 
-     xlim = pval.range,
+plot(sort(best.sig, decreasing = TRUE), f, type = "l", col = "blue", 
+     las = 1,
+     xlim = sig.range,
      main = "A. P-value distributions",
      xlab = "-log10(P-value)",
-     ylab = "Frequency")
-lines(sort(worst.pval), f, type = "l", col = "red")
-legend(1, 95, legend = c("Best P-value", "Worst P-value"),
+     ylab = "Frequency", 
+     panel.first = grid(col = "#DDDDDD", lty = "solid"))
+lines(sort(worst.sig, decreasing = TRUE), f, type = "l", col = "red")
+legend("topright", legend = c("Best P-value", "Worst P-value"),
        col = c("blue", "red"), lty = 1:2, cex = 0.8)
 
 
-grid(col = "#DDDDDD", lty = "solid")
-
-###################################################
-## Plotting P-value ratio
 
 
+#### Plotting P-value ratio ####
 pvalRatioPos <- log10(varscan.jaspar.merged$pval_ratio)
 
 
@@ -1754,40 +1754,42 @@ n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
 plot(sort(pvalRatioPos), f, type = "l", col = "blue", 
      #xlim = pvalRatio,
+     las = 1,
      main = "B. P-value ratio distributions",
      xlab = "-log10(P-value ratio)",
-     ylab = "Frequency")
+     ylab = "Frequency", 
+     panel.first = grid(col = "#DDDDDD", lty = "solid"))
 
 
-grid(col = "#DDDDDD", lty = "solid")
 
-## Weight
+
+#### Distribution of best and worst weights ####
 varscan.jaspar.merged$best_w <- as.numeric(varscan.jaspar.merged$best_w)
 varscan.jaspar.merged$worst_w <- as.numeric(varscan.jaspar.merged$worst_w)
 
 best.weight <- varscan.jaspar.merged$best_w
 worst.weight <- varscan.jaspar.merged$worst_w
-
 weight.range <- range(c(best.weight, worst.weight))
 
 
 n <- nrow(varscan.jaspar.merged)
 f <- 1:n / n
 plot(sort(best.weight), f, type = "l", col = "blue",
+     las = 1,
      xlim = weight.range,
      main = "C. Weight distributions",
      xlab = "Weight",
-     ylab = "Frequency")
-
+     ylab = "Frequency",
+     panel.first = grid(col = "#DDDDDD", lty = "solid"))
 lines(sort(worst.weight), f, type = "l", col = "red")
-
-legend(2000,9.5, # places a legend at the appropriate place 
+legend("topleft", # places a legend at the appropriate place 
+       col = c("blue", "red"), lwd = 2,
       c("best.weight", "worst.weight"))
 
-grid(col = "#DDDDDD", lty = "solid")
+
 
 #par(mar = c(5.1, 5/1, 4.1, 2.1))
-par(mfrow=c(1,1))
+par(mfrow = c(1,1))
 ```
 
 
@@ -2376,7 +2378,7 @@ kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 
 We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. We presente the genomic annotations of the ChIP-seq paeks co-localised with the rSNPs
 
-```{r peak_annotation_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+```{r peak_annotation_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5, warning=FALSE}
 
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping peak annotations. ")
@@ -2431,15 +2433,15 @@ if (nrow(rSNPs.info) == 0) {
   
 } else {
   
-  ## rSNPs with hight effect of motif alteration
+  ## rSNPs with highest effect of motif alteration
   motif.alt.effect <- varscan.with.peaks %>% 
     dplyr::select(var_id, label, best_pval) 
   #dplyr::group_by() %>% 
   #dplyr::summarise(N = n()) 
-  motif.alt.effect$best_pval = -log10(motif.alt.effect$best_pval)
+  motif.alt.effect$best_sig = -log10(motif.alt.effect$best_pval)
   
   
-  A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_pval),
+  A <- ggplot(motif.alt.effect, aes(label, var_id)) + geom_tile(aes(fill = best_sig),
                                                                 colour = "white") + scale_fill_gradient(low = "white",
                                                                                                         high = "steelblue")+
     labs(x='', y = '')+
@@ -2666,7 +2668,7 @@ if (nrow(rSNPs.info) == 0) {
 
 We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
 
-```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The P-value adjested represent the enrichment scores and gene count or ratio as bar height and color.")}
+```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The adjusted P-value represents the enrichment scores and gene count or ratio as bar height and color.")}
 
 #### Gene enrichment analysis with DOSE::DisGeNET ####
 
