@@ -84,9 +84,9 @@ ptm <- proc.time()
 ```{r parameters, echo=FALSE, results=FALSE, warning=FALSE, message=FALSE}
 
 ## Specify a YAML file containing the parameters
-#parameter.file <- "parameters/malaria.yaml"
+parameter.file <- "parameters/malaria.yaml"
 #parameter.file <- "parameters/type2_diabetes.yaml"
-parameter.file <- "parameters/tuberculosis.yaml"
+#parameter.file <- "parameters/tuberculosis.yaml"
 #parameter.file <- "parameters/diabetic_neuphropathy.yaml"
 #parameter.file <- "parameters/sepsis.yaml"
 #parameter.file <- "parameters/schizophrenia.yaml"
@@ -762,7 +762,7 @@ par(mfrow = c(1,1))
 ```
 
 
-## Linkage desequilibrium (LD)
+## Linkage disequilibrium (LD)
 
 In order to get causal SNPs, we collect from each tag SNP all the other SNPs in linkage desiquilibrium. 
 
@@ -1882,6 +1882,8 @@ remap.SOI.overlaps <- data.frame(IntersectBed(remapCatalog.gr, SOIsBed.gr))
 nbremap.SOI.overlaps <- nrow(remap.SOI.overlaps)
 message("Number of overlaps between SOIs and ReMap peaks: ", nbremap.SOI.overlaps)
 workflowSummary["ReMap: overlaps between SOIs and ReMap peaks"] <- nbremap.SOI.overlaps
+nbremap.SOI <- length(unique(remap.SOI.overlaps$rsid))
+workflowSummary["ReMap: number of SNPs with ReMap peaks"] <- nbremap.SOI
 
 ## Split the ReMap peakset ID in order to obtain separate columns with the
 ## 1. GEO series
@@ -2579,7 +2581,7 @@ rSNPs.info <- merge(varscan.with.peaks,
 
 rSNPs.info.display <- rSNPs.info[, c("chrom", "hgnc_symbol",  "var_id", "pos_Start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "X.ac_motif", "name",  "consequence_type_tv")]
 
-#kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
+kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 
 
 ```
@@ -2864,22 +2866,29 @@ if (nrow(varscan.with.peaks) == 0) {
     dplyr::summarise(N = n()) 
   
   C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-    geom_tile(aes(fill = hgnc_symbol)) +
+    geom_bar(stat="identity", position=position_dodge(), color="black") +
+    #geom_tile(aes(fill = hgnc_symbol)) +
     labs(x='Genes', y = 'rSNPs') +
     theme_bw()+
     #guides(fill = FALSE) +
     #ggtitle("rSNPs and associated genes") +
     #theme(legend.position="none")+
     guides(fill = guide_legend(title = "Genes"))+
-    theme(plot.title = element_text(hjust = 0.5, 
-                                    size = 10),
+    theme(legend.title = element_text(size=10),
+          legend.text = element_text(size=8))+
+    #ggtitle("Predicted TFs in the corresponding tissue/cell type") +
+    coord_flip() +
+    #theme(legend.position="none")+
+    theme(plot.title = element_text(hjust = 0.5,size = 10),
           axis.title = element_text(size=10))+
-    theme(axis.text.x = element_text(angle = 90,
+    theme(axis.text.x = element_text(angle = 0, 
                                      vjust = 1, 
-                                     hjust = 1),
+                                     hjust = 1, 
+                                     size = 5),
+          axis.text.y = element_text(size=5),
           panel.grid.major= element_blank(),
           panel.grid.minor = element_blank())
-  
+
   
   plot_grid(A, B, C,  labels=c("A", "B", "C"), ncol = 2, nrow = 2)
 }
