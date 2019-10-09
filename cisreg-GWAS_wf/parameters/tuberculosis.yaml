@@ -1,7 +1,7 @@
 ## Query trait (disease) + genome project and population for the linkage disequilibrium
 query: 
   ID: EFO_0008407     ## Mandatory: unambiguous disease ID (must be supported in the GWAS catalog)
-  trait:  malaria     ## Trait name (optional if not provided, will be obtained based on query ID)
+  trait: tuberculosis     ## Trait name (optional if not provided, will be obtained based on query ID)
   ld.pop.prefix: '1000GENOMES:phase_3:' ## genome project used as reference for the LD SNPs
   population: EUR     ## Population to extract LD SNPs
 

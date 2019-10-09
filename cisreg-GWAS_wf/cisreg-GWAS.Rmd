@@ -85,9 +85,12 @@ ptm <- proc.time()
 
 ## Specify a YAML file containing the parameters
 #parameter.file <- "parameters/malaria.yaml"
-#parameter.file <- "parameters/tuberculosis.yaml"
+#parameter.file <- "parameters/type2_diabetes.yaml"
+parameter.file <- "parameters/tuberculosis.yaml"
+#parameter.file <- "parameters/diabetic_neuphropathy.yaml"
 #parameter.file <- "parameters/sepsis.yaml"
-parameter.file <- "parameters/schizophrenia.yaml"
+#parameter.file <- "parameters/schizophrenia.yaml"
+
 
 
 
@@ -662,8 +665,11 @@ workflowSummary["valid rsIDs for BioMart"] <- nb.valid.DA.snp.ID
 
 
 
-```{r manhattan_plot}
-par(mfrow = c(1,2)) 
+```{r manhattan_plot, fig.cap=paste(sep="", "**Figure ", (fig.nb <- fig.nb +1), ". Manhattan plot of the significance SNPs from genome-wide association study (GWAS)**. The X-axis shows the chromosomes. The Y-axis represente the negative logarithm of the association P-value for each SNP. Each dot on the Manhattan plot signifies a SNP. The strongest associations have the smallest P-values"), out.width = "100%", fig.width=12, fig.height=8}
+
+
+
+#par(mfrow = c(1,1)) 
 
 ## Ckecking and select the valid SNPs rsID from GWAS catalog
 check.valid.snps <- merge(x = studiesPerSNP,
@@ -700,22 +706,23 @@ gwas.manhattan$CHR <- as.numeric(sort(gwas.manhattan$CHR))
 manhattan(gwas.manhattan, 
           col = c("blue4", "orange3"),
           main = "Manhattan Plot", 
+          logp = TRUE,
           annotatePval = 10e-08,
-          #cex = 1, 
-          cex.axis = 1)
+         cex.axis = 1
+          )
 
-qq(gwas.manhattan$P, main = "Q-Q plot of GWAS p-values")
+#qq(gwas.manhattan$P, main = "Q-Q plot of GWAS p-values")
 
-par(mfrow = c(1,1)) 
+#par(mfrow = c(1,1)) 
 
 ```
 
 
 
-```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),"**. (A) Disease-associated SNPs per chromosome. (B) Genomic context of disease-associated SNPs from GWAS catalog.** "), out.width="100%", fig.width=8, fig.height=6}
+```{r da_snps_barplot, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Disease-associated SNPs (DA-SNPs) features**. (A) Genes associated with DA-SNPs. (B) Genomic context of disease-associated SNPs from GWAS catalog."), out.width="100%", fig.width=8, fig.height=6}
 
 par(mfrow = c(1,2)) 
-df <- sort(table(valid.snps$MAPPED_GENE),  decreasing = FALSE)
+df <- sort(table(valid.snps$REPORTED.GENE.S.),  decreasing = FALSE)
 #par.ori <- par(no.readonly = TRUE)
 par(mar = c(5.1, 8, 9.1, 1.1))
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
@@ -724,13 +731,13 @@ barplot(height = df,
         #main = "A",
         xlab = "SNPs",
         #ylab = "",
-        xlim = c(0, max(df)*1.5),
+        xlim = c(0, max(df)*1.1),
         #ylim = c(0, 10),
         cex.axis = 1,
          cex.lab = 1,
         horiz = TRUE,
         col = "#BBDDFF",
-        cex.names = 1, 
+        cex.names = 0.8, 
         las = 1)
 #box()
 
@@ -874,10 +881,10 @@ workflowSummary["Union of DA and LD SNPs"] <- nbSNPs
 message("\tTotal number of DA and LD SNPs: ", nbSNPs)
 
 # Kable
-kable(head(LdSNPs), caption = paste0(
-  "Top of the table describing the variants in linkage disequilibrium (LD) with disease-associated (DA) SNPs. ",
-  " Min r2 = ", parameters$ensembl_LD$r2, ".", 
-  "Max window size = ", parameters$ensembl_LD$ld.distance, " kb. "))
+#kable(head(LdSNPs), caption = paste0(
+  #"Top of the table describing the variants in linkage disequilibrium (LD) with disease-associated (DA) SNPs. ",
+#  " Min r2 = ", parameters$ensembl_LD$r2, ".", 
+#  "Max window size = ", parameters$ensembl_LD$ld.distance, " kb. "))
 
 ```
 
@@ -958,27 +965,27 @@ snpInfo <- snpInfo[!duplicated(snpInfo$refsnp_id),]
 ```{r DA_LD_SNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Genomic context of disease-associated (DA) SNPs and LD SNPs.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
 # Barplot of genomic context of DA and LD SNPs
-snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
+#snpInfo$consequence_type_tv[snpInfo$consequence_type_tv == ""] <- "unknown"
 
 # barplot(sort(table(snpInfo$consequence_type_tv), decreasing = TRUE),
 #         #main = "Genomic context of DA and LD SNPs",
 #         las=2, cex.names = 0.7, col = "#207DC2", xlab="", ylab="Number of SNPs",)
 
 # Create a data frame
-Context <- snpInfo$consequence_type_tv
-DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
-
-## Make the frequencies numbers (rather than factors)
-DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
-
-#Barplot of genomic context of DA-SNPs
-ggplot(data = DA.df, aes(x = Context, y = Freq)) +
-  geom_bar(stat = "identity", fill = "#999966", color = "black") +
-  geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 4) +
-  xlab("Genomic context") +
-  ylab("Frequency") +
-  theme_test() +
-  coord_flip()
+# Context <- snpInfo$consequence_type_tv
+# DA.df <- data.frame(sort(table(Context), decreasing = FALSE))
+# 
+# ## Make the frequencies numbers (rather than factors)
+# DA.df$Freq <- as.numeric(as.character(DA.df$Freq))
+# 
+# #Barplot of genomic context of DA-SNPs
+# ggplot(data = DA.df, aes(x = Context, y = Freq)) +
+#   geom_bar(stat = "identity", fill = "#999966", color = "black") +
+#   geom_text(aes(label = Freq), vjust = -0.1, hjust = -0.5, size = 4) +
+#   xlab("Genomic context") +
+#   ylab("Frequency") +
+#   theme_test() +
+#   coord_flip()
 
 
 ```
@@ -1086,11 +1093,11 @@ barplot(height = sort(table(snpInfo$chr_name), decreasing = FALSE),
         main = "A",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 1.5,
-         cex.lab = 1.5,
+        cex.axis = 1,
+         cex.lab = 1,
         horiz = TRUE,
         col = "#006699",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
 
 ## Barplot with the distribution of SNPs in different types 
@@ -1101,15 +1108,15 @@ max.context <- length(ld.df)
 x <- barplot(height = ld.df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(ld.df)*1.1),
-        cex.axis = 1.5,
+        cex.axis = 1,
         main = "B",
         xlab = "SNPs",
-        cex.lab = 1.5,
+        cex.lab = 1,
         horiz = T, 
         col = "#006699",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
-text(x = ld.df[1:max.context], y = x, labels = ld.df[1:max.context], cex = 1.5, pos = 4)
+text(x = ld.df[1:max.context], y = x, labels = ld.df[1:max.context], cex = 1, pos = 4)
 
 ## Draw a barplot with the number of disease-associated SNPs per chromosome
 par(mar = c(5.1, 5.1, 3.1, 2.1))
@@ -1118,11 +1125,11 @@ barplot(height = sort(table(SOIs$chr_name), decreasing = FALSE),
         main = "C",
         xlab = "SNPs",
         ylab = "Chromosomes",
-        cex.axis = 1.5,
-         cex.lab = 1.5,
+        cex.axis = 1,
+         cex.lab = 1,
         horiz = TRUE,
         col = "#ffcc99",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
 #box()
 
@@ -1134,15 +1141,15 @@ max.context <- length(soi.df)
 x <- barplot(height = soi.df,
         #main = "Disease-associated SNPs per chromosome",
         xlim = c(0, max(soi.df)*1.1),
-        cex.axis = 1.5,
+        cex.axis = 1,
         main = "D",
         xlab = "SNPs",
-        cex.lab = 1.5,
+        cex.lab = 1,
         horiz = T, 
         col = "#ffcc99",
-        cex.names = 1.5, 
+        cex.names = 1, 
         las = 1)
-text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 1.5, pos = 4)
+text(x = soi.df[1:max.context], y = x, labels = soi.df[1:max.context], cex = 1, pos = 4)
 #box()
 ```
 
@@ -1300,7 +1307,7 @@ y <- barplot(
   snps.per.ldblock[1:max.snps],
   main = "Top-ranking LD blocks",
   horiz = TRUE, 
-  xlim = c(0, max(snps.per.ldblock)*1.1),
+  xlim = c(0, max(snps.per.ldblock)*1.5),
   las = 1, 
   cex.names = 1,
   col = "#0D5F05",
@@ -1386,27 +1393,27 @@ enrichSNPsResults <- xEnrichViewer(
 
 #par(mfrow = c(1,2))
 
-bp.fc <- xEnrichBarplot(
-  eTerm, top_num = 20, 
-  displayBy = "fc", 
-  FDR.cutoff = 0.05, 
-  bar.label = TRUE,
-  bar.label.size = 3.5, 
-  bar.color = "yellow-orange",
-  bar.width = 0.8, 
-  wrap.width = NULL, 
-  font.family = "sans",
-  signature = TRUE)
-print(bp.fc)
+# bp.fc <- xEnrichBarplot(
+#   eTerm, top_num = 20, 
+#   displayBy = "fc", 
+#   FDR.cutoff = 0.05, 
+#   bar.label = TRUE,
+#   bar.label.size = 3.5, 
+#   bar.color = "yellow-orange",
+#   bar.width = 0.8, 
+#   wrap.width = NULL, 
+#   font.family = "sans",
+#   signature = TRUE)
+# print(bp.fc)
 
 bp.adjp <- xEnrichBarplot(
   eTerm, top_num = 20, 
   displayBy = "adjp", 
   FDR.cutoff = 0.05, 
   bar.label = TRUE,
-  bar.label.size = 5, 
+  bar.label.size = 4, 
   bar.color = "yellow-orange",
-  bar.width = 0.8, 
+  bar.width = 0.9, 
   wrap.width = NULL, 
   font.family = "sans",
   signature = TRUE)
@@ -1415,6 +1422,12 @@ print(bp.adjp)
 #par(mfrow = c(1,1))
 
 ```
+
+
+
+
+
+
 
 
 ## RSAT variation-tools
@@ -1427,13 +1440,11 @@ The input data of variation-tools is a list of the SOIs. The prediction of regul
 
 2) *retrieve-variation-seq* : retrieves the sequence surrounding the variant, and produces one sequence for each allele. The tool can take as input a varBed file, and for organisms with Ensembl annotated variants. The output is provided in a format named varSeq, with each row giving one allele with its surrounding sequence. Each variant has a specific internal ID to accommodate several variants with various alleles in the same file.
 
-3) *variation-scan* : scanning of the sequence of alleles of each SOI (in varSeq format) with a given PSSM  and compares the scores and p-values between alleles to assess the putative effect on TF binding. PSSM are used to assess the binding specificity of a TF, this affinity is calculated as a weight score (Ws) described by Hertz GZ and Stormo GD [@hertz_identifying_1999]. *variation-scan* compares the obtained Ws (Ws difference = Ws_Allele1 - Ws_Alelle2) and the P-value (P-value ratio = P-value_Allele1 / P-value_Allele2) of each of the alleles, position by position throughout the scanning window.
+3) *variation-scan* : scanning of the sequence of alleles of each SOI (in varSeq format) with a given PSSM  and compares the scores and p-values between alleles to assess the putative effect on TF binding. PSSM are used to assess the binding specificity of a TF, this affinity is calculated as a weight score (Ws) described by Hertz GZ and Stormo GD [@noauthor_rsat_nodate]. *variation-scan* compares the obtained Ws (Ws difference = Ws_Allele1 - Ws_Alelle2) and the P-value (P-value ratio = P-value_Allele1 / P-value_Allele2) of each of the alleles, position by position throughout the scanning window.
 
 **Ws = ln( P(S|M))/P(S/B)**
 
 where S is a sequence segment of the same length of M, M is the PSSM, and B is the background model. Hence, P(S|M) is the probability of the sequence given the PSSM and P(S|B) is the probability of the sequence given the background model.
-
-
 
 
 
@@ -1700,7 +1711,7 @@ par(mfrow = c(1,1))
 ## JvH 2019-08-02: YVON, ce plot n'eest pas très informatif. 
 ## Il pourrait éventuellement le deveenir si tu appliques le clustering
 ## aux lignes (SNPs) et motifs (colonnes).
-ggplot(varscan.jaspar.merged, aes(label, var_id)) + geom_tile(aes(fill = -log10(best_pval)),
+ggplot(varscan.jaspar.merged, aes(name, var_id)) + geom_tile(aes(fill = -log10(best_pval)),
      colour = "white") + 
      labs(x='Motifs', y = 'SNPs')+
       theme_bw()+
@@ -1709,6 +1720,7 @@ ggplot(varscan.jaspar.merged, aes(label, var_id)) + geom_tile(aes(fill = -log10(
       #theme(legend.position="none")+
       theme(plot.title = element_text(hjust = 0.5,size = 10),axis.title = element_text(size=15))+
       theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+
 
 ```
 
@@ -2158,8 +2170,8 @@ if (length(SNPs.per.ReMap.TF) > max.tf) {
 barplot(rev(SNPs.per.ReMap.TF[1:max.tf]),
         main = "Top-ranking TFs for SNP overlap",
         las = 1, 
-        cex.names = 1.3, 
-        cex.axis = 1.5,
+        cex.names = 1, 
+        cex.axis = 1,
         col = "#37A3F3", 
         border = "#05245F",
         horiz = TRUE
@@ -2170,14 +2182,110 @@ par(mfrow = c(1,1))
 
 
 
+## Functional enrichment analysis of genes associated with the SOIs
 
-## Exploring tissue-specific gene enrichment associated with the SOI
+We performe the functional enrichment analysis to identify predominant biological themes among the genes associated with the SOIs (Gene Of Interest, GOI) by incorporating biological knowledge provided by biological ontologies.
 
-### Tissue-specific gene enrichment bar chart
+
+```{r functional_analysis_rSNPs, results=FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
+
+  # SOI.gene.bed <- SOIs.annotations[, c("chromosome_name", "start_position", "end_position", "hgnc_symbol")]
+  # 
+  # SOI.gene.bed <- na.omit(SOI.gene.bed)
+  # SOI.gene.bed <- SOI.gene.bed[!duplicated(SOI.gene.bed$start_position),]
+  # 
+  # #View(SOI.gene.bed)
+  # 
+  # SOI.gene.bed.gr <- with(SOI.gene.bed,
+  #                       GRanges( seqnames = Rle(chromosome_name),
+  #                                ranges   = IRanges(start =  start_position, end =  end_position),
+  #                                strand   = Rle("*")))
+  # 
+  # 
+  # 
+  # geneAnno <- annotatePeak(SOI.gene.bed.gr, #tssRegion=c(-3000, 3000),
+  #                          TxDb=txdb, annoDb = "org.Hs.eg.db")
+  # 
+  # #print(geneAnno)
+  # 
+  # result <- try({
+  #   gene <- seq2gene(SOI.gene.bed.gr, 
+  #                    tssRegion = c(-1000, 1000), 
+  #                    flankDistance = 3000, 
+  #                    TxDb = txdb);
+  #   pathway2 <- enrichPathway(gene);
+  #   head(pathway2, 2);
+  #   dotplot(pathway2)
+  # })
+
+```
+
+
+We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
+
+```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Each horizontal row corresponds to one enriched term. The adjusted P-value represents the enrichment scores and gene count or ratio as circle and color.")}
+
+#### Gene enrichment analysis with DOSE::DisGeNET ####
+
+  # Select the GOI
+  geneList <- na.omit(SOIs.annotations$entrezgene_id)
+  nbGeneList <- length(geneList)
+  geneList <- sort(unique(geneList))
+  
+    ## Checking the enrichment gene-disease associations in DisGeNET
+    edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
+    
+    ## Barplot of enrichment gene-disease associations from DisGeNET
+    #barplot(edo, showCategory=20)
+    
+    ## Doplot of enrichment gene-disease associations from DisGeNET
+    dotplot(edo, showCategory=20) + ggtitle("Dotplot for over representation analysis")
+
+```
+
+
+
+```{r results=FALSE, circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms**. This circular network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
+
+    ## convert gene ID to Symbol
+    edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
+    
+    
+    ## Circular network of the linkages of genes and biological concepts
+    
+    #cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
+
+    ## categorySize can be scaled by 'pvalue' or 'geneNum'
+#cnetplot(edox, categorySize="pvalue", foldChange=geneList)
+```
+
+
+
+
+```{r results=FALSE, emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets.**")}
+
+    #emapplot(edo)
+
+```
+
+
+```{r results=FALSE, heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of genes of interest (GOI) and enriched terms.**")}
+
+    #heatplot(edox, foldChange=geneList)
+
+```
+
+
+
+
+
+### Exploring tissue-specific gene enrichment associated with the SOI
+
+#### Tissue-specific gene enrichment bar chart
 
 The below bar charts shown the tissue-specific gene enrichment.
 
-```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment values. The plot shows the visualization tissue-specific gene enrichment using the −Log10(P−Value) (A) and the fold-change values (B).")}
+```{r tissue_specific_gene_enrichment, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Tissue-specific gene enrichment.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene enrichment values. The plot shows the visualization tissue-specific gene enrichment using the −Log10(P−Value) (up) and the fold-change values (below).")}
 
 message("Tissue-specific gene enrichment analysis")
 
@@ -2200,7 +2308,7 @@ if (nrow(SOIs.annotations) == 0) {
     enrichmentOutput$Tissue <- row.names(enrichmentOutput)
     
 
-    A <- ggplot(enrichmentOutput,
+ggplot(enrichmentOutput,
            aes(x=reorder(Tissue,-Log10PValue),
                y=Log10PValue,
                label = Tissue.Specific.Genes,
@@ -2210,29 +2318,29 @@ if (nrow(SOIs.annotations) == 0) {
       theme_bw()+
       theme(legend.position="none")+
       theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
+            axis.title = element_text(size=10))+
       theme(axis.text.x = element_text(angle = 45, 
                                        vjust = 1, hjust = 1),
             panel.grid.major= element_blank(),
             panel.grid.minor = element_blank())
     
     
-    B <- ggplot(enrichmentOutput,
-           aes(x=reorder(Tissue,-fold.change),
-               y=fold.change,label = Tissue.Specific.Genes,
-               fill = Tissue))+
-      geom_bar(stat = 'identity')+
-      labs(x='', y = 'Fold change')+
-      theme_bw()+
-      theme(legend.position="none")+
-      theme(plot.title = element_text(hjust = 0.5,size = 20),
-            axis.title = element_text(size=15))+
-      theme(axis.text.x = element_text(angle = 45, 
-                                       vjust = 1, hjust = 1),
-            panel.grid.major= element_blank(),
-            panel.grid.minor = element_blank())
-    
-     plot_grid(A, B,  labels=c("A", "B"), ncol = 1, nrow = 2)
+    # B <- ggplot(enrichmentOutput,
+    #        aes(x=reorder(Tissue,-fold.change),
+    #            y=fold.change,label = Tissue.Specific.Genes,
+    #            fill = Tissue))+
+    #   geom_bar(stat = 'identity')+
+    #   labs(x='', y = 'Fold change')+
+    #   theme_bw()+
+    #   theme(legend.position="none")+
+    #   theme(plot.title = element_text(hjust = 0.5,size = 20),
+    #         axis.title = element_text(size=10))+
+    #   theme(axis.text.x = element_text(angle = 45, 
+    #                                    vjust = 1, hjust = 1),
+    #         panel.grid.major= element_blank(),
+    #         panel.grid.minor = element_blank())
+    # 
+    #  plot_grid(A, B, ncol = 1, nrow = 2)
 
   }
 }
@@ -2241,12 +2349,14 @@ if (nrow(SOIs.annotations) == 0) {
 
 
 
-### Heatmap to show expression profile of tissue-specific genes
+
+
+#### Heatmap to show expression profile of tissue-specific genes
 
 In this section, we vizualise in the form of a heatmap the expression values of the tissue-specific genes identified from the input gene set.
 
 
-```{r expression_value, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Expression profile of tissue-specific genes.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene expression. The plot shows the visualization tissue-specific gene enrichment using the −Log10(P−Value) (A) and the fold-change values (B).")}
+```{r expression_value, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste0("**Figure ",(fig.nb <- fig.nb +1),". Expression profile of tissue-specific genes.** The x-axis shows each of the tissues, and the y-axis represents the tissue-specific gene expression.")}
 seExp <- output[[2]][["Cerebral Cortex"]]
 exp <- setNames(data.frame(assay(seExp), row.names = rowData(seExp)[,1]), colData(seExp)[,1])
 exp$Gene <- row.names(exp)
@@ -2254,8 +2364,8 @@ exp <- exp %>% gather(Tissue=1:(ncol(exp)-1))
 #View(exp)
 
 ggplot(exp, aes(key, Gene)) + geom_tile(aes(fill = value),
-     colour = "white") + scale_fill_gradient(low = "white",
-     high = "steelblue")+
+     colour = "white") + scale_fill_gradient(low = "steelblue",
+     high = "red")+
      labs(x='', y = '')+
       theme_bw()+
       guides(fill = guide_legend(title = "Log2(TPM)"))+
@@ -2275,7 +2385,7 @@ We compute the profile ChIP-seq binding to TSS regions overlapped with the haplo
 
 ```{r chip-seq_peak_annotation, results = FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5}
 
-# Create TxDb object contained transcript-related features of a particular hg38 human genome
+  # Create TxDb object 
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
 
 
@@ -2469,8 +2579,53 @@ rSNPs.info <- merge(varscan.with.peaks,
 
 rSNPs.info.display <- rSNPs.info[, c("chrom", "hgnc_symbol",  "var_id", "pos_Start", "var_class", "best_variant", "worst_variant" , "best_pval", "pval_ratio", "X.ac_motif", "name",  "consequence_type_tv")]
 
-kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
+#kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 
+
+```
+
+
+
+
+
+
+```{r plot_remap_vs_varscan}
+## Plotting the number of TFs founded by remap and by variation-scan
+
+
+
+plot(SOIs.annotations[, c("ReMap.nb.TFs" ,"varscan.TF.nb")], 
+     pch = 20, 
+     bty="o",
+     cex.axis = 1,
+     #cex.main = 1,
+     cex.lab = 1.5,
+     col = c("blue", "red"),
+     main = "Distribution of transcription factors (TFs)",
+     xlab = "TFs from ReMap",
+     ylab = "TFs from variation-scan",
+     panel.first = grid(col = "#DDDDDD", lty = "solid"))
+legend("topright", legend = c("ReMap", "variation-scan"), cex = 1, col = c("blue", "red"), pch = 20)
+
+
+df1 <- as.matrix(SOIs.annotations[, c("ReMap.nb.TFs" ,"varscan.TF.nb", "remap.inter.varscan.nb.TFs")])
+
+df <- as.matrix(data.frame("variation-scan" = sum(SOIs.annotations$varscan.TF.nb),
+                           ReMap.vs.varscan = sum(SOIs.annotations$remap.inter.varscan.nb.TFs),
+                           ReMap = sum(SOIs.annotations$ReMap.nb.TFs)
+                           
+))
+
+
+
+barplot(sort(df),
+        las = 1, 
+        cex.names = 1, 
+        cex.axis = 1,
+         xlim = c(0, max(df)*1.1),
+        #col = "#37A3F3", 
+        border = "#05245F",
+        horiz = TRUE)
 
 ```
 
@@ -2479,7 +2634,7 @@ kable(head(rSNPs.info.display), caption = "Predicted regulatory SNPs")
 
 We using `ChIPseeker` R package to annotate the ChIP-seq peaks co-localised with the rSNPs. We presente the genomic annotations of the ChIP-seq paeks co-localised with the rSNPs
 
-```{r peak_annotation_rSNPs, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5, warning=FALSE}
+```{r peak_annotation_rSNPs, results=FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Pieplot of genomic annotation. Annotation of the location of a given peak in terms of genomic features.** "), out.width = "80%", fig.width=8, fig.height=4.5, warning=FALSE}
 
 if (nrow(rSNPs.info) == 0) {
   message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping peak annotations. ")
@@ -2657,12 +2812,12 @@ if (nrow(varscan.with.peaks) == 0) {
   message("Skipping TF/tissue figure because the merging between RSAT variation-scan and ReMap did not return a single rSNP. ")
 } else {
   snp.tf <- varscan.with.peaks %>% 
-    dplyr::select(label, var_id) %>% 
-    dplyr::group_by(var_id, label) %>% 
+    dplyr::select(name, var_id) %>% 
+    dplyr::group_by(var_id, name) %>% 
     dplyr::summarise(N = n()) 
   
-  A <- ggplot(snp.tf, aes(label, var_id)) + 
-    geom_tile(aes(fill = label)) +
+  A <- ggplot(snp.tf, aes(name, var_id)) + 
+    geom_tile(aes(fill = name)) +
     labs(x='TFs', y = 'rSNPs') +
     theme_bw()+
     guides(fill = guide_legend(title = "TFs"))+
@@ -2709,15 +2864,21 @@ if (nrow(varscan.with.peaks) == 0) {
     dplyr::summarise(N = n()) 
   
   C <- ggplot(gene.ass, aes(hgnc_symbol, var_id)) + 
-    geom_tile(aes(fill = var_id)) +
+    geom_tile(aes(fill = hgnc_symbol)) +
     labs(x='Genes', y = 'rSNPs') +
     theme_bw()+
     #guides(fill = FALSE) +
     #ggtitle("rSNPs and associated genes") +
     #theme(legend.position="none")+
     guides(fill = guide_legend(title = "Genes"))+
-    theme(plot.title = element_text(hjust = 0.5, size = 10),axis.title = element_text(size=10))+
-    theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1),panel.grid.major= element_blank(),panel.grid.minor = element_blank())
+    theme(plot.title = element_text(hjust = 0.5, 
+                                    size = 10),
+          axis.title = element_text(size=10))+
+    theme(axis.text.x = element_text(angle = 90,
+                                     vjust = 1, 
+                                     hjust = 1),
+          panel.grid.major= element_blank(),
+          panel.grid.minor = element_blank())
   
   
   plot_grid(A, B, C,  labels=c("A", "B", "C"), ncol = 2, nrow = 2)
@@ -2728,128 +2889,6 @@ if (nrow(varscan.with.peaks) == 0) {
 
 
 
-### Functional enrichment analysis 
-
-We performe the functional enrichment analysis to identify predominant biological themes among the genes associated with the rSNPs (Gene Of Interest, GOI) by incorporating biological knowledge provided by biological ontologies.
-
-
-```{r functional_analysis_rSNPs, results=FALSE, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Functional enrichment analysis of the gene in reactome biological pathway. This is a subset of most enrichissed terms. The p.adjust represent the enriched score and the number of gene by dot size.** "), out.width = "80%", fig.width=8, fig.height=4.5}
-
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping gene annotation ")
-  
-} else {
-  
-  rSNPs.gene.bed <- rSNPs.info[, c("seqnames", "start.1", "end.1")]
-  
-  rSNPs.gene.gr <- with(rSNPs.gene.bed,
-                        GRanges( seqnames = Rle(seqnames),
-                                 ranges   = IRanges(start =  start.1, end =  end.1),
-                                 strand   = Rle("*")))
-  
-  geneAnno <- annotatePeak(rSNPs.gene.gr, #tssRegion=c(-3000, 3000),
-                           TxDb=txdb, annoDb = "org.Hs.eg.db")
-  
-  print(geneAnno)
-  
-  result <- try({
-    gene <- seq2gene(rSNPs.gene.gr, 
-                     tssRegion = c(-1000, 1000), 
-                     flankDistance = 3000, 
-                     TxDb = txdb);
-    pathway2 <- enrichPathway(gene);
-    head(pathway2, 2);
-    dotplot(pathway2)
-  })
-  
-}
-
-```
-
-
-We compute the enrichment of gene-disease associations with DisGeNET (Janet et al. 2015) from several public data sources and the literature. DisGeNET contains also gene-disease associations and SNP-gene-disease associations.
-
-```{r gene_enrich, results=FALSE, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Top 30 significant enriched terms of functional enrichment of the genes of interest (GOI) using enrichment gene-disease associations of DisGeNET (Janet et al. 2015)**. Visualize of the enriched terms. The adjusted P-value represents the enrichment scores and gene count or ratio as bar height and color.")}
-
-#### Gene enrichment analysis with DOSE::DisGeNET ####
-
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping enrichDGN() ")
-  
-} else {
-  
-  # Select the GOI
-  geneList <- na.omit(rSNPs.info$entrezgene_id)
-  rSNPS.nb.genes <- length(geneList)
-  
-  if (rSNPS.nb.genes == 0) {
-    message("Not a single gene is associated to the candidate rSNPs - skipping gene enrichment analysis")
-    
-  } else if (rSNPS.nb.genes < parameters$enrich$min.genes) {
-    message("The number of genes associated to the candidate rSNPs (", rSNPS.nb.genes, ")",
-    " is lower than the user-specified threshold (", parameters$enrich$min.genes, "). ", 
-    "Skipping gene enrichment analysis")
-    
-  } else {
-    
-    ## Checking the enrichment gene-disease associations in DisGeNET
-    edo <- enrichDGN(geneList, pvalueCutoff = 0.05, pAdjustMethod = "fdr")
-    
-    ## Barplot of enrichment gene-disease associations from DisGeNET
-    barplot(edo)
-  }
-}
-
-```
-
-
-
-```{r results=FALSE, circular_network, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Gene-concept network of the significant terms**. This circular network represents the potential biological complexities in which a gene may belong to multiple annotation categories.")}
-
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping cnetplot() ")
-  
-} else {
-  
-  if (exists("edo")) {
-  
-    ## convert gene ID to Symbol
-    edox <- setReadable(edo, 'org.Hs.eg.db', 'ENTREZID')
-    
-    
-    ## Circular network of the linkages of genes and biological concepts
-    
-    cnetplot(edox, foldChange=geneList, circular = TRUE, colorEdge = TRUE)
-  }
-}
-
-```
-
-
-
-```{r results=FALSE, emaplot,  out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Enrichment map of terms into a network with edges connecting overlapping gene sets.**")}
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping emapplot() ")
-  
-} else {
-  if (exists("edo")) {
-    emapplot(edo)
-  }
-}
-```
-
-
-```{r results=FALSE, heatmap_expression_patterns, out.width = "80%", fig.width=8, fig.height=4.5, fig.cap=paste(sep="", "**Figure ",(fig.nb <- fig.nb +1),". Heatmap of expression patterns of genes of interest (GOI) and enriched terms.**")}
-if (nrow(rSNPs.info) == 0) {
-  message("The merging between RSAT variation-scan and ReMap ChIP-seq peaks did not return a single predicted rSNP. Skipping heatplot() ")
-  
-} else {
-  if (exists("edo")) {
-    heatplot(edox, foldChange=geneList)
-  }
-}
-
-```
 
 
 
