@@ -9,16 +9,11 @@ digraph {
 	edge [fontname="ArialMT",fontsize="10",labelfontname="ArialMT",labelfontsize="10", arrowsize="0.5", color="#666666"];
 	node [fontname="ArialMT",fontsize="10",shape=record,height="0.2", color="#666666"];
 
-	
 
-
-		
 	gwas_catalog [shape = "cylinder", style = "rounded,filled", fillcolor = "#D6EEFA", label = "GWAS catalog \n REST API", URL = "http://www.ebi.ac.uk/gwas/"];
 
 
 	gwas_catalog -> download
-
-#F8EE2B
 
 
 		 download [shape="record", style="filled", fillcolor="#FFEEDD", label="{Disease-associated  variants features | tab-delimited}"]
