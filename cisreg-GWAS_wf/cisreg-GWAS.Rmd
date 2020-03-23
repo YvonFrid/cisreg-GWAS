@@ -549,7 +549,6 @@ message("SNPs with non-rs identifier: ", length(nonrsIDs))
 
 
 
-
 In total, we found `r nb.DA.rsIDs` **disease-associated (DA) SNPs** from GWAS catalog.
 
 
